@@ -1,0 +1,231 @@
+<Window x:Class="DashboardService.Views.CurrentMembersWindow"
+        xmlns="http://schemas.microsoft.com/winfx/2006/xaml/presentation"
+        xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
+        Title="Current Members"
+        Width="980"
+        Height="620"
+        WindowStartupLocation="CenterOwner"
+        ResizeMode="CanResize"
+        Background="{DynamicResource ModalBgBrush}"
+        Icon="pack://application:,,,/Assets/app.ico">
+
+    <Window.Resources>
+        <BooleanToVisibilityConverter x:Key="BooleanToVisibilityConverter"/>
+    </Window.Resources>
+
+    <Grid Margin="24">
+        <Grid.RowDefinitions>
+            <RowDefinition Height="Auto"/>
+            <RowDefinition Height="16"/>
+            <RowDefinition Height="*"/>
+            <RowDefinition Height="16"/>
+            <RowDefinition Height="Auto"/>
+        </Grid.RowDefinitions>
+
+        <Grid>
+            <StackPanel VerticalAlignment="Center">
+                <TextBlock Text="Current Members"
+                           FontSize="24"
+                           FontWeight="Bold"
+                           Foreground="{DynamicResource TextPrimaryBrush}"/>
+                <TextBlock x:Name="SubtitleText"
+                           Text="All employees currently inside chambers"
+                           FontSize="13"
+                           Foreground="{DynamicResource TextMutedBrush}"
+                           Margin="0,4,0,0"/>
+            </StackPanel>
+
+            <StackPanel Orientation="Horizontal" HorizontalAlignment="Right">
+                <Button x:Name="StopAllVoiceButton"
+                        Content="Stop All Voice"
+                        Width="130"
+                        Height="36"
+                        Margin="0,0,10,0"
+                        Background="#DC2626"
+                        Foreground="White"
+                        BorderThickness="0"
+                        FontWeight="Bold"
+                        Visibility="Collapsed"
+                        Click="StopAllVoice_Click"/>
+                <Button Content="Close"
+                        Width="90"
+                        Height="36"
+                        Background="{DynamicResource ButtonSecondaryBgBrush}"
+                        Foreground="{DynamicResource ButtonSecondaryFgBrush}"
+                        BorderBrush="{DynamicResource CardBorderBrush}"
+                        BorderThickness="1"
+                        Click="Close_Click"/>
+            </StackPanel>
+        </Grid>
+
+        <Border Grid.Row="2"
+                Background="{DynamicResource ModalCardBrush}"
+                CornerRadius="14"
+                BorderBrush="{DynamicResource CardBorderBrush}"
+                BorderThickness="1"
+                Padding="8">
+
+            <DataGrid x:Name="MembersGrid"
+                      AutoGenerateColumns="False"
+                      IsReadOnly="True"
+                      CanUserAddRows="False"
+                      HeadersVisibility="Column"
+                      GridLinesVisibility="Horizontal"
+                      BorderThickness="0"
+                      RowHeight="56"
+                      Background="{DynamicResource ModalCardBrush}"
+                      Foreground="{DynamicResource TextPrimaryBrush}"
+                      RowBackground="{DynamicResource ModalCardBrush}"
+                      AlternatingRowBackground="{DynamicResource AltRowBgBrush}"
+                      HorizontalGridLinesBrush="{DynamicResource GridLineBrush}"
+                      SelectionUnit="FullRow"
+                      SelectionMode="Single">
+
+                <DataGrid.Resources>
+                    <Style TargetType="DataGridColumnHeader">
+                        <Setter Property="Background" Value="{DynamicResource DataGridHeaderBgBrush}"/>
+                        <Setter Property="Foreground" Value="{DynamicResource DataGridHeaderFgBrush}"/>
+                        <Setter Property="FontSize" Value="11"/>
+                        <Setter Property="FontWeight" Value="SemiBold"/>
+                        <Setter Property="Height" Value="44"/>
+                        <Setter Property="Padding" Value="14,0"/>
+                        <Setter Property="BorderBrush" Value="{DynamicResource GridLineBrush}"/>
+                        <Setter Property="BorderThickness" Value="0,0,0,1"/>
+                    </Style>
+
+                    <Style TargetType="DataGridCell">
+                        <Setter Property="BorderThickness" Value="0"/>
+                        <Setter Property="Padding" Value="14,0"/>
+                        <Setter Property="VerticalContentAlignment" Value="Center"/>
+                        <Setter Property="Foreground" Value="{DynamicResource TextPrimaryBrush}"/>
+                        <Setter Property="Background" Value="Transparent"/>
+                        <Style.Triggers>
+                            <Trigger Property="IsSelected" Value="True">
+                                <Setter Property="Background" Value="Transparent"/>
+                                <Setter Property="Foreground" Value="{DynamicResource TextPrimaryBrush}"/>
+                            </Trigger>
+                        </Style.Triggers>
+                    </Style>
+
+                    <Style TargetType="DataGridRow">
+                        <Setter Property="Background" Value="{DynamicResource ModalCardBrush}"/>
+                        <Setter Property="BorderThickness" Value="0"/>
+                        <Setter Property="Template">
+                            <Setter.Value>
+                                <ControlTemplate TargetType="DataGridRow">
+                                    <Border x:Name="RowBorder"
+                                            Background="{TemplateBinding Background}"
+                                            BorderBrush="{DynamicResource GridLineBrush}"
+                                            BorderThickness="0,0,0,1"
+                                            SnapsToDevicePixels="True">
+                                        <SelectiveScrollingGrid>
+                                            <SelectiveScrollingGrid.ColumnDefinitions>
+                                                <ColumnDefinition Width="Auto"/>
+                                                <ColumnDefinition Width="*"/>
+                                            </SelectiveScrollingGrid.ColumnDefinitions>
+                                            <DataGridCellsPresenter Grid.Column="1"/>
+                                        </SelectiveScrollingGrid>
+                                    </Border>
+
+                                    <ControlTemplate.Triggers>
+                                        <Trigger Property="IsMouseOver" Value="True">
+                                            <Setter TargetName="RowBorder" Property="Background" Value="{DynamicResource RowHoverBrush}"/>
+                                        </Trigger>
+
+                                        <DataTrigger Binding="{Binding Status}" Value="Attention">
+                                            <Setter TargetName="RowBorder" Property="Background" Value="{DynamicResource StatusAttentionBgBrush}"/>
+                                        </DataTrigger>
+
+                                        <DataTrigger Binding="{Binding Status}" Value="Warning">
+                                            <Setter TargetName="RowBorder" Property="Background" Value="{DynamicResource StatusWarningBgBrush}"/>
+                                        </DataTrigger>
+
+                                        <DataTrigger Binding="{Binding Status}" Value="Violation">
+                                            <Setter TargetName="RowBorder" Property="Background" Value="{DynamicResource StatusViolationBgBrush}"/>
+                                            <DataTrigger.EnterActions>
+                                                <BeginStoryboard x:Name="ViolationBlinkStoryboard">
+                                                    <Storyboard RepeatBehavior="Forever" AutoReverse="True">
+                                                        <DoubleAnimation
+                                                            Storyboard.TargetName="RowBorder"
+                                                            Storyboard.TargetProperty="Opacity"
+                                                            From="1"
+                                                            To="0.55"
+                                                            Duration="0:0:0.8"/>
+                                                    </Storyboard>
+                                                </BeginStoryboard>
+                                            </DataTrigger.EnterActions>
+                                            <DataTrigger.ExitActions>
+                                                <StopStoryboard BeginStoryboardName="ViolationBlinkStoryboard"/>
+                                            </DataTrigger.ExitActions>
+                                        </DataTrigger>
+                                    </ControlTemplate.Triggers>
+                                </ControlTemplate>
+                            </Setter.Value>
+                        </Setter>
+                    </Style>
+                </DataGrid.Resources>
+
+                <DataGrid.Columns>
+                    <DataGridTextColumn Header="EMPLOYEE" Binding="{Binding EmployeeName}" Width="1.6*"/>
+                    <DataGridTextColumn Header="ID" Binding="{Binding EmployeeId}" Width="0.7*"/>
+                    <DataGridTextColumn Header="CHAMBER" Binding="{Binding ChamberName}" Width="1.2*"/>
+                    <DataGridTextColumn Header="IN TIME" Binding="{Binding EntryTime, StringFormat={}{0:hh:mm:ss tt}}" Width="1.2*"/>
+                    <DataGridTextColumn Header="TIME REMAINING" Binding="{Binding Countdown}" Width="1.3*">
+                        <DataGridTextColumn.ElementStyle>
+                            <Style TargetType="TextBlock">
+                                <Setter Property="FontWeight" Value="ExtraBold"/>
+                                <Setter Property="FontSize" Value="14"/>
+                                <Setter Property="Foreground" Value="{DynamicResource TextPrimaryBrush}"/>
+                                <Setter Property="VerticalAlignment" Value="Center"/>
+                            </Style>
+                        </DataGridTextColumn.ElementStyle>
+                    </DataGridTextColumn>
+                    <DataGridTextColumn Header="STATUS" Binding="{Binding Status}" Width="0.9*"/>
+                    <DataGridTemplateColumn Header="VOICE" Width="0.8*">
+                        <DataGridTemplateColumn.CellTemplate>
+                            <DataTemplate>
+                                <Button Content="Stop"
+                                        Width="70"
+                                        Height="30"
+                                        FontWeight="Bold"
+                                        Background="#DC2626"
+                                        Foreground="White"
+                                        BorderThickness="0"
+                                        Cursor="Hand"
+                                        Click="StopMemberVoice_Click"
+                                        Visibility="{Binding ShowStopVoice, Converter={StaticResource BooleanToVisibilityConverter}}"/>
+                            </DataTemplate>
+                        </DataGridTemplateColumn.CellTemplate>
+                    </DataGridTemplateColumn>
+                </DataGrid.Columns>
+            </DataGrid>
+        </Border>
+
+        <Grid Grid.Row="4">
+            <TextBlock x:Name="PageInfoText"
+                       VerticalAlignment="Center"
+                       Foreground="{DynamicResource TextMutedBrush}"
+                       FontSize="13"/>
+
+            <StackPanel Orientation="Horizontal" HorizontalAlignment="Right">
+                <Button x:Name="PrevButton"
+                        Content="Previous"
+                        Width="100"
+                        Height="36"
+                        Margin="0,0,10,0"
+                        Background="{DynamicResource ButtonSecondaryBgBrush}"
+                        Foreground="{DynamicResource ButtonSecondaryFgBrush}"
+                        BorderBrush="{DynamicResource CardBorderBrush}"
+                        Click="Prev_Click"/>
+                <Button x:Name="NextButton"
+                        Content="Next"
+                        Width="100"
+                        Height="36"
+                        Background="{DynamicResource AccentBrush}"
+                        Foreground="White"
+                        BorderThickness="0"
+                        Click="Next_Click"/>
+            </StackPanel>
+        </Grid>
+    </Grid>
+</Window>

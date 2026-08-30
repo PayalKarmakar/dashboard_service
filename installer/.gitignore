@@ -1,0 +1,6 @@
+publish/
+output/
+SrpLauncher/bin/
+SrpLauncher/obj/
+*.user
+.vs/

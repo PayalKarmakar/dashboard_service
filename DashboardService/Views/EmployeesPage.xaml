@@ -1,0 +1,303 @@
+<Page x:Class="DashboardService.Views.EmployeesPage"
+      xmlns="http://schemas.microsoft.com/winfx/2006/xaml/presentation"
+      xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
+      Background="{DynamicResource AppBgBrush}">
+
+    <Page.Resources>
+        <Style x:Key="SidebarButtonStyle" TargetType="Button">
+            <Setter Property="Height" Value="48"/>
+            <Setter Property="Margin" Value="0,3,0,3"/>
+            <Setter Property="Background" Value="Transparent"/>
+            <Setter Property="Foreground" Value="{DynamicResource SidebarTextBrush}"/>
+            <Setter Property="BorderThickness" Value="0"/>
+            <Setter Property="Cursor" Value="Hand"/>
+            <Setter Property="FontSize" Value="14"/>
+            <Setter Property="HorizontalContentAlignment" Value="Stretch"/>
+            <Setter Property="Template">
+                <Setter.Value>
+                    <ControlTemplate TargetType="Button">
+                        <Border x:Name="ButtonBorder" Background="{TemplateBinding Background}" CornerRadius="12">
+                            <ContentPresenter VerticalAlignment="Center" HorizontalAlignment="Stretch" Margin="16,0"/>
+                        </Border>
+                        <ControlTemplate.Triggers>
+                            <Trigger Property="IsMouseOver" Value="True">
+                                <Setter TargetName="ButtonBorder" Property="Background" Value="{DynamicResource SidebarHoverBgBrush}"/>
+                                <Setter Property="Foreground" Value="{DynamicResource SidebarTextActiveBrush}"/>
+                            </Trigger>
+                        </ControlTemplate.Triggers>
+                    </ControlTemplate>
+                </Setter.Value>
+            </Setter>
+        </Style>
+    </Page.Resources>
+
+    <Grid>
+        <Grid.ColumnDefinitions>
+            <ColumnDefinition Width="230"/>
+            <ColumnDefinition Width="*"/>
+        </Grid.ColumnDefinitions>
+
+        <Border Grid.Column="0" ClipToBounds="True"
+                Background="{DynamicResource SidebarBgBrush}">
+            <Grid>
+                <Ellipse Width="220" Height="220"
+                         Fill="#14FFFFFF"
+                         HorizontalAlignment="Left"
+                         VerticalAlignment="Top"
+                         Margin="-90,-80,0,0"
+                         IsHitTestVisible="False"/>
+                <Ellipse Width="160" Height="160"
+                         Fill="#10FFFFFF"
+                         HorizontalAlignment="Right"
+                         VerticalAlignment="Bottom"
+                         Margin="0,0,-50,-40"
+                         IsHitTestVisible="False"/>
+
+                <Border x:Name="SidebarSciFiOverlay"
+                        Opacity="0"
+                        IsHitTestVisible="False">
+                    <Border.Background>
+                        <DrawingBrush TileMode="Tile" Viewport="0,0,28,28" ViewportUnits="Absolute">
+                            <DrawingBrush.Drawing>
+                                <GeometryDrawing>
+                                    <GeometryDrawing.Pen>
+                                        <Pen Brush="#3322D3EE" Thickness="0.6"/>
+                                    </GeometryDrawing.Pen>
+                                    <GeometryDrawing.Geometry>
+                                        <GeometryGroup>
+                                            <LineGeometry StartPoint="0,0" EndPoint="28,0"/>
+                                            <LineGeometry StartPoint="0,0" EndPoint="0,28"/>
+                                        </GeometryGroup>
+                                    </GeometryDrawing.Geometry>
+                                </GeometryDrawing>
+                            </DrawingBrush.Drawing>
+                        </DrawingBrush>
+                    </Border.Background>
+                </Border>
+
+                <Grid>
+                    <Grid.RowDefinitions>
+                        <RowDefinition Height="160"/>
+                        <RowDefinition Height="*"/>
+                        <RowDefinition Height="95"/>
+                    </Grid.RowDefinitions>
+
+                    <StackPanel Grid.Row="0" Margin="24,32,20,0">
+                        <Border Width="48" Height="48"
+                                CornerRadius="14"
+                                Background="#22FFFFFF"
+                                HorizontalAlignment="Left"
+                                Margin="0,0,0,16"
+                                Padding="6">
+                            <Image Source="pack://application:,,,/Assets/logo.png"
+                                   Stretch="Uniform"
+                                   RenderOptions.BitmapScalingMode="HighQuality"/>
+                        </Border>
+
+                        <TextBlock Text="SRP INNOVATIONS"
+                                   FontSize="11"
+                                   FontWeight="Bold"
+                                   Foreground="{DynamicResource SidebarBrandBrush}"/>
+
+                        <TextBlock Text="Smart Chamber"
+                                   FontSize="20"
+                                   FontWeight="Bold"
+                                   Foreground="{DynamicResource SidebarTextActiveBrush}"
+                                   Margin="0,6,0,0"/>
+
+                        <TextBlock Text="Monitoring"
+                                   FontSize="20"
+                                   FontWeight="Bold"
+                                   Foreground="{DynamicResource SidebarTextActiveBrush}"
+                                   Margin="0,-2,0,0"/>
+
+                        <Border Height="1"
+                                Background="#33FFFFFF"
+                                Margin="0,18,20,0"/>
+                    </StackPanel>
+
+                    <StackPanel Grid.Row="1" Margin="14,10,14,0">
+                        <Button Style="{StaticResource SidebarButtonStyle}" Click="DashboardMenu_Click">
+                            <StackPanel Orientation="Horizontal">
+                                <TextBlock Text="▦" FontSize="19" Width="30" VerticalAlignment="Center"/>
+                                <TextBlock Text="Dashboard" VerticalAlignment="Center"/>
+                            </StackPanel>
+                        </Button>
+                        <Button Style="{StaticResource SidebarButtonStyle}" Click="ChambersMenu_Click">
+                            <StackPanel Orientation="Horizontal">
+                                <TextBlock Text="◈" FontSize="18" Width="30" VerticalAlignment="Center"/>
+                                <TextBlock Text="Chambers" VerticalAlignment="Center"/>
+                            </StackPanel>
+                        </Button>
+                        <Button Style="{StaticResource SidebarButtonStyle}"
+                                Background="{DynamicResource SidebarActiveBgBrush}"
+                                Foreground="{DynamicResource SidebarTextActiveBrush}">
+                            <StackPanel Orientation="Horizontal">
+                                <TextBlock Text="♙" FontSize="18" Width="30" VerticalAlignment="Center"/>
+                                <TextBlock Text="Employees" FontWeight="SemiBold" VerticalAlignment="Center"/>
+                            </StackPanel>
+                        </Button>
+                        <Button Style="{StaticResource SidebarButtonStyle}" Click="ReadersMenu_Click">
+                            <StackPanel Orientation="Horizontal">
+                                <TextBlock Text="⊛" FontSize="18" Width="30" VerticalAlignment="Center"/>
+                                <TextBlock Text="RFID Readers" VerticalAlignment="Center"/>
+                            </StackPanel>
+                        </Button>
+                        <Button Style="{StaticResource SidebarButtonStyle}" Click="ReportsToggle_Click">
+                            <Grid>
+                                <StackPanel Orientation="Horizontal">
+                                    <TextBlock Text="▤" FontSize="18" Width="30" VerticalAlignment="Center"/>
+                                    <TextBlock Text="Reports" VerticalAlignment="Center"/>
+                                </StackPanel>
+                                <TextBlock x:Name="ReportsArrowText"
+                                           Text="▼"
+                                           FontSize="10"
+                                           HorizontalAlignment="Right"
+                                           VerticalAlignment="Center"
+                                           Margin="0,0,4,0"/>
+                            </Grid>
+                        </Button>
+                        <StackPanel x:Name="ReportsSubMenuPanel"
+                                    Margin="18,0,0,4"
+                                    Visibility="Collapsed">
+                            <Button Style="{StaticResource SidebarButtonStyle}"
+                                    Height="40"
+                                    Click="EntryExitReportMenu_Click">
+                                <StackPanel Orientation="Horizontal">
+                                    <TextBlock Text="▸" FontSize="14" Width="24" VerticalAlignment="Center"/>
+                                    <TextBlock Text="Entry / Exit" VerticalAlignment="Center"/>
+                                </StackPanel>
+                            </Button>
+                            <Button Style="{StaticResource SidebarButtonStyle}"
+                                    Height="40"
+                                    Click="ChamberEmployeesReportMenu_Click">
+                                <StackPanel Orientation="Horizontal">
+                                    <TextBlock Text="▸" FontSize="14" Width="24" VerticalAlignment="Center"/>
+                                    <TextBlock Text="Chamber Employees" VerticalAlignment="Center"/>
+                                </StackPanel>
+                            </Button>
+                        </StackPanel>
+                    </StackPanel>
+
+                    <StackPanel Grid.Row="2"
+                                VerticalAlignment="Center"
+                                HorizontalAlignment="Center"
+                                Margin="12,0,12,10">
+                        <TextBlock Text="© 2026 SRP Innovations"
+                                   Foreground="{DynamicResource SidebarBrandBrush}"
+                                   FontSize="10"
+                                   TextAlignment="Center"
+                                   HorizontalAlignment="Center"/>
+                        <TextBlock Margin="0,8,0,0"
+                                   FontSize="10"
+                                   TextAlignment="Center"
+                                   HorizontalAlignment="Center"
+                                   Foreground="{DynamicResource SidebarFooterBrush}">
+                            <Run Text="Designed &amp; Developed by "/>
+                            <Hyperlink NavigateUri="https://codeinq.com/"
+                                       RequestNavigate="CodeInqLink_RequestNavigate"
+                                       Foreground="{DynamicResource SidebarLinkBrush}"
+                                       FontWeight="SemiBold"
+                                       TextDecorations="Underline"
+                                       Cursor="Hand">
+                                <Run Text="CodeInQ"/>
+                            </Hyperlink>
+                        </TextBlock>
+                    </StackPanel>
+                </Grid>
+            </Grid>
+        </Border>
+
+        <Grid Grid.Column="1" Margin="34,28,34,28">
+            <Grid.RowDefinitions>
+                <RowDefinition Height="Auto"/>
+                <RowDefinition Height="24"/>
+                <RowDefinition Height="*"/>
+            </Grid.RowDefinitions>
+
+            <Grid>
+                <StackPanel VerticalAlignment="Center">
+                    <TextBlock Text="Employees" FontSize="28" FontWeight="Bold" Foreground="{DynamicResource TextPrimaryBrush}"/>
+                    <TextBlock Text="Add employees and map RFID cards to chambers" FontSize="13" Foreground="{DynamicResource TextMutedBrush}" Margin="0,4,0,0"/>
+                </StackPanel>
+                <Button x:Name="AddEmployeeButton"
+                        Content="Add Employee"
+                        Width="150"
+                        Height="42"
+                        HorizontalAlignment="Right"
+                        Background="{DynamicResource AccentBrush}"
+                        Foreground="White"
+                        BorderThickness="0"
+                        FontWeight="SemiBold"
+                        Click="AddEmployee_Click"/>
+            </Grid>
+
+            <Border Grid.Row="2" Background="{DynamicResource CardBgBrush}" CornerRadius="16" BorderBrush="{DynamicResource CardBorderBrush}" BorderThickness="1" Padding="8">
+                <DataGrid x:Name="EmployeesGrid"
+                          AutoGenerateColumns="False"
+                          IsReadOnly="True"
+                          CanUserAddRows="False"
+                          HeadersVisibility="Column"
+                          GridLinesVisibility="Horizontal"
+                          BorderThickness="0"
+                          Background="{DynamicResource CardBgBrush}"
+                          Foreground="{DynamicResource TextPrimaryBrush}"
+                          RowBackground="{DynamicResource CardBgBrush}"
+                          AlternatingRowBackground="{DynamicResource AltRowBgBrush}"
+                          HorizontalGridLinesBrush="{DynamicResource GridLineBrush}">
+                    <DataGrid.Resources>
+                        <Style TargetType="DataGridColumnHeader">
+                            <Setter Property="Background" Value="{DynamicResource DataGridHeaderBgBrush}"/>
+                            <Setter Property="Foreground" Value="{DynamicResource DataGridHeaderFgBrush}"/>
+                            <Setter Property="FontWeight" Value="SemiBold"/>
+                            <Setter Property="Height" Value="42"/>
+                            <Setter Property="Padding" Value="12,0"/>
+                        </Style>
+                        <Style TargetType="DataGridCell">
+                            <Setter Property="Foreground" Value="{DynamicResource TextPrimaryBrush}"/>
+                            <Setter Property="BorderThickness" Value="0"/>
+                            <Setter Property="Padding" Value="12,0"/>
+                            <Setter Property="VerticalContentAlignment" Value="Center"/>
+                            <Setter Property="Background" Value="Transparent"/>
+                            <Style.Triggers>
+                                <Trigger Property="IsSelected" Value="True">
+                                    <Setter Property="Background" Value="Transparent"/>
+                                    <Setter Property="Foreground" Value="{DynamicResource TextPrimaryBrush}"/>
+                                </Trigger>
+                            </Style.Triggers>
+                        </Style>
+                        <Style TargetType="DataGridRow">
+                            <Setter Property="Background" Value="{DynamicResource CardBgBrush}"/>
+                            <Setter Property="Foreground" Value="{DynamicResource TextPrimaryBrush}"/>
+                        </Style>
+                        <Style x:Key="DataGridTextCellStyle" TargetType="TextBlock">
+                            <Setter Property="Foreground" Value="{DynamicResource TextPrimaryBrush}"/>
+                            <Setter Property="VerticalAlignment" Value="Center"/>
+                        </Style>
+                    </DataGrid.Resources>
+                    <DataGrid.Columns>
+                        <DataGridTextColumn Header="CODE" Binding="{Binding EmployeeCode}" Width="0.8*" ElementStyle="{StaticResource DataGridTextCellStyle}"/>
+                        <DataGridTextColumn Header="NAME" Binding="{Binding EmployeeName}" Width="1.3*" ElementStyle="{StaticResource DataGridTextCellStyle}"/>
+                        <DataGridTextColumn Header="CARD UID" Binding="{Binding CardUid}" Width="*" ElementStyle="{StaticResource DataGridTextCellStyle}"/>
+                        <DataGridTextColumn Header="DEPARTMENT" Binding="{Binding Department}" Width="*" ElementStyle="{StaticResource DataGridTextCellStyle}"/>
+                        <DataGridTextColumn Header="DESIGNATION" Binding="{Binding Designation}" Width="*" ElementStyle="{StaticResource DataGridTextCellStyle}"/>
+                        <DataGridTextColumn Header="MOBILE" Binding="{Binding Mobile}" Width="*" ElementStyle="{StaticResource DataGridTextCellStyle}"/>
+                        <DataGridTextColumn Header="CHAMBER" Binding="{Binding ChamberName}" Width="*" ElementStyle="{StaticResource DataGridTextCellStyle}"/>
+                        <DataGridTextColumn Header="STATUS" Binding="{Binding Status}" Width="0.7*" ElementStyle="{StaticResource DataGridTextCellStyle}"/>
+                        <DataGridTemplateColumn Header="ACTION" Width="110">
+                            <DataGridTemplateColumn.CellTemplate>
+                                <DataTemplate>
+                                    <Button Content="{Binding ToggleActionText}"
+                                            Padding="8,4"
+                                            Margin="4,2"
+                                            Cursor="Hand"
+                                            Click="ToggleActive_Click"/>
+                                </DataTemplate>
+                            </DataGridTemplateColumn.CellTemplate>
+                        </DataGridTemplateColumn>
+                    </DataGrid.Columns>
+                </DataGrid>
+            </Border>
+        </Grid>
+    </Grid>
+</Page>
