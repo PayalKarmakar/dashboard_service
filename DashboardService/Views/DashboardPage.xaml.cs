@@ -22,11 +22,17 @@ namespace DashboardService.Views
 
         public ObservableCollection<Employee> PreviewEmployees { get; set; }
 
+        public ObservableCollection<RfidReaderLiveStatus> ConnectedRfidReaders { get; set; }
+
+        public ObservableCollection<RfidReaderLiveStatus> DisconnectedRfidReaders { get; set; }
+
         private readonly DispatcherTimer _countdownTimer;
         private readonly DispatcherTimer _refreshTimer;
         
         private readonly User _currentUser;
         private readonly MonitoringService _monitoringService = new();
+        private readonly RfidReaderStatusService _rfidReaderStatusService = new();
+        private readonly AlertMessageService _alertMessageService = new();
         private readonly VoiceAnnouncementService _voiceAnnouncementService;
         private readonly HashSet<long> _announcementInFlight = new();
         private readonly HashSet<long> _enqueuedAlertIds = new();
@@ -60,16 +66,17 @@ namespace DashboardService.Views
             _voiceAnnouncementService = new VoiceAnnouncementService(alertId => _monitoringService.MarkAnnouncementPlayedAsync(alertId));
             _voiceAnnouncementService.VoicePlayingChanged += VoiceAnnouncementService_VoicePlayingChanged;
 
-            // TEMPORARY VOICE TEST
-            _voiceAnnouncementService.AnnounceSensorOnce("This is a sensor voice test.");
-
             Chambers = new ObservableCollection<ChamberDashboard>();
             Employees = new ObservableCollection<Employee>();
             PreviewEmployees = new ObservableCollection<Employee>();
+            ConnectedRfidReaders = new ObservableCollection<RfidReaderLiveStatus>();
+            DisconnectedRfidReaders = new ObservableCollection<RfidReaderLiveStatus>();
             ActiveSensorViolations = new ObservableCollection<SensorViolation>(); //Payal
 
             ChambersItemsControl.ItemsSource = Chambers;
             MembersDataGrid.ItemsSource = PreviewEmployees;
+            ConnectedReadersItemsControl.ItemsSource = ConnectedRfidReaders;
+            DisconnectedReadersItemsControl.ItemsSource = DisconnectedRfidReaders;
 
             _countdownTimer = new DispatcherTimer
             {
@@ -274,7 +281,7 @@ namespace DashboardService.Views
             _enqueuedAlertIds.Add(announcement.AlertId);
             _voiceAnnouncementService.StartLooping(
                 announcement.TransactionId,
-                announcement.Message,
+                announcement.GetVoiceLines(),
                 announcement.AlertId);
         }
 
@@ -334,6 +341,7 @@ namespace DashboardService.Views
                 UpdateCountdowns();
                 UpdateDashboardSummary();
                 SyncVoicePlayingFlags();
+                await RefreshRfidReaderStatusAsync();
                 await EnqueueUnplayedAnnouncementsAsync();
                 await ProcessDueAnnouncementsAsync();
                 UpdateSensorDisplay();
@@ -347,6 +355,53 @@ namespace DashboardService.Views
                     MessageBoxButton.OK,
                     MessageBoxImage.Error);
             }
+        }
+
+        private async Task RefreshRfidReaderStatusAsync()
+        {
+            var snapshot = await _rfidReaderStatusService.GetStatusAsync();
+
+            ConnectedRfidReaders.Clear();
+            DisconnectedRfidReaders.Clear();
+
+            if (!snapshot.ServiceAvailable)
+            {
+                RfidServiceStatusText.Text =
+                    snapshot.Message ?? "RFID service is not running.";
+                ConnectedReadersCountText.Text = "(—)";
+                DisconnectedReadersCountText.Text = "(—)";
+                NoConnectedReadersText.Text = "RFID service unavailable.";
+                NoDisconnectedReadersText.Text = "Start RFID service to see reader status.";
+                NoConnectedReadersText.Visibility = Visibility.Visible;
+                NoDisconnectedReadersText.Visibility = Visibility.Visible;
+                return;
+            }
+
+            foreach (var reader in snapshot.Connected)
+            {
+                ConnectedRfidReaders.Add(reader);
+            }
+
+            foreach (var reader in snapshot.Disconnected)
+            {
+                DisconnectedRfidReaders.Add(reader);
+            }
+
+            RfidServiceStatusText.Text =
+                $"{snapshot.Connected.Count} connected · {snapshot.Disconnected.Count} disconnected";
+
+            ConnectedReadersCountText.Text = $"({snapshot.Connected.Count})";
+            DisconnectedReadersCountText.Text = $"({snapshot.Disconnected.Count})";
+
+            NoConnectedReadersText.Visibility =
+                snapshot.Connected.Count == 0
+                    ? Visibility.Visible
+                    : Visibility.Collapsed;
+
+            NoDisconnectedReadersText.Visibility =
+                snapshot.Disconnected.Count == 0
+                    ? Visibility.Visible
+                    : Visibility.Collapsed;
         }
 
         private void RefreshPreviewMembers()
@@ -513,7 +568,15 @@ namespace DashboardService.Views
                     }
 
                     UpdateStopAllButtonVisibility();
-                })
+                },
+                isVoicePlaying: transactionId =>
+                    _voiceAnnouncementService.IsPlaying(transactionId),
+                hasAnyVoicePlaying: () =>
+                    _voiceAnnouncementService.HasAnyPlaying,
+                subscribeVoicePlayingChanged: handler =>
+                    _voiceAnnouncementService.VoicePlayingChanged += handler,
+                unsubscribeVoicePlayingChanged: handler =>
+                    _voiceAnnouncementService.VoicePlayingChanged -= handler)
             {
                 Owner = Window.GetWindow(this)
             };
@@ -658,6 +721,37 @@ namespace DashboardService.Views
             AppNavigation.Go(NavigationService, "ChamberEmployeesReport", _currentUser);
         }
 
+        private void ChamberCriticalReportMenu_Click(object sender, RoutedEventArgs e)
+        {
+            _countdownTimer.Stop();
+            _refreshTimer.Stop();
+            AppNavigation.Go(NavigationService, "ChamberCriticalReport", _currentUser);
+        }
+
+        private void ProductionLossReportMenu_Click(object sender, RoutedEventArgs e)
+        {
+            _countdownTimer.Stop();
+            _refreshTimer.Stop();
+            AppNavigation.Go(NavigationService, "ProductionLossReport", _currentUser);
+        }
+
+        private void ConfigurationToggle_Click(object sender, RoutedEventArgs e) =>
+            SidebarMenuHelper.ToggleSubMenu(ConfigurationSubMenuPanel, ConfigurationArrowText);
+
+        private void SensorConfigurationMenu_Click(object sender, RoutedEventArgs e)
+        {
+            _countdownTimer.Stop();
+            _refreshTimer.Stop();
+            AppNavigation.Go(NavigationService, "SensorConfiguration", _currentUser);
+        }
+
+        private void CameraConfigurationMenu_Click(object sender, RoutedEventArgs e)
+        {
+            _countdownTimer.Stop();
+            _refreshTimer.Stop();
+            AppNavigation.Go(NavigationService, "CameraConfiguration", _currentUser);
+        }
+
         private void CodeInqLink_RequestNavigate(object sender, RequestNavigateEventArgs e)
         {
             ExternalLinks.OpenCodeInq();
@@ -738,36 +832,46 @@ namespace DashboardService.Views
         {
             SetSensorStatus(
                 "Temperature",
+                TemperatureCardBorder,
                 TemperatureStatusBorder,
                 TemperatureStatusText,
                 violations);
 
             SetSensorStatus(
                 "Humidity",
+                HumidityCardBorder,
                 HumidityStatusBorder,
                 HumidityStatusText,
                 violations);
 
             SetSensorStatus(
                 "CO",
+                CoCardBorder,
                 CoStatusBorder,
                 CoStatusText,
                 violations);
 
             SetSensorStatus(
                 "CO2",
+                Co2CardBorder,
                 Co2StatusBorder,
                 Co2StatusText,
                 violations);
 
             SetSensorStatus(
                 "O2",
+                OxygenCardBorder,
                 OxygenStatusBorder,
                 OxygenStatusText,
                 violations);
         }
 
-        private void SetSensorStatus(string parameter, Border statusBorder,TextBlock statusText, List<SensorViolation> violations)
+        private void SetSensorStatus(
+            string parameter,
+            Border cardBorder,
+            Border statusBorder,
+            TextBlock statusText,
+            List<SensorViolation> violations)
         {
             var parameterViolations = violations
                 .Where(v =>
@@ -796,6 +900,7 @@ namespace DashboardService.Views
                 statusText.Foreground =
                     new SolidColorBrush(Color.FromRgb(22, 101, 52));
 
+                cardBorder.Opacity = 1.0;
                 statusBorder.Opacity = 1.0;
 
                 return;
@@ -870,6 +975,7 @@ namespace DashboardService.Views
             statusText.Foreground =
                 new SolidColorBrush(Color.FromRgb(22, 101, 52));
 
+            cardBorder.Opacity = 1.0;
             statusBorder.Opacity = 1.0;
         }
 
@@ -877,36 +983,36 @@ namespace DashboardService.Views
         {
             _sensorBlinkState = !_sensorBlinkState;
 
-            UpdateBlink(
-                TemperatureStatusBorder,
+            UpdateSensorCardBlink(
+                TemperatureCardBorder,
                 TemperatureStatusText);
 
-            UpdateBlink(
-                HumidityStatusBorder,
+            UpdateSensorCardBlink(
+                HumidityCardBorder,
                 HumidityStatusText);
 
-            UpdateBlink(
-                CoStatusBorder,
+            UpdateSensorCardBlink(
+                CoCardBorder,
                 CoStatusText);
 
-            UpdateBlink(
-                Co2StatusBorder,
+            UpdateSensorCardBlink(
+                Co2CardBorder,
                 Co2StatusText);
 
-            UpdateBlink(
-                OxygenStatusBorder,
+            UpdateSensorCardBlink(
+                OxygenCardBorder,
                 OxygenStatusText);
         }
 
-        private void UpdateBlink(Border border,TextBlock text)
+        private void UpdateSensorCardBlink(Border cardBorder, TextBlock statusText)
         {
-            if (text.Text == "NORMAL")
+            if (statusText.Text == "NORMAL")
             {
-                border.Opacity = 1.0;
+                cardBorder.Opacity = 1.0;
                 return;
             }
 
-            border.Opacity = _sensorBlinkState
+            cardBorder.Opacity = _sensorBlinkState
                 ? 1.0
                 : 0.55;
         }
@@ -947,21 +1053,41 @@ namespace DashboardService.Views
                     continue;
                 }
 
-                string message =
-                    currentSeverity == "CRITICAL"
-                        ? settings.CriticalMessage
-                        : settings.WarningMessage;
+                var templates = await _alertMessageService.GetTemplatesAsync(
+                    AlertMessageService.CategorySensor,
+                    currentSeverity);
 
-                message = message
-                    .Replace(
-                        "{Parameter}",
-                        violation.Parameter)
-                    .Replace(
-                        "{ChamberName}",
-                        $"Chamber {violation.ChamberId}");
+                string chamberName = $"Chamber {violation.ChamberId}";
+                var voiceLines = new List<VoiceAnnouncementLine>();
 
-                _voiceAnnouncementService
-                    .AnnounceSensorOnce(message);
+                if (templates.TryGetValue(settings.EnglishVoiceCulture, out string? englishTemplate) &&
+                    !string.IsNullOrWhiteSpace(englishTemplate))
+                {
+                    voiceLines.Add(new VoiceAnnouncementLine(
+                        MonitoringService.FormatSensorMessage(
+                            englishTemplate,
+                            violation.Parameter,
+                            chamberName),
+                        settings.EnglishVoiceCulture));
+                }
+
+                if (templates.TryGetValue(settings.BengaliVoiceCulture, out string? bengaliTemplate) &&
+                    !string.IsNullOrWhiteSpace(bengaliTemplate))
+                {
+                    voiceLines.Add(new VoiceAnnouncementLine(
+                        MonitoringService.FormatSensorMessage(
+                            bengaliTemplate,
+                            violation.Parameter,
+                            chamberName),
+                        settings.BengaliVoiceCulture));
+                }
+
+                if (voiceLines.Count == 0)
+                {
+                    continue;
+                }
+
+                _voiceAnnouncementService.AnnounceOnce(voiceLines);
 
                 await _monitoringService
                     .MarkSensorViolationAnnouncedAsync(

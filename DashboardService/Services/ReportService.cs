@@ -154,4 +154,301 @@ public class ReportService
 
         return rows;
     }
+
+    public async Task<List<ChamberCriticalReportRow>> GetChamberCriticalReportAsync(
+        DateTime fromDate,
+        DateTime toDate,
+        long? chamberId = null,
+        string? parameterSearch = null,
+        string? severityFilter = null)
+    {
+        var violations = await GetSensorViolationRecordsAsync(
+            fromDate,
+            toDate,
+            chamberId,
+            parameterSearch,
+            severityFilter);
+        DateTime rangeStart = fromDate.Date;
+        DateTime rangeEnd = toDate.Date.AddDays(1).AddTicks(-1);
+
+        return violations
+            .Select(v => MapCriticalRow(v, rangeStart, rangeEnd))
+            .OrderByDescending(r => r.StartedAt)
+            .ToList();
+    }
+
+    public async Task<List<ProductionLossReportRow>> GetProductionLossReportAsync(
+        DateTime fromDate,
+        DateTime toDate,
+        long? chamberId = null)
+    {
+        var violations = await GetSensorViolationRecordsAsync(
+            fromDate,
+            toDate,
+            chamberId,
+            parameterSearch: null,
+            severityFilter: null);
+        DateTime rangeStart = fromDate.Date;
+        DateTime rangeEnd = toDate.Date.AddDays(1).AddTicks(-1);
+
+        var intervalsByChamber = violations
+            .GroupBy(v => v.ChamberId)
+            .ToDictionary(
+                g => g.Key,
+                g => g.Select(v => ClipInterval(v.StartedAt, v.EndedAt, rangeStart, rangeEnd)).ToList());
+
+        var rows = new List<ProductionLossReportRow>();
+
+        foreach (var group in intervalsByChamber)
+        {
+            var chamberViolations = violations.Where(v => v.ChamberId == group.Key).ToList();
+            var sample = chamberViolations[0];
+
+            foreach (var merged in MergeIntervals(group.Value))
+            {
+                bool ongoing = chamberViolations.Any(v =>
+                    v.EndedAt == null
+                    && v.StartedAt <= merged.End
+                    && merged.Start <= DateTime.Now);
+
+                rows.Add(new ProductionLossReportRow
+                {
+                    ChamberId = group.Key,
+                    ChamberCode = sample.ChamberCode,
+                    ChamberName = sample.ChamberName,
+                    LossStartedAt = merged.Start,
+                    LossEndedAt = ongoing ? null : merged.End,
+                    IsOngoing = ongoing,
+                    Duration = merged.End - merged.Start
+                });
+            }
+        }
+
+        return rows
+            .OrderByDescending(r => r.LossStartedAt)
+            .ThenBy(r => r.ChamberName)
+            .ToList();
+    }
+
+    public static string FormatTotalDuration(IEnumerable<ProductionLossReportRow> rows)
+    {
+        var total = TimeSpan.FromSeconds(rows.Sum(r => Math.Max(0, r.Duration.TotalSeconds)));
+        return ReportDurationFormatter.Format(total);
+    }
+
+    private async Task<List<SensorViolationRecord>> GetSensorViolationRecordsAsync(
+        DateTime fromDate,
+        DateTime toDate,
+        long? chamberId,
+        string? parameterSearch,
+        string? severityFilter)
+    {
+        var records = new List<SensorViolationRecord>();
+
+        DateTime from = fromDate.Date;
+        DateTime to = toDate.Date.AddDays(1).AddTicks(-1);
+
+        await using var connection = new NpgsqlConnection(_configurationService.GetConnectionString());
+        await connection.OpenAsync();
+
+        const string sql = @"
+            SELECT
+                sv.sensor_violations_id,
+                sv.chamber_id,
+                COALESCE(c.chamber_code, ''),
+                COALESCE(c.chamber_name, ''),
+                sv.parameter,
+                sv.unit,
+                sv.actual_value_at_start,
+                sv.threshold_value,
+                sv.started_at,
+                sv.ended_at,
+                UPPER(COALESCE(
+                    NULLIF(TRIM(sv.final_severity), ''),
+                    NULLIF(TRIM(sv.creation_severity), ''),
+                    NULLIF(TRIM(sv.status), ''),
+                    'WARNING'
+                )) AS severity
+            FROM public.sensor_violations sv
+            LEFT JOIN public.master_chambers c
+                ON c.chamber_id = sv.chamber_id
+            WHERE UPPER(COALESCE(
+                    NULLIF(TRIM(sv.final_severity), ''),
+                    NULLIF(TRIM(sv.creation_severity), ''),
+                    NULLIF(TRIM(sv.status), ''),
+                    ''
+                  )) IN ('WARNING', 'CRITICAL')
+              AND sv.started_at <= @toDate
+              AND (sv.ended_at IS NULL OR sv.ended_at >= @fromDate)
+              AND (@chamberId = 0 OR sv.chamber_id = @chamberId)
+              AND (
+                    @parameterSearch = ''
+                    OR LOWER(sv.parameter) LIKE @parameterLike
+                  )
+              AND (
+                    @severity = ''
+                    OR UPPER(COALESCE(
+                        NULLIF(TRIM(sv.final_severity), ''),
+                        NULLIF(TRIM(sv.creation_severity), ''),
+                        NULLIF(TRIM(sv.status), ''),
+                        ''
+                    )) = UPPER(@severity)
+                  )
+            ORDER BY sv.started_at DESC;
+        ";
+
+        string parameter = (parameterSearch ?? string.Empty).Trim();
+        string severity = (severityFilter ?? string.Empty).Trim();
+
+        await using var command = new NpgsqlCommand(sql, connection);
+        command.Parameters.AddWithValue("fromDate", from);
+        command.Parameters.AddWithValue("toDate", to);
+        command.Parameters.AddWithValue("chamberId", chamberId ?? 0L);
+        command.Parameters.AddWithValue("parameterSearch", parameter);
+        command.Parameters.AddWithValue("parameterLike", $"%{parameter.ToLowerInvariant()}%");
+        command.Parameters.AddWithValue("severity", severity);
+
+        await using var reader = await command.ExecuteReaderAsync();
+
+        while (await reader.ReadAsync())
+        {
+            records.Add(new SensorViolationRecord
+            {
+                SensorViolationId = reader.GetInt64(0),
+                ChamberId = reader.GetInt64(1),
+                ChamberCode = reader.GetString(2),
+                ChamberName = reader.GetString(3),
+                Parameter = reader.GetString(4),
+                Unit = reader.IsDBNull(5) ? null : reader.GetString(5),
+                ActualValueAtStart = reader.GetDecimal(6),
+                ThresholdValue = reader.GetDecimal(7),
+                StartedAt = reader.GetDateTime(8),
+                EndedAt = reader.IsDBNull(9) ? null : reader.GetDateTime(9),
+                Severity = reader.GetString(10)
+            });
+        }
+
+        return records;
+    }
+
+    private static ChamberCriticalReportRow MapCriticalRow(
+        SensorViolationRecord violation,
+        DateTime rangeStart,
+        DateTime rangeEnd)
+    {
+        var interval = ClipInterval(violation.StartedAt, violation.EndedAt, rangeStart, rangeEnd);
+        bool ongoing = violation.EndedAt == null;
+
+        return new ChamberCriticalReportRow
+        {
+            SensorViolationId = violation.SensorViolationId,
+            ChamberId = violation.ChamberId,
+            ChamberCode = violation.ChamberCode,
+            ChamberName = violation.ChamberName,
+            Parameter = violation.Parameter,
+            Unit = violation.Unit,
+            ActualValueAtStart = violation.ActualValueAtStart,
+            ThresholdValue = violation.ThresholdValue,
+            StartedAt = interval.Start,
+            EndedAt = ongoing ? null : interval.End,
+            IsOngoing = ongoing,
+            Duration = interval.End - interval.Start,
+            Severity = violation.Severity
+        };
+    }
+
+    private static TimeInterval ClipInterval(
+        DateTime startedAt,
+        DateTime? endedAt,
+        DateTime rangeStart,
+        DateTime rangeEnd)
+    {
+        DateTime effectiveEnd = endedAt ?? DateTime.Now;
+        if (effectiveEnd > rangeEnd)
+        {
+            effectiveEnd = rangeEnd;
+        }
+
+        DateTime effectiveStart = startedAt < rangeStart ? rangeStart : startedAt;
+        if (effectiveEnd < effectiveStart)
+        {
+            effectiveEnd = effectiveStart;
+        }
+
+        return new TimeInterval
+        {
+            Start = effectiveStart,
+            End = effectiveEnd
+        };
+    }
+
+    private static List<TimeInterval> MergeIntervals(List<TimeInterval> intervals)
+    {
+        if (intervals.Count == 0)
+        {
+            return intervals;
+        }
+
+        var sorted = intervals
+            .OrderBy(i => i.Start)
+            .ToList();
+
+        var merged = new List<TimeInterval> { sorted[0] };
+
+        for (int i = 1; i < sorted.Count; i++)
+        {
+            var current = sorted[i];
+            var last = merged[^1];
+
+            if (current.Start <= last.End)
+            {
+                if (current.End > last.End)
+                {
+                    last.End = current.End;
+                }
+            }
+            else
+            {
+                merged.Add(new TimeInterval
+                {
+                    Start = current.Start,
+                    End = current.End
+                });
+            }
+        }
+
+        return merged;
+    }
+
+    private sealed class SensorViolationRecord
+    {
+        public long SensorViolationId { get; set; }
+
+        public long ChamberId { get; set; }
+
+        public string ChamberCode { get; set; } = string.Empty;
+
+        public string ChamberName { get; set; } = string.Empty;
+
+        public string Parameter { get; set; } = string.Empty;
+
+        public string? Unit { get; set; }
+
+        public decimal ActualValueAtStart { get; set; }
+
+        public decimal ThresholdValue { get; set; }
+
+        public DateTime StartedAt { get; set; }
+
+        public DateTime? EndedAt { get; set; }
+
+        public string Severity { get; set; } = string.Empty;
+    }
+
+    private sealed class TimeInterval
+    {
+        public DateTime Start { get; set; }
+
+        public DateTime End { get; set; }
+    }
 }

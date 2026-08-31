@@ -181,19 +181,31 @@
                         </DataGridTextColumn.ElementStyle>
                     </DataGridTextColumn>
                     <DataGridTextColumn Header="STATUS" Binding="{Binding Status}" Width="0.9*"/>
-                    <DataGridTemplateColumn Header="VOICE" Width="0.8*">
+                    <DataGridTemplateColumn Header="VOICE" Width="1.1*">
                         <DataGridTemplateColumn.CellTemplate>
                             <DataTemplate>
-                                <Button Content="Stop"
-                                        Width="70"
-                                        Height="30"
-                                        FontWeight="Bold"
-                                        Background="#DC2626"
-                                        Foreground="White"
-                                        BorderThickness="0"
-                                        Cursor="Hand"
-                                        Click="StopMemberVoice_Click"
-                                        Visibility="{Binding ShowStopVoice, Converter={StaticResource BooleanToVisibilityConverter}}"/>
+                                <StackPanel Orientation="Horizontal" VerticalAlignment="Center">
+                                    <Border Background="#F59E0B"
+                                            CornerRadius="6"
+                                            Padding="8,4"
+                                            Margin="0,0,8,0"
+                                            Visibility="{Binding IsVoicePlaying, Converter={StaticResource BooleanToVisibilityConverter}}">
+                                        <TextBlock Text="{Binding VoicePlayingLabel}"
+                                                   FontSize="11"
+                                                   FontWeight="Bold"
+                                                   Foreground="White"/>
+                                    </Border>
+                                    <Button Content="Stop"
+                                            Width="70"
+                                            Height="30"
+                                            FontWeight="Bold"
+                                            Background="#DC2626"
+                                            Foreground="White"
+                                            BorderThickness="0"
+                                            Cursor="Hand"
+                                            Click="StopMemberVoice_Click"
+                                            Visibility="{Binding ShowStopVoice, Converter={StaticResource BooleanToVisibilityConverter}}"/>
+                                </StackPanel>
                             </DataTemplate>
                         </DataGridTemplateColumn.CellTemplate>
                     </DataGridTemplateColumn>

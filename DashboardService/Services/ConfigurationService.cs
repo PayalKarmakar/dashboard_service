@@ -66,15 +66,11 @@ public class ConfigurationService
     {
         return new SensorAlertSettings
         {
-            VoiceEnabled = ReadBool("SensorSettings:SensorAlertSettings:VoiceEnabled", true),
-
-            RepeatAfterMinutes = ReadPositiveInt("SensorSettings:SensorAlertSettings:RepeatAfterMinutes", 5),
-
-            SensorViolationDbCheckIntervalSeconds = ReadPositiveInt("SensorSettings:SensorAlertSettings:SensorViolationDbCheckIntervalSeconds",2),
-
-            WarningMessage = ReadMessage("SensorSettings:SensorAlertSettings:Messages:WARNING",string.Empty),
-
-            CriticalMessage = ReadMessage( "SensorSettings:SensorAlertSettings:Messages:CRITICAL",string.Empty)
+            VoiceEnabled = ReadBool("SensorAlertSettings:VoiceEnabled", true),
+            RepeatAfterMinutes = ReadPositiveInt("SensorAlertSettings:RepeatAfterMinutes", 5),
+            SensorViolationDbCheckIntervalSeconds = ReadPositiveInt("SensorAlertSettings:SensorViolationDbCheckIntervalSeconds", 2),
+            EnglishVoiceCulture = ReadMessage("SensorAlertSettings:EnglishVoiceCulture", "en-IN"),
+            BengaliVoiceCulture = ReadMessage("SensorAlertSettings:BengaliVoiceCulture", "bn-IN")
         };
     }
 
@@ -120,5 +116,9 @@ public class ConfigurationService
         return string.IsNullOrWhiteSpace(value) ? fallback : value;
     }
 
-
+    public string? ReadRawMessage(string key)
+    {
+        string? value = _configuration[key];
+        return string.IsNullOrWhiteSpace(value) ? null : value.Trim();
+    }
 }

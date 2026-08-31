@@ -1,5 +1,6 @@
 using System.Collections.Concurrent;
 using System.Speech.Synthesis;
+using DashboardService.Models;
 
 namespace DashboardService.Services;
 
@@ -17,10 +18,9 @@ public sealed class VoiceAnnouncementService : IDisposable
     private volatile bool _disposed;
     private long? _currentlySpeakingKey;
 
-    private readonly ConcurrentQueue<string> _sensorAnnouncements = new();
+    private readonly ConcurrentQueue<VoiceAnnouncementLine> _oneTimeAnnouncements = new();
 
     public event Action<long, bool>? VoicePlayingChanged;
-
 
     public VoiceAnnouncementService(Func<long, Task>? markPlayedAsync = null)
     {
@@ -38,17 +38,26 @@ public sealed class VoiceAnnouncementService : IDisposable
 
     public bool HasAnyPlaying => !_active.IsEmpty;
 
-    /// <summary>
-    /// Starts (or keeps) a continuous voice loop for this member until Stop / StopAll.
-    /// </summary>
-    public void StartLooping(long transactionId, string message, long? alertId = null)
+    public void StartLooping(
+        long transactionId,
+        IReadOnlyList<VoiceAnnouncementLine> lines,
+        long? alertId = null)
     {
-        if (transactionId <= 0 || string.IsNullOrWhiteSpace(message) || _disposed)
+        if (transactionId <= 0 || _disposed)
         {
             return;
         }
 
-        string trimmed = message.Trim();
+        var validLines = lines
+            .Where(line => !string.IsNullOrWhiteSpace(line.Message))
+            .Select(line => new VoiceAnnouncementLine(line.Message.Trim(), line.Culture))
+            .ToList();
+
+        if (validLines.Count == 0)
+        {
+            return;
+        }
+
         bool added = false;
 
         _active.AddOrUpdate(
@@ -56,11 +65,11 @@ public sealed class VoiceAnnouncementService : IDisposable
             _ =>
             {
                 added = true;
-                return new LoopingAnnouncement(trimmed, alertId);
+                return new LoopingAnnouncement(validLines, alertId);
             },
             (_, existing) =>
             {
-                existing.Message = trimmed;
+                existing.SetLines(validLines);
                 if (alertId.HasValue)
                 {
                     existing.AlertId = alertId;
@@ -78,14 +87,44 @@ public sealed class VoiceAnnouncementService : IDisposable
         _workAvailable.Set();
     }
 
-    public void AnnounceSensorOnce(string message)
+    public void StartLooping(long transactionId, string message, long? alertId = null)
+    {
+        StartLooping(
+            transactionId,
+            new[] { new VoiceAnnouncementLine(message) },
+            alertId);
+    }
+
+    public void AnnounceOnce(string message, string culture = "en-IN")
     {
         if (string.IsNullOrWhiteSpace(message) || _disposed)
         {
             return;
         }
 
-        _sensorAnnouncements.Enqueue(message.Trim());
+        _oneTimeAnnouncements.Enqueue(
+            new VoiceAnnouncementLine(message.Trim(), culture));
+
+        _workAvailable.Set();
+    }
+
+    public void AnnounceOnce(IEnumerable<VoiceAnnouncementLine> lines)
+    {
+        if (_disposed)
+        {
+            return;
+        }
+
+        foreach (var line in lines)
+        {
+            if (string.IsNullOrWhiteSpace(line.Message))
+            {
+                continue;
+            }
+
+            _oneTimeAnnouncements.Enqueue(
+                new VoiceAnnouncementLine(line.Message.Trim(), line.Culture));
+        }
 
         _workAvailable.Set();
     }
@@ -158,34 +197,8 @@ public sealed class VoiceAnnouncementService : IDisposable
             Volume = 100
         };
 
-        System.Diagnostics.Debug.WriteLine("SPEECH WORKER STARTED");
-
-        var voices = synthesizer.GetInstalledVoices();
-
-        foreach (var voice in voices)
-        {
-            System.Diagnostics.Debug.WriteLine(
-                $"VOICE: {voice.VoiceInfo.Name} | {voice.VoiceInfo.Culture}");
-        }
-
-        // TEMPORARY TEST
-        synthesizer.SelectVoice("Microsoft Zira Desktop");
-
-        System.Diagnostics.Debug.WriteLine("SELECTED VOICE: Microsoft Zira Desktop");
-
-        synthesizer.Speak(
-            "This is a direct Windows speech test.");
-
-        System.Diagnostics.Debug.WriteLine("DIRECT SPEECH FINISHED");
-
         _synthesizer = synthesizer;
-
-        ConfigureVoice(synthesizer);
-
-
-
-        _synthesizer = synthesizer;
-        ConfigureVoice(synthesizer);
+        ConfigureVoice(synthesizer, AlertMessageService.CultureEnglishIndia);
 
         using var speakDone = new AutoResetEvent(false);
         synthesizer.SpeakCompleted += (_, _) => speakDone.Set();
@@ -207,49 +220,24 @@ public sealed class VoiceAnnouncementService : IDisposable
                 }
             }
 
-            // EMPLOYEE LOOPING ANNOUNCEMENT
+            if (_oneTimeAnnouncements.TryDequeue(out VoiceAnnouncementLine? oneTimeLine))
+            {
+                SpeakLine(synthesizer, speakDone, oneTimeLine, null);
+                continue;
+            }
 
             if (!_roundRobin.TryDequeue(out long transactionId))
             {
                 continue;
             }
 
-            // SENSOR ONE-TIME ANNOUNCEMENT
-            // =====================================
-
-            if (_sensorAnnouncements.TryDequeue(out string? sensorMessage))
+            if (!_active.TryGetValue(transactionId, out LoopingAnnouncement? item))
             {
-                try
-                {
-                    lock (_speakLock)
-                    {
-                        _currentlySpeakingKey = null;
-                    }
-
-                    speakDone.Reset();
-
-                    synthesizer.SpeakAsync(sensorMessage);
-
-                    while (!speakDone.WaitOne(200))
-                    {
-                        if (_disposed)
-                        {
-                            synthesizer.SpeakAsyncCancelAll();
-                            speakDone.WaitOne(1000);
-                            break;
-                        }
-                    }
-                }
-                catch (Exception ex)
-                {
-                    System.Diagnostics.Debug.WriteLine(
-                        $"Sensor voice announcement failed: {ex.Message}");
-                }
-
                 continue;
             }
 
-            if (!_active.TryGetValue(transactionId, out LoopingAnnouncement? item))
+            VoiceAnnouncementLine? line = item.GetNextLine();
+            if (line == null)
             {
                 continue;
             }
@@ -261,18 +249,7 @@ public sealed class VoiceAnnouncementService : IDisposable
                     _currentlySpeakingKey = transactionId;
                 }
 
-                speakDone.Reset();
-                synthesizer.SpeakAsync(item.Message);
-
-                while (!speakDone.WaitOne(200))
-                {
-                    if (_disposed || !_active.ContainsKey(transactionId))
-                    {
-                        synthesizer.SpeakAsyncCancelAll();
-                        speakDone.WaitOne(1000);
-                        break;
-                    }
-                }
+                SpeakLine(synthesizer, speakDone, line, transactionId);
 
                 if (item.AlertId is long alertId &&
                     _markPlayedAsync != null &&
@@ -302,7 +279,6 @@ public sealed class VoiceAnnouncementService : IDisposable
                 }
             }
 
-            // Keep looping this member until Stop is pressed.
             if (_active.ContainsKey(transactionId))
             {
                 _roundRobin.Enqueue(transactionId);
@@ -313,7 +289,43 @@ public sealed class VoiceAnnouncementService : IDisposable
         _synthesizer = null;
     }
 
-    private void ConfigureVoice(SpeechSynthesizer synthesizer)
+    private void SpeakLine(
+        SpeechSynthesizer synthesizer,
+        AutoResetEvent speakDone,
+        VoiceAnnouncementLine line,
+        long? transactionId)
+    {
+        try
+        {
+            ConfigureVoice(synthesizer, line.Culture);
+            speakDone.Reset();
+            synthesizer.SpeakAsync(line.Message);
+
+            while (!speakDone.WaitOne(200))
+            {
+                if (_disposed)
+                {
+                    synthesizer.SpeakAsyncCancelAll();
+                    speakDone.WaitOne(1000);
+                    break;
+                }
+
+                if (transactionId.HasValue && !_active.ContainsKey(transactionId.Value))
+                {
+                    synthesizer.SpeakAsyncCancelAll();
+                    speakDone.WaitOne(1000);
+                    break;
+                }
+            }
+        }
+        catch (Exception ex)
+        {
+            System.Diagnostics.Debug.WriteLine(
+                $"Voice line failed ({line.Culture}): {ex.Message}");
+        }
+    }
+
+    private void ConfigureVoice(SpeechSynthesizer synthesizer, string culture)
     {
         var settings = _configurationService.GetAlertSettings();
         synthesizer.Rate = Math.Clamp(settings.VoiceRate, -10, 10);
@@ -331,21 +343,29 @@ public sealed class VoiceAnnouncementService : IDisposable
 
         VoiceInfo? selectedVoice = null;
 
-        if (!string.IsNullOrWhiteSpace(settings.VoiceName))
+        if (!string.IsNullOrWhiteSpace(settings.VoiceName) &&
+            culture.Equals(AlertMessageService.CultureEnglishIndia, StringComparison.OrdinalIgnoreCase))
         {
             selectedVoice = installedVoices.FirstOrDefault(v =>
                 v.Name.Equals(settings.VoiceName, StringComparison.OrdinalIgnoreCase) ||
                 v.Description.Contains(settings.VoiceName, StringComparison.OrdinalIgnoreCase));
         }
 
-        if (selectedVoice == null && !string.IsNullOrWhiteSpace(settings.VoiceCulture))
+        if (selectedVoice == null && !string.IsNullOrWhiteSpace(culture))
         {
             selectedVoice = installedVoices.FirstOrDefault(v =>
-                v.Culture.Name.Equals(settings.VoiceCulture, StringComparison.OrdinalIgnoreCase));
+                v.Culture.Name.Equals(culture, StringComparison.OrdinalIgnoreCase));
+        }
+
+        if (selectedVoice == null &&
+            culture.Equals(AlertMessageService.CultureBengaliIndia, StringComparison.OrdinalIgnoreCase))
+        {
+            selectedVoice = installedVoices.FirstOrDefault(v =>
+                v.Culture.Name.StartsWith("bn", StringComparison.OrdinalIgnoreCase));
         }
 
         selectedVoice ??= installedVoices.FirstOrDefault(v =>
-            v.Culture.Name.Equals("en-IN", StringComparison.OrdinalIgnoreCase) ||
+            v.Culture.Name.Equals(AlertMessageService.CultureEnglishIndia, StringComparison.OrdinalIgnoreCase) ||
             v.Description.Contains("India", StringComparison.OrdinalIgnoreCase));
 
         selectedVoice ??= installedVoices.FirstOrDefault(v =>
@@ -368,7 +388,7 @@ public sealed class VoiceAnnouncementService : IDisposable
         CancelSpeech();
         _workAvailable.Set();
 
-        _sensorAnnouncements.Clear();
+        _oneTimeAnnouncements.Clear();
 
         if (_speechThread.IsAlive)
         {
@@ -380,14 +400,33 @@ public sealed class VoiceAnnouncementService : IDisposable
 
     private sealed class LoopingAnnouncement
     {
-        public LoopingAnnouncement(string message, long? alertId)
+        private int _nextLineIndex;
+        private IReadOnlyList<VoiceAnnouncementLine> _lines;
+
+        public LoopingAnnouncement(IReadOnlyList<VoiceAnnouncementLine> lines, long? alertId)
         {
-            Message = message;
+            _lines = lines;
             AlertId = alertId;
         }
 
-        public string Message { get; set; }
-
         public long? AlertId { get; set; }
+
+        public void SetLines(IReadOnlyList<VoiceAnnouncementLine> lines)
+        {
+            _lines = lines;
+            _nextLineIndex = 0;
+        }
+
+        public VoiceAnnouncementLine? GetNextLine()
+        {
+            if (_lines.Count == 0)
+            {
+                return null;
+            }
+
+            VoiceAnnouncementLine line = _lines[_nextLineIndex % _lines.Count];
+            _nextLineIndex = (_nextLineIndex + 1) % _lines.Count;
+            return line;
+        }
     }
 }

@@ -237,6 +237,21 @@ public partial class ChamberEmployeesReportPage : Page
         // Already on this page.
     }
 
+    private void ChamberCriticalReportMenu_Click(object sender, RoutedEventArgs e) =>
+        AppNavigation.Go(NavigationService, "ChamberCriticalReport", _currentUser);
+
+    private void ProductionLossReportMenu_Click(object sender, RoutedEventArgs e) =>
+        AppNavigation.Go(NavigationService, "ProductionLossReport", _currentUser);
+
+    private void ConfigurationToggle_Click(object sender, RoutedEventArgs e) =>
+        SidebarMenuHelper.ToggleSubMenu(ConfigurationSubMenuPanel, ConfigurationArrowText);
+
+    private void SensorConfigurationMenu_Click(object sender, RoutedEventArgs e) =>
+        AppNavigation.Go(NavigationService, "SensorConfiguration", _currentUser);
+
+    private void CameraConfigurationMenu_Click(object sender, RoutedEventArgs e) =>
+        AppNavigation.Go(NavigationService, "CameraConfiguration", _currentUser);
+
     private void CodeInqLink_RequestNavigate(object sender, RequestNavigateEventArgs e)
     {
         ExternalLinks.OpenCodeInq();

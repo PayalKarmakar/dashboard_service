@@ -51,10 +51,13 @@ namespace DashboardService.Models
                 OnPropertyChanged();
                 OnPropertyChanged(nameof(CanStopVoice));
                 OnPropertyChanged(nameof(ShowStopVoice));
+                OnPropertyChanged(nameof(VoicePlayingLabel));
             }
         }
 
         public bool CanStopVoice => IsVoicePlaying;
+
+        public string VoicePlayingLabel => IsVoicePlaying ? "Speaking" : string.Empty;
 
         // Show Stop for active voice, or any alert-status member so the column is usable.
         public bool ShowStopVoice =>

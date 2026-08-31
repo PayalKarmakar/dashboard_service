@@ -12,6 +12,7 @@ public class MonitoringService
     public const string LegacyViolationType = "TIME_THRESHOLD";
 
     private readonly ConfigurationService _configurationService = new();
+    private readonly AlertMessageService _alertMessageService = new();
 
     public async Task<List<Employee>> GetMembersInsideAsync()
     {
@@ -136,10 +137,15 @@ public class MonitoringService
             SELECT
                 a.alert_id,
                 a.announcement_message,
-                a.rfid_transaction_id
+                a.rfid_transaction_id,
+                a.alert_type,
+                t.employee_name,
+                COALESCE(c.chamber_name, '')
             FROM public.rfid_transaction_alerts a
             INNER JOIN public.rfid_transactions t
                 ON t.id = a.rfid_transaction_id
+            LEFT JOIN public.master_chambers c
+                ON c.chamber_id = t.chamber_id
             WHERE a.announcement_played = FALSE
               AND t.status = 'OPEN'
               AND t.exit_time IS NULL
@@ -151,12 +157,27 @@ public class MonitoringService
 
         while (await reader.ReadAsync())
         {
-            announcements.Add(new AnnouncementRequest
+            string alertType = reader.GetString(3);
+            var employee = new Employee
             {
-                AlertId = reader.GetInt64(0),
-                Message = reader.GetString(1),
-                TransactionId = reader.GetInt64(2)
-            });
+                TransactionId = reader.GetInt64(2),
+                EmployeeName = reader.GetString(4),
+                ChamberName = reader.GetString(5),
+                TimeThresholdMinutes = _configurationService.GetAlertSettings().AfterMinutes,
+                AttentionMinutes = _configurationService.GetAlertSettings().AttentionMinutes,
+                WarningRemainingMinutes = _configurationService.GetAlertSettings().WarningRemainingMinutes
+            };
+
+            AnnouncementRequest? announcement = await BuildAnnouncementRequestAsync(
+                alertType,
+                employee,
+                reader.GetInt64(0),
+                reader.GetString(1));
+
+            if (announcement != null)
+            {
+                announcements.Add(announcement);
+            }
         }
 
         return announcements;
@@ -202,34 +223,18 @@ public class MonitoringService
 
             if (!hasViolationRecord)
             {
-                string message = FormatMessage(settings.ViolationMessage, employee, settings);
-                long alertId = await SaveAnnouncementAsync(
+                return await CreateAnnouncementAsync(
                     employee,
                     ViolationType,
-                    message,
                     markViolation: true);
-                return new AnnouncementRequest
-                {
-                    AlertId = alertId,
-                    Message = message,
-                    TransactionId = employee.TransactionId
-                };
             }
 
             if (!heardViolationAudio && !employee.LastAnnouncementAt.HasValue)
             {
-                string message = FormatMessage(settings.ViolationMessage, employee, settings);
-                long alertId = await SaveAnnouncementAsync(
+                return await CreateAnnouncementAsync(
                     employee,
                     ViolationType,
-                    message,
                     markViolation: true);
-                return new AnnouncementRequest
-                {
-                    AlertId = alertId,
-                    Message = message,
-                    TransactionId = employee.TransactionId
-                };
             }
 
             bool repeatDue =
@@ -239,18 +244,10 @@ public class MonitoringService
 
             if (repeatDue)
             {
-                string message = FormatMessage(settings.ViolationRepeatMessage, employee, settings);
-                long alertId = await SaveAnnouncementAsync(
+                return await CreateAnnouncementAsync(
                     employee,
                     ViolationRepeatType,
-                    message,
                     markViolation: true);
-                return new AnnouncementRequest
-                {
-                    AlertId = alertId,
-                    Message = message,
-                    TransactionId = employee.TransactionId
-                };
             }
 
             return null;
@@ -263,18 +260,10 @@ public class MonitoringService
                 return null;
             }
 
-            string message = FormatMessage(settings.WarningMessage, employee, settings);
-            long alertId = await SaveAnnouncementAsync(
+            return await CreateAnnouncementAsync(
                 employee,
                 WarningType,
-                message,
                 markViolation: false);
-            return new AnnouncementRequest
-            {
-                AlertId = alertId,
-                Message = message,
-                TransactionId = employee.TransactionId
-            };
         }
 
         if (elapsedMinutes >= settings.AttentionMinutes)
@@ -284,18 +273,10 @@ public class MonitoringService
                 return null;
             }
 
-            string message = FormatMessage(settings.AttentionMessage, employee, settings);
-            long alertId = await SaveAnnouncementAsync(
+            return await CreateAnnouncementAsync(
                 employee,
                 AttentionType,
-                message,
                 markViolation: false);
-            return new AnnouncementRequest
-            {
-                AlertId = alertId,
-                Message = message,
-                TransactionId = employee.TransactionId
-            };
         }
 
         return null;
@@ -402,6 +383,95 @@ public class MonitoringService
             .Replace("{AttentionMinutes}", settings.AttentionMinutes.ToString())
             .Replace("{WarningRemainingMinutes}", settings.WarningRemainingMinutes.ToString())
             .Replace("{AfterMinutes}", settings.AfterMinutes.ToString());
+    }
+
+    public static string FormatSensorMessage(string template, string parameter, string chamberName)
+    {
+        return template
+            .Replace("{Parameter}", parameter, StringComparison.OrdinalIgnoreCase)
+            .Replace("{ChamberName}", chamberName, StringComparison.OrdinalIgnoreCase);
+    }
+
+    private async Task<AnnouncementRequest?> CreateAnnouncementAsync(
+        Employee employee,
+        string alertType,
+        bool markViolation)
+    {
+        var settings = _configurationService.GetAlertSettings();
+        var templates = await _alertMessageService.GetTemplatesAsync(
+            AlertMessageService.CategoryEmployee,
+            alertType);
+
+        if (!templates.TryGetValue(AlertMessageService.CultureEnglishIndia, out string? primaryTemplate) ||
+            string.IsNullOrWhiteSpace(primaryTemplate))
+        {
+            primaryTemplate = alertType.ToUpperInvariant() switch
+            {
+                AttentionType => settings.AttentionMessage,
+                WarningType => settings.WarningMessage,
+                ViolationType => settings.ViolationMessage,
+                ViolationRepeatType => settings.ViolationRepeatMessage,
+                _ => string.Empty
+            };
+        }
+
+        if (string.IsNullOrWhiteSpace(primaryTemplate))
+        {
+            return null;
+        }
+
+        string primaryMessage = FormatMessage(primaryTemplate, employee, settings);
+        long alertId = await SaveAnnouncementAsync(
+            employee,
+            alertType,
+            primaryMessage,
+            markViolation);
+
+        string? secondaryMessage = null;
+        if (templates.TryGetValue(AlertMessageService.CultureBengaliIndia, out string? secondaryTemplate) &&
+            !string.IsNullOrWhiteSpace(secondaryTemplate))
+        {
+            secondaryMessage = FormatMessage(secondaryTemplate, employee, settings);
+        }
+
+        return new AnnouncementRequest
+        {
+            AlertId = alertId,
+            Message = primaryMessage,
+            SecondaryMessage = secondaryMessage,
+            MessageCulture = AlertMessageService.CultureEnglishIndia,
+            SecondaryCulture = AlertMessageService.CultureBengaliIndia,
+            TransactionId = employee.TransactionId
+        };
+    }
+
+    private async Task<AnnouncementRequest?> BuildAnnouncementRequestAsync(
+        string alertType,
+        Employee employee,
+        long alertId,
+        string primaryMessage)
+    {
+        var settings = _configurationService.GetAlertSettings();
+        var templates = await _alertMessageService.GetTemplatesAsync(
+            AlertMessageService.CategoryEmployee,
+            alertType);
+
+        string? secondaryMessage = null;
+        if (templates.TryGetValue(AlertMessageService.CultureBengaliIndia, out string? secondaryTemplate) &&
+            !string.IsNullOrWhiteSpace(secondaryTemplate))
+        {
+            secondaryMessage = FormatMessage(secondaryTemplate, employee, settings);
+        }
+
+        return new AnnouncementRequest
+        {
+            AlertId = alertId,
+            Message = primaryMessage,
+            SecondaryMessage = secondaryMessage,
+            MessageCulture = AlertMessageService.CultureEnglishIndia,
+            SecondaryCulture = AlertMessageService.CultureBengaliIndia,
+            TransactionId = employee.TransactionId
+        };
     }
 
     //Payal

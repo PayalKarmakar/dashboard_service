@@ -15,19 +15,31 @@ public partial class CurrentMembersWindow : Window
     private readonly DispatcherTimer _countdownTimer;
     private readonly Action<long>? _stopMemberVoice;
     private readonly Action? _stopAllVoice;
+    private readonly Func<long, bool>? _isVoicePlaying;
+    private readonly Func<bool>? _hasAnyVoicePlaying;
+    private readonly Action<long, bool> _voicePlayingChangedHandler;
     private int _currentPage = 1;
 
     public CurrentMembersWindow(
         IEnumerable<Employee> members,
         Action<long>? stopMemberVoice = null,
-        Action? stopAllVoice = null)
+        Action? stopAllVoice = null,
+        Func<long, bool>? isVoicePlaying = null,
+        Func<bool>? hasAnyVoicePlaying = null,
+        Action<Action<long, bool>>? subscribeVoicePlayingChanged = null,
+        Action<Action<long, bool>>? unsubscribeVoicePlayingChanged = null)
     {
         InitializeComponent();
 
         _allMembers = members.ToList();
         _stopMemberVoice = stopMemberVoice;
         _stopAllVoice = stopAllVoice;
+        _isVoicePlaying = isVoicePlaying;
+        _hasAnyVoicePlaying = hasAnyVoicePlaying;
+        _voicePlayingChangedHandler = OnVoicePlayingChanged;
         MembersGrid.ItemsSource = _pageMembers;
+
+        subscribeVoicePlayingChanged?.Invoke(_voicePlayingChangedHandler);
 
         _countdownTimer = new DispatcherTimer
         {
@@ -36,12 +48,18 @@ public partial class CurrentMembersWindow : Window
         _countdownTimer.Tick += (_, _) =>
         {
             UpdateCountdowns();
+            SyncVoicePlayingFlags();
             UpdateStopAllVisibility();
         };
         _countdownTimer.Start();
 
-        Closed += (_, _) => _countdownTimer.Stop();
+        Closed += (_, _) =>
+        {
+            _countdownTimer.Stop();
+            unsubscribeVoicePlayingChanged?.Invoke(_voicePlayingChangedHandler);
+        };
 
+        SyncVoicePlayingFlags();
         RenderPage();
         UpdateStopAllVisibility();
     }
@@ -71,6 +89,7 @@ public partial class CurrentMembersWindow : Window
         }
 
         UpdateCountdowns();
+        SyncVoicePlayingFlags();
 
         SubtitleText.Text = $"{_allMembers.Count} employee(s) currently inside monitored chambers";
         PageInfoText.Text = $"Page {_currentPage} of {TotalPages}";
@@ -90,9 +109,42 @@ public partial class CurrentMembersWindow : Window
         }
     }
 
+    private void SyncVoicePlayingFlags()
+    {
+        if (_isVoicePlaying == null)
+        {
+            return;
+        }
+
+        foreach (var employee in _allMembers)
+        {
+            employee.IsVoicePlaying = _isVoicePlaying(employee.TransactionId);
+        }
+    }
+
+    private void OnVoicePlayingChanged(long transactionId, bool isPlaying)
+    {
+        Dispatcher.Invoke(() =>
+        {
+            foreach (var employee in _allMembers.Where(x => x.TransactionId == transactionId))
+            {
+                employee.IsVoicePlaying = isPlaying;
+            }
+
+            UpdateStopAllVisibility();
+        });
+    }
+
     private void UpdateStopAllVisibility()
     {
-        StopAllVoiceButton.Visibility = _allMembers.Any(x => x.IsVoicePlaying)
+        bool anyPlaying = _allMembers.Any(x => x.IsVoicePlaying);
+
+        if (!anyPlaying && _hasAnyVoicePlaying != null)
+        {
+            anyPlaying = _hasAnyVoicePlaying();
+        }
+
+        StopAllVoiceButton.Visibility = anyPlaying
             ? Visibility.Visible
             : Visibility.Collapsed;
     }

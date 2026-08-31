@@ -14,9 +14,9 @@ namespace DashboardService.Models
 
         public int SensorViolationDbCheckIntervalSeconds { get; set; }
 
-        public string WarningMessage { get; set; } = string.Empty;
+        public string EnglishVoiceCulture { get; set; } = "en-IN";
 
-        public string CriticalMessage { get; set; } = string.Empty;
+        public string BengaliVoiceCulture { get; set; } = "bn-IN";
      }
     
 }

@@ -22,6 +22,10 @@ public static class AppNavigation
             "Readers" => new ReadersPage(currentUser),
             "Reports" => new ReportsPage(currentUser),
             "ChamberEmployeesReport" => new ChamberEmployeesReportPage(currentUser),
+            "ChamberCriticalReport" => new ChamberCriticalReportPage(currentUser),
+            "ProductionLossReport" => new ProductionLossReportPage(currentUser),
+            "SensorConfiguration" => new SensorConfigurationPage(currentUser),
+            "CameraConfiguration" => new CameraConfigurationPage(currentUser),
             _ => throw new InvalidOperationException(menu)
         };
 

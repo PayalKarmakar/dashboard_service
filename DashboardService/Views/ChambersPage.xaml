@@ -116,7 +116,7 @@
                                 Margin="0,18,20,0"/>
                     </StackPanel>
 
-                    <StackPanel Grid.Row="1" Margin="14,10,14,0">
+                    <ScrollViewer Grid.Row="1" VerticalScrollBarVisibility="Auto" HorizontalScrollBarVisibility="Disabled" Padding="0,0,4,0"><StackPanel Margin="14,10,14,0">
                         <Button Style="{StaticResource SidebarButtonStyle}" Click="DashboardMenu_Click">
                             <StackPanel Orientation="Horizontal">
                                 <TextBlock Text="▦" FontSize="19" Width="30" VerticalAlignment="Center"/>
@@ -176,8 +176,44 @@
                                     <TextBlock Text="Chamber Employees" VerticalAlignment="Center"/>
                                 </StackPanel>
                             </Button>
+                            <Button Style="{StaticResource SidebarButtonStyle}" Height="40" Click="ChamberCriticalReportMenu_Click">
+                                <StackPanel Orientation="Horizontal">
+                                    <TextBlock Text="▸" FontSize="14" Width="24" VerticalAlignment="Center"/>
+                                    <TextBlock Text="Chamber Critical" VerticalAlignment="Center"/>
+                                </StackPanel>
+                            </Button>
+                            <Button Style="{StaticResource SidebarButtonStyle}" Height="40" Click="ProductionLossReportMenu_Click">
+                                <StackPanel Orientation="Horizontal">
+                                    <TextBlock Text="▸" FontSize="14" Width="24" VerticalAlignment="Center"/>
+                                    <TextBlock Text="Production Loss" VerticalAlignment="Center"/>
+                                </StackPanel>
+                            </Button>
+                        </StackPanel>
+                        <Button Style="{StaticResource SidebarButtonStyle}" Click="ConfigurationToggle_Click">
+                            <Grid>
+                                <StackPanel Orientation="Horizontal">
+                                    <TextBlock Text="⚙" FontSize="18" Width="30" VerticalAlignment="Center"/>
+                                    <TextBlock Text="Configuration" VerticalAlignment="Center"/>
+                                </StackPanel>
+                                <TextBlock x:Name="ConfigurationArrowText" Text="▼" FontSize="10" HorizontalAlignment="Right" VerticalAlignment="Center" Margin="0,0,4,0"/>
+                            </Grid>
+                        </Button>
+                        <StackPanel x:Name="ConfigurationSubMenuPanel" Margin="18,0,0,4" Visibility="Collapsed">
+                            <Button Style="{StaticResource SidebarButtonStyle}" Height="40" Click="SensorConfigurationMenu_Click">
+                                <StackPanel Orientation="Horizontal">
+                                    <TextBlock Text="▸" FontSize="14" Width="24" VerticalAlignment="Center"/>
+                                    <TextBlock Text="Sensor" VerticalAlignment="Center"/>
+                                </StackPanel>
+                            </Button>
+                            <Button Style="{StaticResource SidebarButtonStyle}" Height="40" Click="CameraConfigurationMenu_Click">
+                                <StackPanel Orientation="Horizontal">
+                                    <TextBlock Text="▸" FontSize="14" Width="24" VerticalAlignment="Center"/>
+                                    <TextBlock Text="Camera" VerticalAlignment="Center"/>
+                                </StackPanel>
+                            </Button>
                         </StackPanel>
                     </StackPanel>
+                    </ScrollViewer>
 
                     <StackPanel Grid.Row="2"
                                 VerticalAlignment="Center"
