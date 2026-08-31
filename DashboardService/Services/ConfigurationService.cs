@@ -29,6 +29,14 @@ public class ConfigurationService
             : value.Trim().TrimEnd('/');
     }
 
+    public string GetSensorServiceBaseUrl()
+    {
+        string? value = _configuration["SensorService:BaseUrl"];
+        return string.IsNullOrWhiteSpace(value)
+            ? "http://localhost:64314"
+            : value.Trim().TrimEnd('/');
+    }
+
     public AlertSettings GetAlertSettings()
     {
         return new AlertSettings

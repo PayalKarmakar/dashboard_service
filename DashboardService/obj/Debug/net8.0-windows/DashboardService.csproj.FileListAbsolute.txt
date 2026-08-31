@@ -245,3 +245,5 @@ C:\Users\User\Desktop\New folder (6)\dashboard_service\DashboardService\obj\Debu
 C:\Users\User\Desktop\New folder (6)\dashboard_service\DashboardService\obj\Debug\net8.0-windows\ref\DashboardService.dll
 C:\Users\User\Desktop\New folder (6)\dashboard_service\DashboardService\bin\Debug\net8.0-windows\System.Speech.dll
 C:\Users\User\Desktop\New folder (6)\dashboard_service\DashboardService\bin\Debug\net8.0-windows\runtimes\win\lib\net8.0\System.Speech.dll
+C:\Users\User\Desktop\New folder (6)\dashboard_service\DashboardService\obj\Debug\net8.0-windows\Views\SensorReadingsReportPage.baml
+C:\Users\User\Desktop\New folder (6)\dashboard_service\DashboardService\obj\Debug\net8.0-windows\Views\SensorReadingsReportPage.g.cs

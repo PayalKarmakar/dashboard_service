@@ -157,6 +157,8 @@ public partial class EmployeesPage : Page
 
     private void ProductionLossReportMenu_Click(object sender, RoutedEventArgs e) =>
         AppNavigation.Go(NavigationService, "ProductionLossReport", _currentUser);
+    private void SensorReadingsReportMenu_Click(object sender, RoutedEventArgs e) =>
+        AppNavigation.Go(NavigationService, "SensorReadingsReport", _currentUser);
 
     private void ConfigurationToggle_Click(object sender, RoutedEventArgs e) =>
         SidebarMenuHelper.ToggleSubMenu(ConfigurationSubMenuPanel, ConfigurationArrowText);

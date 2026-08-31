@@ -26,12 +26,17 @@ namespace DashboardService.Views
 
         public ObservableCollection<RfidReaderLiveStatus> DisconnectedRfidReaders { get; set; }
 
+        public ObservableCollection<SensorLiveStatus> ConnectedSensors { get; set; }
+
+        public ObservableCollection<SensorLiveStatus> DisconnectedSensors { get; set; }
+
         private readonly DispatcherTimer _countdownTimer;
         private readonly DispatcherTimer _refreshTimer;
         
         private readonly User _currentUser;
         private readonly MonitoringService _monitoringService = new();
         private readonly RfidReaderStatusService _rfidReaderStatusService = new();
+        private readonly SensorStatusService _sensorStatusService = new();
         private readonly AlertMessageService _alertMessageService = new();
         private readonly VoiceAnnouncementService _voiceAnnouncementService;
         private readonly HashSet<long> _announcementInFlight = new();
@@ -42,6 +47,8 @@ namespace DashboardService.Views
         //Payal
         private readonly DispatcherTimer _sensorViolationTimer;
         private readonly ConfigurationService _configurationService = new();
+        private readonly SensorConfigurationService _sensorConfigurationService = new();
+        private int _configuredSensorCount;
         public ObservableCollection<SensorViolation> ActiveSensorViolations { get; set; }
         private readonly DispatcherTimer _sensorBlinkTimer;
         private bool _sensorBlinkState;
@@ -73,12 +80,16 @@ namespace DashboardService.Views
             PreviewEmployees = new ObservableCollection<Employee>();
             ConnectedRfidReaders = new ObservableCollection<RfidReaderLiveStatus>();
             DisconnectedRfidReaders = new ObservableCollection<RfidReaderLiveStatus>();
+            ConnectedSensors = new ObservableCollection<SensorLiveStatus>();
+            DisconnectedSensors = new ObservableCollection<SensorLiveStatus>();
             ActiveSensorViolations = new ObservableCollection<SensorViolation>(); //Payal
 
             ChambersItemsControl.ItemsSource = Chambers;
             MembersDataGrid.ItemsSource = PreviewEmployees;
             ConnectedReadersItemsControl.ItemsSource = ConnectedRfidReaders;
             DisconnectedReadersItemsControl.ItemsSource = DisconnectedRfidReaders;
+            ConnectedSensorsItemsControl.ItemsSource = ConnectedSensors;
+            DisconnectedSensorsItemsControl.ItemsSource = DisconnectedSensors;
 
             _countdownTimer = new DispatcherTimer
             {
@@ -391,7 +402,7 @@ namespace DashboardService.Views
                 UpdateDashboardSummary();
                 SyncVoicePlayingFlags();
                 await RefreshRfidReaderStatusAsync();
-                UpdateSensorConnectionStatus(_latestSensorReading);
+                await RefreshSensorConnectionStatusAsync();
                 await EnqueueUnplayedAnnouncementsAsync();
                 await ProcessDueAnnouncementsAsync();
                 UpdateSensorDisplay();
@@ -424,7 +435,6 @@ namespace DashboardService.Views
                 NoDisconnectedReadersText.Text = "Start RFID service to see reader status.";
                 NoConnectedReadersText.Visibility = Visibility.Visible;
                 NoDisconnectedReadersText.Visibility = Visibility.Visible;
-                UpdateMembersRfidStatusBadge(connected: 0, disconnected: 0, serviceUp: false);
                 return;
             }
 
@@ -453,115 +463,90 @@ namespace DashboardService.Views
                 snapshot.Disconnected.Count == 0
                     ? Visibility.Visible
                     : Visibility.Collapsed;
-
-            UpdateMembersRfidStatusBadge(
-                snapshot.Connected.Count,
-                snapshot.Disconnected.Count,
-                serviceUp: true);
         }
 
-        private void UpdateMembersRfidStatusBadge(int connected, int disconnected, bool serviceUp)
+        private async Task RefreshSensorConnectionStatusAsync()
         {
-            if (MembersRfidStatusText == null)
+            var snapshot = await _sensorStatusService.GetStatusAsync();
+
+            ConnectedSensors.Clear();
+            DisconnectedSensors.Clear();
+
+            if (!snapshot.ServiceAvailable)
             {
+                if (SensorServiceStatusText != null)
+                {
+                    SensorServiceStatusText.Text =
+                        snapshot.Message ?? "Sensor service is not running.";
+                }
+
+                if (ConnectedSensorsCountText != null)
+                {
+                    ConnectedSensorsCountText.Text = "(—)";
+                }
+
+                if (DisconnectedSensorsCountText != null)
+                {
+                    DisconnectedSensorsCountText.Text = "(—)";
+                }
+
+                if (NoConnectedSensorsText != null)
+                {
+                    NoConnectedSensorsText.Text = "Sensor service unavailable.";
+                    NoConnectedSensorsText.Visibility = Visibility.Visible;
+                }
+
+                if (NoDisconnectedSensorsText != null)
+                {
+                    NoDisconnectedSensorsText.Text = "Start Sensor service to see sensor status.";
+                    NoDisconnectedSensorsText.Visibility = Visibility.Visible;
+                }
+
                 return;
             }
 
-            if (!serviceUp)
+            foreach (var sensor in snapshot.Connected)
             {
-                ApplyConnectionBadge(
-                    MembersRfidStatusBorder,
-                    MembersRfidStatusDot,
-                    MembersRfidStatusText,
-                    connected: false,
-                    "RFID Disconnected");
-                return;
+                ConnectedSensors.Add(sensor);
             }
 
-            if (connected > 0 && disconnected == 0)
+            foreach (var sensor in snapshot.Disconnected)
             {
-                ApplyConnectionBadge(
-                    MembersRfidStatusBorder,
-                    MembersRfidStatusDot,
-                    MembersRfidStatusText,
-                    connected: true,
-                    $"RFID Connected ({connected})");
-            }
-            else if (connected > 0)
-            {
-                ApplyConnectionBadge(
-                    MembersRfidStatusBorder,
-                    MembersRfidStatusDot,
-                    MembersRfidStatusText,
-                    connected: true,
-                    $"RFID {connected} up · {disconnected} down");
-            }
-            else
-            {
-                ApplyConnectionBadge(
-                    MembersRfidStatusBorder,
-                    MembersRfidStatusDot,
-                    MembersRfidStatusText,
-                    connected: false,
-                    disconnected > 0
-                        ? $"RFID Disconnected ({disconnected})"
-                        : "RFID Disconnected");
-            }
-        }
-
-        private void UpdateSensorConnectionStatus(SensorReading? reading)
-        {
-            // Consider sensors connected if a reading arrived within the last 5 minutes.
-            bool connected =
-                reading != null &&
-                (DateTime.Now - ToLocalTime(reading.RecordedAt)) <= TimeSpan.FromMinutes(5);
-
-            string label = connected
-                ? "Sensor Connected"
-                : "Sensor Disconnected";
-
-            ApplyConnectionBadge(
-                MembersSensorStatusBorder,
-                MembersSensorStatusDot,
-                MembersSensorStatusText,
-                connected,
-                label);
-
-            ApplyConnectionBadge(
-                SensorConnectionStatusBorder,
-                SensorConnectionStatusDot,
-                SensorConnectionStatusText,
-                connected,
-                connected ? "Connected" : "Disconnected");
-        }
-
-        private static void ApplyConnectionBadge(
-            Border? border,
-            System.Windows.Shapes.Ellipse? dot,
-            TextBlock? text,
-            bool connected,
-            string label)
-        {
-            if (border == null || dot == null || text == null)
-            {
-                return;
+                DisconnectedSensors.Add(sensor);
             }
 
-            text.Text = label;
+            int connected = ConnectedSensors.Count;
+            int disconnected = DisconnectedSensors.Count;
+            _configuredSensorCount = Math.Max(1, connected + disconnected);
 
-            if (connected)
+            if (SensorServiceStatusText != null)
             {
-                border.Background = new SolidColorBrush(Color.FromRgb(236, 253, 245));
-                border.BorderBrush = new SolidColorBrush(Color.FromRgb(187, 247, 208));
-                dot.Fill = new SolidColorBrush(Color.FromRgb(34, 197, 94));
-                text.Foreground = new SolidColorBrush(Color.FromRgb(21, 128, 61));
+                SensorServiceStatusText.Text =
+                    $"{connected} connected · {disconnected} disconnected";
             }
-            else
+
+            if (ConnectedSensorsCountText != null)
             {
-                border.Background = new SolidColorBrush(Color.FromRgb(254, 242, 242));
-                border.BorderBrush = new SolidColorBrush(Color.FromRgb(254, 202, 202));
-                dot.Fill = new SolidColorBrush(Color.FromRgb(239, 68, 68));
-                text.Foreground = new SolidColorBrush(Color.FromRgb(185, 28, 28));
+                ConnectedSensorsCountText.Text = $"({connected})";
+            }
+
+            if (DisconnectedSensorsCountText != null)
+            {
+                DisconnectedSensorsCountText.Text = $"({disconnected})";
+            }
+
+            if (NoConnectedSensorsText != null)
+            {
+                NoConnectedSensorsText.Visibility =
+                    connected == 0 ? Visibility.Visible : Visibility.Collapsed;
+                NoConnectedSensorsText.Text = "No sensors connected.";
+            }
+
+            if (NoDisconnectedSensorsText != null)
+            {
+                NoDisconnectedSensorsText.Visibility =
+                    disconnected == 0 ? Visibility.Visible : Visibility.Collapsed;
+                NoDisconnectedSensorsText.Text = "All sensors are connected.";
             }
         }
 
@@ -894,6 +879,12 @@ namespace DashboardService.Views
             _countdownTimer.Stop();
             _refreshTimer.Stop();
             AppNavigation.Go(NavigationService, "ProductionLossReport", _currentUser);
+        }
+        private void SensorReadingsReportMenu_Click(object sender, RoutedEventArgs e)
+        {
+            _countdownTimer.Stop();
+            _refreshTimer.Stop();
+            AppNavigation.Go(NavigationService, "SensorReadingsReport", _currentUser);
         }
 
         private void ConfigurationToggle_Click(object sender, RoutedEventArgs e) =>

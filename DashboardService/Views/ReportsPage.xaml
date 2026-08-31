@@ -157,6 +157,14 @@
                                     <TextBlock Text="Production Loss" VerticalAlignment="Center"/>
                                 </StackPanel>
                             </Button>
+                            <Button Style="{StaticResource SidebarButtonStyle}"
+                                    Height="40"
+                                    Click="SensorReadingsReportMenu_Click">
+                                <StackPanel Orientation="Horizontal">
+                                    <TextBlock Text="▸" FontSize="14" Width="24" VerticalAlignment="Center"/>
+                                    <TextBlock Text="Sensor Readings" VerticalAlignment="Center"/>
+                                </StackPanel>
+                            </Button>
                         </StackPanel>
                         <Button Style="{StaticResource SidebarButtonStyle}" Click="ConfigurationToggle_Click">
                             <Grid>

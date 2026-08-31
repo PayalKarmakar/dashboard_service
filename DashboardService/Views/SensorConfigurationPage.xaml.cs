@@ -167,6 +167,8 @@ public partial class SensorConfigurationPage : Page
 
     private void ProductionLossReportMenu_Click(object sender, RoutedEventArgs e) =>
         AppNavigation.Go(NavigationService, "ProductionLossReport", _currentUser);
+    private void SensorReadingsReportMenu_Click(object sender, RoutedEventArgs e) =>
+        AppNavigation.Go(NavigationService, "SensorReadingsReport", _currentUser);
 
     private void SensorConfigurationMenu_Click(object sender, RoutedEventArgs e) =>
         AppNavigation.Go(NavigationService, "SensorConfiguration", _currentUser);

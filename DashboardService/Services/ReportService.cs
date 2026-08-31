@@ -236,6 +236,67 @@ public class ReportService
         return ReportDurationFormatter.Format(total);
     }
 
+    public async Task<List<SensorReadingReportRow>> GetSensorReadingsReportAsync(
+        DateTime fromDate,
+        DateTime toDate,
+        long? chamberId = null)
+    {
+        var rows = new List<SensorReadingReportRow>();
+
+        DateTime from = fromDate.Date;
+        DateTime to = toDate.Date.AddDays(1).AddTicks(-1);
+
+        await using var connection = new NpgsqlConnection(_configurationService.GetConnectionString());
+        await connection.OpenAsync();
+
+        const string sql = @"
+            SELECT
+                sr.reading_id,
+                sr.chamber_id,
+                COALESCE(c.chamber_code, ''),
+                COALESCE(c.chamber_name, ''),
+                sr.temperature,
+                sr.humidity,
+                sr.co,
+                sr.co2,
+                sr.o2,
+                sr.recorded_at
+            FROM public.sensor_readings sr
+            LEFT JOIN public.master_chambers c
+                ON c.chamber_id = sr.chamber_id
+            WHERE sr.recorded_at >= @fromDate
+              AND sr.recorded_at <= @toDate
+              AND (@chamberId = 0 OR sr.chamber_id = @chamberId)
+            ORDER BY sr.reading_id DESC;
+        ";
+
+        await using var command = new NpgsqlCommand(sql, connection);
+        command.Parameters.AddWithValue("fromDate", from);
+        command.Parameters.AddWithValue("toDate", to);
+        command.Parameters.AddWithValue("chamberId", chamberId ?? 0L);
+
+        await using var reader = await command.ExecuteReaderAsync();
+
+        while (await reader.ReadAsync())
+        {
+            rows.Add(new SensorReadingReportRow
+            {
+                ReadingId = reader.GetInt64(0),
+                ChamberId = reader.GetInt64(1),
+                ChamberCode = reader.GetString(2),
+                ChamberName = reader.GetString(3),
+                Temperature = reader.IsDBNull(4) ? null : reader.GetDecimal(4),
+                Humidity = reader.IsDBNull(5) ? null : reader.GetDecimal(5),
+                CO = reader.IsDBNull(6) ? null : reader.GetDecimal(6),
+                CO2 = reader.IsDBNull(7) ? null : reader.GetDecimal(7),
+                O2 = reader.IsDBNull(8) ? null : reader.GetDecimal(8),
+                RecordedAt = reader.GetDateTime(9)
+            });
+        }
+
+        return rows;
+    }
+
     private async Task<List<SensorViolationRecord>> GetSensorViolationRecordsAsync(
         DateTime fromDate,
         DateTime toDate,
