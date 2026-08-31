@@ -19,16 +19,16 @@ public class AlertSettings
     public int VoiceRate { get; set; } = -1;
 
     public string AttentionMessage { get; set; } =
-        "Attention {EmployeeName}. You have completed {AttentionMinutes} minutes inside the {ChamberName}.";
+        "Attention {EmployeeName} ji. You have completed {AttentionMinutes} minutes inside {ChamberName}.";
 
     public string WarningMessage { get; set; } =
-        "Warning {EmployeeName}. Only {WarningRemainingMinutes} minutes remain before your permitted duration expires.";
+        "Warning {EmployeeName} ji. Only {WarningRemainingMinutes} minutes remain before your permitted duration expires in {ChamberName}.";
 
     public string ViolationMessage { get; set; } =
-        "Alert {EmployeeName}. Your permitted duration inside the {ChamberName} has expired. Please exit {ChamberName} immediately.";
+        "Alert {EmployeeName} ji. Your permitted duration inside {ChamberName} has expired. Kindly exit immediately.";
 
     public string ViolationRepeatMessage { get; set; } =
-        "Warning {EmployeeName}. You have exceeded the permitted duration inside the {ChamberName}. Please exit immediately.";
+        "Warning {EmployeeName} ji. You have exceeded the permitted duration inside {ChamberName}. Kindly exit immediately.";
 
     public int WarningAtMinutes => AfterMinutes - WarningRemainingMinutes;
 }

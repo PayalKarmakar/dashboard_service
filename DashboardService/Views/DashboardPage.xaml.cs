@@ -45,6 +45,8 @@ namespace DashboardService.Views
         public ObservableCollection<SensorViolation> ActiveSensorViolations { get; set; }
         private readonly DispatcherTimer _sensorBlinkTimer;
         private bool _sensorBlinkState;
+        private string _selectedVoiceCulture = AlertMessageService.CultureEnglishIndia;
+        private bool _sensorVoiceEnabled = true;
 
         public DashboardPage()
             : this(new User
@@ -116,6 +118,7 @@ namespace DashboardService.Views
             SyncThemeToggleUi(ThemeService.IsDarkMode);
             ApplySciFiChrome(ThemeService.IsDarkMode);
             ThemeService.ThemeChanged += ThemeService_ThemeChanged;
+            UpdateSensorVoiceButtons();
         }
 
         private void ThemeService_ThemeChanged(bool isDark)
@@ -204,9 +207,9 @@ namespace DashboardService.Views
 
             MembersDataGrid.Background = cardBg;
             MembersDataGrid.Foreground = textPrimary;
-            MembersDataGrid.RowBackground = cardBg;
-            MembersDataGrid.AlternatingRowBackground = altRow;
-            MembersDataGrid.HorizontalGridLinesBrush = gridLine;
+            MembersDataGrid.RowBackground = Brushes.Transparent;
+            MembersDataGrid.AlternatingRowBackground = Brushes.Transparent;
+            MembersDataGrid.HorizontalGridLinesBrush = Brushes.Transparent;
         }
 
         private async void DashboardPage_Loaded(object sender, RoutedEventArgs e)
@@ -281,8 +284,54 @@ namespace DashboardService.Views
             _enqueuedAlertIds.Add(announcement.AlertId);
             _voiceAnnouncementService.StartLooping(
                 announcement.TransactionId,
-                announcement.GetVoiceLines(),
+                announcement.GetVoiceLines(_selectedVoiceCulture),
                 announcement.AlertId);
+        }
+
+        private void VoiceLanguageRadio_Checked(object sender, RoutedEventArgs e)
+        {
+            if (VoiceLangBengaliRadio?.IsChecked == true)
+            {
+                _selectedVoiceCulture = AlertMessageService.CultureBengaliIndia;
+            }
+            else
+            {
+                _selectedVoiceCulture = AlertMessageService.CultureEnglishIndia;
+            }
+        }
+
+        private void StopSensorVoice_Click(object sender, RoutedEventArgs e)
+        {
+            _sensorVoiceEnabled = false;
+            _voiceAnnouncementService.StopOneTimeAnnouncements();
+            UpdateSensorVoiceButtons();
+        }
+
+        private async void StartSensorVoice_Click(object sender, RoutedEventArgs e)
+        {
+            _sensorVoiceEnabled = true;
+            UpdateSensorVoiceButtons();
+
+            try
+            {
+                await _monitoringService.ClearSensorAnnouncementMarksAsync(1);
+                await CheckSensorViolationsAsync();
+            }
+            catch (Exception ex)
+            {
+                System.Diagnostics.Debug.WriteLine($"Start sensor voice failed: {ex.Message}");
+            }
+        }
+
+        private void UpdateSensorVoiceButtons()
+        {
+            if (StopSensorVoiceButton == null || StartSensorVoiceButton == null)
+            {
+                return;
+            }
+
+            StopSensorVoiceButton.IsEnabled = _sensorVoiceEnabled;
+            StartSensorVoiceButton.IsEnabled = !_sensorVoiceEnabled;
         }
 
         private void StopMemberVoice_Click(object sender, RoutedEventArgs e)
@@ -342,6 +391,7 @@ namespace DashboardService.Views
                 UpdateDashboardSummary();
                 SyncVoicePlayingFlags();
                 await RefreshRfidReaderStatusAsync();
+                UpdateSensorConnectionStatus(_latestSensorReading);
                 await EnqueueUnplayedAnnouncementsAsync();
                 await ProcessDueAnnouncementsAsync();
                 UpdateSensorDisplay();
@@ -374,6 +424,7 @@ namespace DashboardService.Views
                 NoDisconnectedReadersText.Text = "Start RFID service to see reader status.";
                 NoConnectedReadersText.Visibility = Visibility.Visible;
                 NoDisconnectedReadersText.Visibility = Visibility.Visible;
+                UpdateMembersRfidStatusBadge(connected: 0, disconnected: 0, serviceUp: false);
                 return;
             }
 
@@ -402,6 +453,116 @@ namespace DashboardService.Views
                 snapshot.Disconnected.Count == 0
                     ? Visibility.Visible
                     : Visibility.Collapsed;
+
+            UpdateMembersRfidStatusBadge(
+                snapshot.Connected.Count,
+                snapshot.Disconnected.Count,
+                serviceUp: true);
+        }
+
+        private void UpdateMembersRfidStatusBadge(int connected, int disconnected, bool serviceUp)
+        {
+            if (MembersRfidStatusText == null)
+            {
+                return;
+            }
+
+            if (!serviceUp)
+            {
+                ApplyConnectionBadge(
+                    MembersRfidStatusBorder,
+                    MembersRfidStatusDot,
+                    MembersRfidStatusText,
+                    connected: false,
+                    "RFID Disconnected");
+                return;
+            }
+
+            if (connected > 0 && disconnected == 0)
+            {
+                ApplyConnectionBadge(
+                    MembersRfidStatusBorder,
+                    MembersRfidStatusDot,
+                    MembersRfidStatusText,
+                    connected: true,
+                    $"RFID Connected ({connected})");
+            }
+            else if (connected > 0)
+            {
+                ApplyConnectionBadge(
+                    MembersRfidStatusBorder,
+                    MembersRfidStatusDot,
+                    MembersRfidStatusText,
+                    connected: true,
+                    $"RFID {connected} up · {disconnected} down");
+            }
+            else
+            {
+                ApplyConnectionBadge(
+                    MembersRfidStatusBorder,
+                    MembersRfidStatusDot,
+                    MembersRfidStatusText,
+                    connected: false,
+                    disconnected > 0
+                        ? $"RFID Disconnected ({disconnected})"
+                        : "RFID Disconnected");
+            }
+        }
+
+        private void UpdateSensorConnectionStatus(SensorReading? reading)
+        {
+            // Consider sensors connected if a reading arrived within the last 5 minutes.
+            bool connected =
+                reading != null &&
+                (DateTime.Now - ToLocalTime(reading.RecordedAt)) <= TimeSpan.FromMinutes(5);
+
+            string label = connected
+                ? "Sensor Connected"
+                : "Sensor Disconnected";
+
+            ApplyConnectionBadge(
+                MembersSensorStatusBorder,
+                MembersSensorStatusDot,
+                MembersSensorStatusText,
+                connected,
+                label);
+
+            ApplyConnectionBadge(
+                SensorConnectionStatusBorder,
+                SensorConnectionStatusDot,
+                SensorConnectionStatusText,
+                connected,
+                connected ? "Connected" : "Disconnected");
+        }
+
+        private static void ApplyConnectionBadge(
+            Border? border,
+            System.Windows.Shapes.Ellipse? dot,
+            TextBlock? text,
+            bool connected,
+            string label)
+        {
+            if (border == null || dot == null || text == null)
+            {
+                return;
+            }
+
+            text.Text = label;
+
+            if (connected)
+            {
+                border.Background = new SolidColorBrush(Color.FromRgb(236, 253, 245));
+                border.BorderBrush = new SolidColorBrush(Color.FromRgb(187, 247, 208));
+                dot.Fill = new SolidColorBrush(Color.FromRgb(34, 197, 94));
+                text.Foreground = new SolidColorBrush(Color.FromRgb(21, 128, 61));
+            }
+            else
+            {
+                border.Background = new SolidColorBrush(Color.FromRgb(254, 242, 242));
+                border.BorderBrush = new SolidColorBrush(Color.FromRgb(254, 202, 202));
+                dot.Fill = new SolidColorBrush(Color.FromRgb(239, 68, 68));
+                text.Foreground = new SolidColorBrush(Color.FromRgb(185, 28, 28));
+            }
         }
 
         private void RefreshPreviewMembers()
@@ -1021,7 +1182,7 @@ namespace DashboardService.Views
         {
             var settings = _configurationService.GetSensorAlertSettings();
 
-            if (!settings.VoiceEnabled)
+            if (!settings.VoiceEnabled || !_sensorVoiceEnabled)
             {
                 return;
             }
@@ -1039,7 +1200,7 @@ namespace DashboardService.Views
 
                 bool repeatDue =
                     violation.LastAnnouncedAt.HasValue &&
-                    DateTime.Now - violation.LastAnnouncedAt.Value
+                    (DateTime.Now - ToLocalTime(violation.LastAnnouncedAt.Value))
                         >= TimeSpan.FromMinutes(
                             settings.RepeatAfterMinutes);
 
@@ -1060,26 +1221,31 @@ namespace DashboardService.Views
                 string chamberName = $"Chamber {violation.ChamberId}";
                 var voiceLines = new List<VoiceAnnouncementLine>();
 
-                if (templates.TryGetValue(settings.EnglishVoiceCulture, out string? englishTemplate) &&
-                    !string.IsNullOrWhiteSpace(englishTemplate))
-                {
-                    voiceLines.Add(new VoiceAnnouncementLine(
-                        MonitoringService.FormatSensorMessage(
-                            englishTemplate,
-                            violation.Parameter,
-                            chamberName),
-                        settings.EnglishVoiceCulture));
-                }
+                string preferredCulture = _selectedVoiceCulture;
+                string fallbackCulture =
+                    preferredCulture.Equals(settings.BengaliVoiceCulture, StringComparison.OrdinalIgnoreCase)
+                        ? settings.EnglishVoiceCulture
+                        : settings.BengaliVoiceCulture;
 
-                if (templates.TryGetValue(settings.BengaliVoiceCulture, out string? bengaliTemplate) &&
-                    !string.IsNullOrWhiteSpace(bengaliTemplate))
+                if (templates.TryGetValue(preferredCulture, out string? preferredTemplate) &&
+                    !string.IsNullOrWhiteSpace(preferredTemplate))
                 {
                     voiceLines.Add(new VoiceAnnouncementLine(
                         MonitoringService.FormatSensorMessage(
-                            bengaliTemplate,
+                            preferredTemplate,
                             violation.Parameter,
                             chamberName),
-                        settings.BengaliVoiceCulture));
+                        preferredCulture));
+                }
+                else if (templates.TryGetValue(fallbackCulture, out string? fallbackTemplate) &&
+                         !string.IsNullOrWhiteSpace(fallbackTemplate))
+                {
+                    voiceLines.Add(new VoiceAnnouncementLine(
+                        MonitoringService.FormatSensorMessage(
+                            fallbackTemplate,
+                            violation.Parameter,
+                            chamberName),
+                        fallbackCulture));
                 }
 
                 if (voiceLines.Count == 0)
@@ -1095,5 +1261,13 @@ namespace DashboardService.Views
                         currentSeverity);
             }
         }
+
+        private static DateTime ToLocalTime(DateTime value) =>
+            value.Kind switch
+            {
+                DateTimeKind.Utc => value.ToLocalTime(),
+                DateTimeKind.Local => value,
+                _ => DateTime.SpecifyKind(value, DateTimeKind.Local)
+            };
     }
 }

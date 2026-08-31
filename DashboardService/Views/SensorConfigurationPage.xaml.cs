@@ -14,6 +14,7 @@ public partial class SensorConfigurationPage : Page
     private readonly SensorConfigurationService _sensorConfigurationService = new();
 
     public ObservableCollection<MasterSensorConfig> Sensors { get; } = new();
+    public ObservableCollection<SensorThresholdConfig> MasterThresholds { get; } = new();
     public ObservableCollection<SensorViolationThresholdEdit> GasThresholds { get; } = new();
     public ObservableCollection<SensorViolationThresholdEdit> OtherViolations { get; } = new();
 
@@ -23,6 +24,7 @@ public partial class SensorConfigurationPage : Page
         _currentUser = currentUser;
 
         SensorsGrid.ItemsSource = Sensors;
+        MasterThresholdsGrid.ItemsSource = MasterThresholds;
         GasThresholdsGrid.ItemsSource = GasThresholds;
         OtherViolationsGrid.ItemsSource = OtherViolations;
 
@@ -65,6 +67,12 @@ public partial class SensorConfigurationPage : Page
                 Sensors.Add(sensor);
             }
 
+            MasterThresholds.Clear();
+            foreach (var threshold in await _sensorConfigurationService.GetSensorThresholdsAsync())
+            {
+                MasterThresholds.Add(threshold);
+            }
+
             GasThresholds.Clear();
             OtherViolations.Clear();
 
@@ -92,6 +100,8 @@ public partial class SensorConfigurationPage : Page
         {
             SensorsGrid.CommitEdit(DataGridEditingUnit.Row, true);
             SensorsGrid.CommitEdit();
+            MasterThresholdsGrid.CommitEdit(DataGridEditingUnit.Row, true);
+            MasterThresholdsGrid.CommitEdit();
             GasThresholdsGrid.CommitEdit(DataGridEditingUnit.Row, true);
             GasThresholdsGrid.CommitEdit();
 
@@ -102,6 +112,11 @@ public partial class SensorConfigurationPage : Page
                     sensor.Port);
             }
 
+            foreach (var threshold in MasterThresholds)
+            {
+                await _sensorConfigurationService.UpdateSensorThresholdAsync(threshold);
+            }
+
             foreach (var threshold in GasThresholds)
             {
                 await _sensorConfigurationService.UpdateViolationThresholdAsync(
@@ -110,7 +125,7 @@ public partial class SensorConfigurationPage : Page
             }
 
             MessageBox.Show(
-                "COM port and sensor_violations threshold values saved.",
+                "COM port, warning/critical limits, and active violation thresholds saved.",
                 "Sensor Configuration",
                 MessageBoxButton.OK,
                 MessageBoxImage.Information);

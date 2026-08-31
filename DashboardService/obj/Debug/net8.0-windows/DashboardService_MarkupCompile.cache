@@ -4,16 +4,16 @@
 winexe
 C#
 .cs
-E:\New folder (2)\dashboard_service\DashboardService\obj\Debug\net8.0-windows\
+C:\Users\User\Desktop\New folder (6)\dashboard_service\DashboardService\obj\Debug\net8.0-windows\
 DashboardService
 none
 false
 TRACE;DEBUG;NET;NET8_0;NETCOREAPP
-E:\New folder (2)\dashboard_service\DashboardService\App.xaml
+C:\Users\User\Desktop\New folder (6)\dashboard_service\DashboardService\App.xaml
 19244368322
 11413424753
-59-1309350133
-210483941523
+601838370273
+2102033177659
 MainWindow.xaml;Themes\DarkSciFiTheme.xaml;Themes\LightTheme.xaml;Views\AddChamberWindow.xaml;Views\AddEmployeeWindow.xaml;Views\AddReaderWindow.xaml;Views\CameraConfigurationPage.xaml;Views\ChamberCriticalReportPage.xaml;Views\ChamberEmployeesReportPage.xaml;Views\ChambersPage.xaml;Views\ChangePasswordWindow.xaml;Views\CurrentMembersWindow.xaml;Views\DashboardPage.xaml;Views\EmployeesPage.xaml;Views\LoginPage.xaml;Views\ProductionLossReportPage.xaml;Views\ReadersPage.xaml;Views\ReportsPage.xaml;Views\SensorConfigurationPage.xaml;
 
 False

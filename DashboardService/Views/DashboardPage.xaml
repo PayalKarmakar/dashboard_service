@@ -1555,14 +1555,14 @@
                 <Grid Grid.Column="2">
 
                     <Grid.RowDefinitions>
-                        <RowDefinition Height="38"/>
+                        <RowDefinition Height="Auto"/>
                         <RowDefinition Height="*"/>
                     </Grid.RowDefinitions>
 
 
                     <!-- SENSOR MONITORING HEADING -->
 
-                    <Grid Grid.Row="0">
+                    <Grid Grid.Row="0" Margin="0,0,0,8">
 
                         <Grid.ColumnDefinitions>
 
@@ -1585,12 +1585,99 @@
                         </StackPanel>
 
 
-                        <!-- CHAMBER + LIVE -->
+                        <!-- VOICE LANG + SENSOR VOICE + LIVE -->
 
                         <StackPanel Grid.Column="1"
                         Orientation="Horizontal"
                         VerticalAlignment="Center">
 
+                            <!-- Voice language -->
+                            <Border Background="#F1F5F9"
+                                    CornerRadius="10"
+                                    Padding="10,4"
+                                    Margin="0,0,8,0"
+                                    BorderBrush="#E2E8F0"
+                                    BorderThickness="1">
+                                <StackPanel Orientation="Horizontal">
+                                    <TextBlock Text="Voice"
+                                               FontSize="10"
+                                               FontWeight="Bold"
+                                               Foreground="#64748B"
+                                               VerticalAlignment="Center"
+                                               Margin="0,0,8,0"/>
+                                    <RadioButton x:Name="VoiceLangEnglishRadio"
+                                                 Content="English"
+                                                 GroupName="DashboardVoiceLang"
+                                                 FontSize="11"
+                                                 FontWeight="SemiBold"
+                                                 Foreground="#0A3776"
+                                                 IsChecked="True"
+                                                 Margin="0,0,10,0"
+                                                 VerticalAlignment="Center"
+                                                 Checked="VoiceLanguageRadio_Checked"/>
+                                    <RadioButton x:Name="VoiceLangBengaliRadio"
+                                                 Content="বাংলা"
+                                                 GroupName="DashboardVoiceLang"
+                                                 FontSize="11"
+                                                 FontWeight="SemiBold"
+                                                 Foreground="#0A3776"
+                                                 VerticalAlignment="Center"
+                                                 Checked="VoiceLanguageRadio_Checked"/>
+                                </StackPanel>
+                            </Border>
+
+                            <Button x:Name="StopSensorVoiceButton"
+                                    Content="Stop Voice"
+                                    Height="28"
+                                    Padding="12,0"
+                                    Margin="0,0,6,0"
+                                    Background="#DC2626"
+                                    Foreground="White"
+                                    BorderThickness="0"
+                                    FontSize="11"
+                                    FontWeight="Bold"
+                                    Cursor="Hand"
+                                    Click="StopSensorVoice_Click">
+                                <Button.Template>
+                                    <ControlTemplate TargetType="Button">
+                                        <Border Background="{TemplateBinding Background}"
+                                                CornerRadius="8"
+                                                Padding="{TemplateBinding Padding}">
+                                            <ContentPresenter HorizontalAlignment="Center" VerticalAlignment="Center"/>
+                                        </Border>
+                                    </ControlTemplate>
+                                </Button.Template>
+                            </Button>
+
+                            <Button x:Name="StartSensorVoiceButton"
+                                    Content="Start Voice"
+                                    Height="28"
+                                    Padding="12,0"
+                                    Margin="0,0,8,0"
+                                    Background="#16A34A"
+                                    Foreground="White"
+                                    BorderThickness="0"
+                                    FontSize="11"
+                                    FontWeight="Bold"
+                                    Cursor="Hand"
+                                    IsEnabled="False"
+                                    Click="StartSensorVoice_Click">
+                                <Button.Template>
+                                    <ControlTemplate TargetType="Button">
+                                        <Border Background="{TemplateBinding Background}"
+                                                CornerRadius="8"
+                                                Padding="{TemplateBinding Padding}"
+                                                Opacity="{TemplateBinding Opacity}">
+                                            <ContentPresenter HorizontalAlignment="Center" VerticalAlignment="Center"/>
+                                        </Border>
+                                        <ControlTemplate.Triggers>
+                                            <Trigger Property="IsEnabled" Value="False">
+                                                <Setter Property="Opacity" Value="0.45"/>
+                                            </Trigger>
+                                        </ControlTemplate.Triggers>
+                                    </ControlTemplate>
+                                </Button.Template>
+                            </Button>
 
                             <!-- CHAMBER -->
 
@@ -1617,24 +1704,29 @@
                             </Border>
 
 
-                            <!-- LIVE -->
+                            <!-- SENSOR CONNECTION -->
 
-                            <Border Background="#ECFDF5"
-                        CornerRadius="10"
-                        Padding="10,5">
+                            <Border x:Name="SensorConnectionStatusBorder"
+                                    Background="#ECFDF5"
+                                    CornerRadius="10"
+                                    Padding="10,5"
+                                    BorderBrush="#BBF7D0"
+                                    BorderThickness="1">
 
                                 <StackPanel Orientation="Horizontal">
 
-                                    <Ellipse Width="6"
-                                 Height="6"
-                                 Fill="#22A06B"
-                                 VerticalAlignment="Center"/>
+                                    <Ellipse x:Name="SensorConnectionStatusDot"
+                                             Width="6"
+                                             Height="6"
+                                             Fill="#22A06B"
+                                             VerticalAlignment="Center"/>
 
-                                    <TextBlock Text="LIVE"
-                                   FontSize="10"
-                                   FontWeight="Bold"
-                                   Foreground="#15803D"
-                                   Margin="6,0,0,0"/>
+                                    <TextBlock x:Name="SensorConnectionStatusText"
+                                               Text="Connected"
+                                               FontSize="10"
+                                               FontWeight="Bold"
+                                               Foreground="#15803D"
+                                               Margin="6,0,0,0"/>
 
                                 </StackPanel>
 
@@ -2055,31 +2147,54 @@
                                     Orientation="Horizontal"
                                     VerticalAlignment="Center">
 
-                            <!-- LIVE BADGE -->
-
-                            <Border VerticalAlignment="Center"
+                            <!-- RFID connection -->
+                            <Border x:Name="MembersRfidStatusBorder"
+                                    VerticalAlignment="Center"
                                     Background="#ECFDF5"
-                                    Padding="12,7"
-                                    CornerRadius="10"
-                                    Margin="0,0,10,0"
+                                    Padding="10,6"
+                                    CornerRadius="9"
+                                    Margin="0,0,8,0"
                                     BorderBrush="#BBF7D0"
-                                    BorderThickness="1">
-
+                                    BorderThickness="1"
+                                    ToolTip="RFID reader connection status">
                                 <StackPanel Orientation="Horizontal">
-
-                                    <Ellipse Width="7"
-                                             Height="7"
+                                    <Ellipse x:Name="MembersRfidStatusDot"
+                                             Width="7" Height="7"
                                              Fill="#22C55E"
                                              VerticalAlignment="Center"
-                                             Margin="0,0,7,0"/>
-
-                                    <TextBlock Text="LIVE MONITORING"
+                                             Margin="0,0,6,0"/>
+                                    <TextBlock x:Name="MembersRfidStatusText"
+                                               Text="RFID —"
                                                FontSize="10"
                                                FontWeight="Bold"
-                                               Foreground="#15803D"/>
-
+                                               Foreground="#15803D"
+                                               VerticalAlignment="Center"/>
                                 </StackPanel>
+                            </Border>
 
+                            <!-- Sensor connection -->
+                            <Border x:Name="MembersSensorStatusBorder"
+                                    VerticalAlignment="Center"
+                                    Background="#ECFDF5"
+                                    Padding="10,6"
+                                    CornerRadius="9"
+                                    Margin="0,0,10,0"
+                                    BorderBrush="#BBF7D0"
+                                    BorderThickness="1"
+                                    ToolTip="Sensor connection status">
+                                <StackPanel Orientation="Horizontal">
+                                    <Ellipse x:Name="MembersSensorStatusDot"
+                                             Width="7" Height="7"
+                                             Fill="#22C55E"
+                                             VerticalAlignment="Center"
+                                             Margin="0,0,6,0"/>
+                                    <TextBlock x:Name="MembersSensorStatusText"
+                                               Text="Sensor —"
+                                               FontSize="10"
+                                               FontWeight="Bold"
+                                               Foreground="#15803D"
+                                               VerticalAlignment="Center"/>
+                                </StackPanel>
                             </Border>
 
                             <Button x:Name="StopAllVoiceButton"
@@ -2137,9 +2252,9 @@
 
                     <DataGrid Grid.Row="1"
                   x:Name="MembersDataGrid"
-                  Margin="0,0,0,0"
-                  MinHeight="260"
-                  MaxHeight="420"
+                  Margin="12,0,12,12"
+                  MinHeight="280"
+                  MaxHeight="440"
                   ItemsSource="{Binding CurrentMembers}"
                   AutoGenerateColumns="False"
                   CanUserAddRows="False"
@@ -2147,77 +2262,77 @@
                   CanUserResizeRows="False"
                   CanUserSortColumns="False"
                   HeadersVisibility="Column"
-                  GridLinesVisibility="Horizontal"
+                  GridLinesVisibility="None"
                   VerticalGridLinesBrush="Transparent"
-                  BorderThickness="0"
+                  BorderThickness="1"
+                  BorderBrush="{DynamicResource CardBorderBrush}"
                   Background="{DynamicResource CardBgBrush}"
-                  RowHeight="62"
+                  RowHeight="68"
                   FontSize="13"
                   IsReadOnly="True"
                   SelectionMode="Single"
                   SelectionUnit="FullRow"
+                  FocusVisualStyle="{x:Null}"
                   Foreground="{DynamicResource TextPrimaryBrush}"
-                  RowBackground="{DynamicResource CardBgBrush}"
-                  AlternatingRowBackground="{DynamicResource AltRowBgBrush}"
-                  HorizontalGridLinesBrush="{DynamicResource GridLineBrush}">
-
-                        <!-- DATAGRID STYLE -->
+                  RowBackground="Transparent"
+                  AlternatingRowBackground="Transparent"
+                  HorizontalGridLinesBrush="Transparent">
 
                         <DataGrid.Resources>
+                            <SolidColorBrush x:Key="{x:Static SystemColors.HighlightBrushKey}" Color="#EAF2FC"/>
+                            <SolidColorBrush x:Key="{x:Static SystemColors.HighlightTextBrushKey}" Color="#0B2248"/>
+                            <SolidColorBrush x:Key="{x:Static SystemColors.InactiveSelectionHighlightBrushKey}" Color="#EAF2FC"/>
+                            <SolidColorBrush x:Key="{x:Static SystemColors.InactiveSelectionHighlightTextBrushKey}" Color="#0B2248"/>
 
                             <Style TargetType="DataGridRow">
-
-                                <Setter Property="Background" Value="{DynamicResource CardBgBrush}"/>
+                                <Setter Property="Background" Value="Transparent"/>
                                 <Setter Property="BorderThickness" Value="0"/>
-                                <Setter Property="Padding" Value="0"/>
-
+                                <Setter Property="Margin" Value="0"/>
+                                <Setter Property="SnapsToDevicePixels" Value="True"/>
                                 <Setter Property="Template">
                                     <Setter.Value>
                                         <ControlTemplate TargetType="DataGridRow">
-                                            <Border x:Name="RowBorder"
-                                                    Background="{TemplateBinding Background}"
-                                                    BorderBrush="{TemplateBinding BorderBrush}"
-                                                    BorderThickness="{TemplateBinding BorderThickness}"
+                                            <Border x:Name="RowChrome"
+                                                    Margin="0,0,0,1"
+                                                    Background="#FFFFFF"
+                                                    BorderBrush="#EEF2F7"
+                                                    BorderThickness="0,0,0,1"
                                                     SnapsToDevicePixels="True">
-                                                <SelectiveScrollingGrid>
-                                                    <SelectiveScrollingGrid.ColumnDefinitions>
-                                                        <ColumnDefinition Width="Auto"/>
-                                                        <ColumnDefinition Width="*"/>
-                                                    </SelectiveScrollingGrid.ColumnDefinitions>
-                                                    <DataGridCellsPresenter Grid.Column="1"/>
-                                                </SelectiveScrollingGrid>
+                                                <Grid>
+                                                    <Border x:Name="StatusAccent"
+                                                            Width="4"
+                                                            HorizontalAlignment="Left"
+                                                            Background="Transparent"
+                                                            CornerRadius="2,0,0,2"/>
+                                                    <SelectiveScrollingGrid Margin="4,0,0,0">
+                                                        <SelectiveScrollingGrid.ColumnDefinitions>
+                                                            <ColumnDefinition Width="Auto"/>
+                                                            <ColumnDefinition Width="*"/>
+                                                        </SelectiveScrollingGrid.ColumnDefinitions>
+                                                        <DataGridCellsPresenter Grid.Column="1"
+                                                                                ItemsPanel="{TemplateBinding ItemsPanel}"
+                                                                                SnapsToDevicePixels="{TemplateBinding SnapsToDevicePixels}"/>
+                                                    </SelectiveScrollingGrid>
+                                                </Grid>
                                             </Border>
-
                                             <ControlTemplate.Triggers>
                                                 <Trigger Property="IsMouseOver" Value="True">
-                                                    <Setter TargetName="RowBorder" Property="Background" Value="{DynamicResource RowHoverBrush}"/>
+                                                    <Setter TargetName="RowChrome" Property="Background" Value="#F8FBFF"/>
                                                 </Trigger>
-
+                                                <Trigger Property="IsSelected" Value="True">
+                                                    <Setter TargetName="RowChrome" Property="Background" Value="#EAF2FC"/>
+                                                </Trigger>
                                                 <DataTrigger Binding="{Binding Status}" Value="Attention">
-                                                    <Setter TargetName="RowBorder" Property="Background" Value="{DynamicResource StatusAttentionBgBrush}"/>
+                                                    <Setter TargetName="StatusAccent" Property="Background" Value="#3B82F6"/>
+                                                    <Setter TargetName="RowChrome" Property="Background" Value="#F8FBFF"/>
                                                 </DataTrigger>
-
                                                 <DataTrigger Binding="{Binding Status}" Value="Warning">
-                                                    <Setter TargetName="RowBorder" Property="Background" Value="{DynamicResource StatusWarningBgBrush}"/>
+                                                    <Setter TargetName="StatusAccent" Property="Background" Value="#F59E0B"/>
+                                                    <Setter TargetName="RowChrome" Property="Background" Value="#FFFCF5"/>
                                                 </DataTrigger>
-
                                                 <DataTrigger Binding="{Binding Status}" Value="Violation">
-                                                    <Setter TargetName="RowBorder" Property="Background" Value="{DynamicResource StatusViolationBgBrush}"/>
-                                                    <DataTrigger.EnterActions>
-                                                        <BeginStoryboard x:Name="ViolationBlinkStoryboard">
-                                                            <Storyboard RepeatBehavior="Forever" AutoReverse="True">
-                                                                <DoubleAnimation
-                                                                    Storyboard.TargetName="RowBorder"
-                                                                    Storyboard.TargetProperty="Opacity"
-                                                                    From="1"
-                                                                    To="0.55"
-                                                                    Duration="0:0:0.8"/>
-                                                            </Storyboard>
-                                                        </BeginStoryboard>
-                                                    </DataTrigger.EnterActions>
-                                                    <DataTrigger.ExitActions>
-                                                        <StopStoryboard BeginStoryboardName="ViolationBlinkStoryboard"/>
-                                                    </DataTrigger.ExitActions>
+                                                    <Setter TargetName="StatusAccent" Property="Background" Value="#EF4444"/>
+                                                    <Setter TargetName="RowChrome" Property="Background" Value="#FFFBFB"/>
                                                 </DataTrigger>
                                             </ControlTemplate.Triggers>
                                         </ControlTemplate>
@@ -2225,453 +2340,271 @@
                                 </Setter>
                             </Style>
 
-
                             <Style TargetType="DataGridCell">
-
                                 <Setter Property="BorderThickness" Value="0"/>
-                                <Setter Property="Padding" Value="18,0"/>
+                                <Setter Property="Padding" Value="14,0"/>
                                 <Setter Property="VerticalContentAlignment" Value="Center"/>
                                 <Setter Property="Foreground" Value="{DynamicResource TextPrimaryBrush}"/>
                                 <Setter Property="Background" Value="Transparent"/>
-
+                                <Setter Property="FocusVisualStyle" Value="{x:Null}"/>
                                 <Style.Triggers>
                                     <Trigger Property="IsSelected" Value="True">
                                         <Setter Property="Background" Value="Transparent"/>
                                         <Setter Property="Foreground" Value="{DynamicResource TextPrimaryBrush}"/>
                                     </Trigger>
                                 </Style.Triggers>
-
                             </Style>
 
                             <Style TargetType="DataGridColumnHeader">
-
-                                <Setter Property="Background" Value="{DynamicResource DataGridHeaderBgBrush}"/>
-                                <Setter Property="Foreground" Value="{DynamicResource DataGridHeaderFgBrush}"/>
+                                <Setter Property="Background" Value="#F8FAFC"/>
+                                <Setter Property="Foreground" Value="#64748B"/>
                                 <Setter Property="FontSize" Value="11"/>
-                                <Setter Property="FontWeight" Value="SemiBold"/>
-                                <Setter Property="Height" Value="46"/>
-                                <Setter Property="Padding" Value="18,0"/>
-                                <Setter Property="BorderBrush" Value="{DynamicResource GridLineBrush}"/>
+                                <Setter Property="FontWeight" Value="Bold"/>
+                                <Setter Property="Height" Value="44"/>
+                                <Setter Property="Padding" Value="14,0"/>
+                                <Setter Property="BorderBrush" Value="#E2E8F0"/>
                                 <Setter Property="BorderThickness" Value="0,0,0,1"/>
                                 <Setter Property="HorizontalContentAlignment" Value="Left"/>
-
+                                <Setter Property="Template">
+                                    <Setter.Value>
+                                        <ControlTemplate TargetType="DataGridColumnHeader">
+                                            <Border Background="{TemplateBinding Background}"
+                                                    BorderBrush="{TemplateBinding BorderBrush}"
+                                                    BorderThickness="{TemplateBinding BorderThickness}"
+                                                    Padding="{TemplateBinding Padding}">
+                                                <ContentPresenter VerticalAlignment="Center" HorizontalAlignment="Left"/>
+                                            </Border>
+                                        </ControlTemplate>
+                                    </Setter.Value>
+                                </Setter>
                             </Style>
-
                         </DataGrid.Resources>
 
 
-                        <DataGrid.Columns>                           
+                        <DataGrid.Columns>
 
                             <!-- EMPLOYEE -->
-                            <!-- ================================= -->
-
-                            <DataGridTemplateColumn Header="EMPLOYEE"
-                            Width="2.2*">
-
+                            <DataGridTemplateColumn Header="EMPLOYEE" Width="2.3*">
                                 <DataGridTemplateColumn.CellTemplate>
                                     <DataTemplate>
-
                                         <Grid VerticalAlignment="Center">
-
                                             <Grid.ColumnDefinitions>
-                                                <ColumnDefinition Width="46"/>
+                                                <ColumnDefinition Width="44"/>
                                                 <ColumnDefinition Width="*"/>
                                             </Grid.ColumnDefinitions>
 
-                                            <!-- Initial Circle -->
-
                                             <Border Grid.Column="0"
-                                                Width="34"
-                                                Height="34"
-                                                Background="{DynamicResource AvatarBgBrush}"
-                                                CornerRadius="17"
-                                                HorizontalAlignment="Center"
-                                                VerticalAlignment="Center">
-
-                                                <TextBlock Text="&#x1F464;"
-                                                   HorizontalAlignment="Center"
-                                                   VerticalAlignment="Center"
-                                                   TextAlignment="Center"
-                                                   FontSize="16"
-                                                   Foreground="{DynamicResource AccentBrush}"/>       
-
+                                                    Width="36"
+                                                    Height="36"
+                                                    Background="#E8F0FE"
+                                                    CornerRadius="18"
+                                                    HorizontalAlignment="Left"
+                                                    VerticalAlignment="Center">
+                                                <TextBlock Text="{Binding EmployeeName[0]}"
+                                                           HorizontalAlignment="Center"
+                                                           VerticalAlignment="Center"
+                                                           FontSize="14"
+                                                           FontWeight="Bold"
+                                                           Foreground="#0A3776"/>
                                             </Border>
 
-
-                                            <!-- Name -->
-
-                                            <StackPanel Grid.Column="1"
-                                                    VerticalAlignment="Center"
-                                                    Margin="8,0,0,0">
-
+                                            <StackPanel Grid.Column="1" VerticalAlignment="Center" Margin="6,0,0,0">
                                                 <TextBlock Text="{Binding EmployeeName}"
-                                                   FontSize="13"
-                                                   FontWeight="SemiBold"
-                                                   Foreground="{DynamicResource TextPrimaryBrush}"/>
-
-                                                <TextBlock Text="Currently inside"
-                                                   FontSize="10"
-                                                   Foreground="{DynamicResource TextMutedBrush}"
-                                                   Margin="0,3,0,0"/>       
-
+                                                           FontSize="13"
+                                                           FontWeight="SemiBold"
+                                                           Foreground="#0B2248"/>
+                                                <TextBlock Text="Inside chamber"
+                                                           FontSize="10"
+                                                           Foreground="#94A3B8"
+                                                           Margin="0,2,0,0"/>
                                             </StackPanel>
-
                                         </Grid>
-
                                     </DataTemplate>
                                 </DataGridTemplateColumn.CellTemplate>
-
                             </DataGridTemplateColumn>
 
-
-                            <!-- ================================= -->
                             <!-- ID CARD -->
-                            <!-- ================================= -->
-
-                            <DataGridTemplateColumn Header="ID CARD"
-                            Width="1.1*">
-
+                            <DataGridTemplateColumn Header="ID CARD" Width="0.95*">
                                 <DataGridTemplateColumn.CellTemplate>
                                     <DataTemplate>
-
-                                        <TextBlock Text="{Binding EmployeeId}"
-                           FontSize="12"
-                           FontWeight="SemiBold"
-                           Foreground="{DynamicResource TextSecondaryBrush}"
-                           VerticalAlignment="Center"/>
-
+                                        <Border Background="#F1F5F9"
+                                                CornerRadius="8"
+                                                Padding="10,5"
+                                                HorizontalAlignment="Left"
+                                                VerticalAlignment="Center">
+                                            <TextBlock Text="{Binding EmployeeId}"
+                                                       FontSize="12"
+                                                       FontWeight="SemiBold"
+                                                       Foreground="#334155"/>
+                                        </Border>
                                     </DataTemplate>
                                 </DataGridTemplateColumn.CellTemplate>
-
                             </DataGridTemplateColumn>
 
-
-                            <!-- ================================= -->
                             <!-- CHAMBER -->
-                            <!-- ================================= -->
-
-                            <DataGridTemplateColumn Header="CHAMBER"
-                            Width="1.4*">
-
+                            <DataGridTemplateColumn Header="CHAMBER" Width="1.35*">
                                 <DataGridTemplateColumn.CellTemplate>
                                     <DataTemplate>
-
-                                        <Border Background="{DynamicResource ChamberChipBgBrush}"
-							BorderBrush="{DynamicResource ChamberChipBorderBrush}"
-							BorderThickness="1"
-							CornerRadius="7"
-							Padding="10,6"
-							HorizontalAlignment="Left"
-							VerticalAlignment="Center">
-
-                                            <StackPanel Orientation="Horizontal">
-
-                                                <TextBlock Text="&#x25C6;"
-                                   FontSize="9"
-                                   Foreground="{DynamicResource AccentBrush}"
-                                   Margin="0,0,7,0"
-                                   VerticalAlignment="Center"/>
-
-                                                <TextBlock Text="{Binding ChamberName}"
-                                   FontSize="12"
-                                   FontWeight="SemiBold"
-                                   Foreground="{DynamicResource TextPrimaryBrush}"
-                                   VerticalAlignment="Center"/>
-
-                                            </StackPanel>
-
+                                        <Border Background="#EEF5FF"
+                                                BorderBrush="#BFDBFE"
+                                                BorderThickness="1"
+                                                CornerRadius="8"
+                                                Padding="10,5"
+                                                HorizontalAlignment="Left"
+                                                VerticalAlignment="Center">
+                                            <TextBlock Text="{Binding ChamberName}"
+                                                       FontSize="12"
+                                                       FontWeight="SemiBold"
+                                                       Foreground="#0A3776"/>
                                         </Border>
-
                                     </DataTemplate>
                                 </DataGridTemplateColumn.CellTemplate>
-
                             </DataGridTemplateColumn>
 
-
-
-                            <!-- ================================= -->
                             <!-- IN TIME -->
-                            <!-- ================================= -->
-
-                            <DataGridTemplateColumn Header="IN TIME"
-                            Width="1.5*">
-
+                            <DataGridTemplateColumn Header="IN TIME" Width="1.45*">
                                 <DataGridTemplateColumn.CellTemplate>
                                     <DataTemplate>
-
                                         <StackPanel VerticalAlignment="Center">
-
-                                            <TextBlock Text="{Binding EntryTime,
-                                      StringFormat={}{0:hh:mm:ss tt}}"
-                               FontSize="13"
-                               FontWeight="SemiBold"
-                               Foreground="{DynamicResource TextPrimaryBrush}"/>
-
-                                            <TextBlock Text="{Binding EntryTime,
-                                      StringFormat={}{0:dd MMM yyyy}}"
-                               FontSize="10"
-                               Foreground="{DynamicResource TextMutedBrush}"
-                               Margin="0,3,0,0"/>
-
+                                            <TextBlock Text="{Binding EntryTime, StringFormat={}{0:hh:mm:ss tt}}"
+                                                       FontSize="13"
+                                                       FontWeight="SemiBold"
+                                                       Foreground="#0B2248"/>
+                                            <TextBlock Text="{Binding EntryTime, StringFormat={}{0:dd MMM yyyy}}"
+                                                       FontSize="10"
+                                                       Foreground="#94A3B8"
+                                                       Margin="0,2,0,0"/>
                                         </StackPanel>
-
                                     </DataTemplate>
                                 </DataGridTemplateColumn.CellTemplate>
-
                             </DataGridTemplateColumn>
-                           
 
-                            <!-- COUNTDOWN -->
-
-                            <DataGridTemplateColumn Header="TIME REMAINING"
-                            Width="1.7*">
-
+                            <!-- TIME REMAINING -->
+                            <DataGridTemplateColumn Header="TIME REMAINING" Width="1.85*">
                                 <DataGridTemplateColumn.CellTemplate>
                                     <DataTemplate>
-
                                         <Border HorizontalAlignment="Left"
-                        VerticalAlignment="Center"
-                        Padding="12,7"
-                        CornerRadius="7">
-
+                                                VerticalAlignment="Center"
+                                                Padding="12,7"
+                                                CornerRadius="9">
                                             <Border.Style>
-
                                                 <Style TargetType="Border">
-
-                                                    <Setter Property="Background"
-                                    Value="{DynamicResource CountdownInsideBgBrush}"/>
-
-                                                    <Setter Property="BorderBrush"
-                                    Value="{DynamicResource CountdownInsideBorderBrush}"/>
-
-                                                    <Setter Property="BorderThickness"
-                                    Value="1"/>
-
+                                                    <Setter Property="Background" Value="#ECFDF5"/>
+                                                    <Setter Property="BorderBrush" Value="#BBF7D0"/>
+                                                    <Setter Property="BorderThickness" Value="1"/>
                                                     <Style.Triggers>
-
-                                                        <DataTrigger Binding="{Binding Status}"
-                                             Value="Attention">
-
-                                                            <Setter Property="Background"
-                                            Value="{DynamicResource CountdownAttentionBgBrush}"/>
-
-                                                            <Setter Property="BorderBrush"
-                                            Value="{DynamicResource CountdownAttentionBorderBrush}"/>
-
+                                                        <DataTrigger Binding="{Binding Status}" Value="Attention">
+                                                            <Setter Property="Background" Value="#EFF6FF"/>
+                                                            <Setter Property="BorderBrush" Value="#BFDBFE"/>
                                                         </DataTrigger>
-
-                                                        <DataTrigger Binding="{Binding Status}"
-                                             Value="Warning">
-
-                                                            <Setter Property="Background"
-                                            Value="{DynamicResource CountdownWarningBgBrush}"/>
-
-                                                            <Setter Property="BorderBrush"
-                                            Value="{DynamicResource CountdownWarningBorderBrush}"/>
-
+                                                        <DataTrigger Binding="{Binding Status}" Value="Warning">
+                                                            <Setter Property="Background" Value="#FFFBEB"/>
+                                                            <Setter Property="BorderBrush" Value="#FDE68A"/>
                                                         </DataTrigger>
-
-                                                        <DataTrigger Binding="{Binding Status}"
-                                             Value="Alert">
-
-                                                            <Setter Property="Background"
-                                            Value="{DynamicResource CountdownWarningBgBrush}"/>
-
-                                                            <Setter Property="BorderBrush"
-                                            Value="{DynamicResource CountdownWarningBorderBrush}"/>
-
+                                                        <DataTrigger Binding="{Binding Status}" Value="Alert">
+                                                            <Setter Property="Background" Value="#FFFBEB"/>
+                                                            <Setter Property="BorderBrush" Value="#FDE68A"/>
                                                         </DataTrigger>
-
-                                                        <DataTrigger Binding="{Binding Status}"
-             Value="Violation">
-
-                                                            <Setter Property="Background"
-            Value="{DynamicResource CountdownViolationBgBrush}"/>
-
-                                                            <Setter Property="BorderBrush"
-            Value="{DynamicResource CountdownViolationBorderBrush}"/>
-
+                                                        <DataTrigger Binding="{Binding Status}" Value="Violation">
+                                                            <Setter Property="Background" Value="#FEF2F2"/>
+                                                            <Setter Property="BorderBrush" Value="#FECACA"/>
                                                         </DataTrigger>
-
                                                     </Style.Triggers>
-
                                                 </Style>
-
                                             </Border.Style>
-
-
-                                            <StackPanel Orientation="Horizontal">
-
-                                                <TextBlock Text="&#x25F7;"
-                                   FontSize="14"
-                                   Margin="0,0,8,0"
-                                   VerticalAlignment="Center"
-                                   Foreground="{DynamicResource AccentBrush}"/>
-
-                                                <TextBlock Text="{Binding Countdown}"
-                                   FontSize="14"
-                                   FontWeight="ExtraBold"
-                                   Foreground="{DynamicResource TextPrimaryBrush}"
-                                   VerticalAlignment="Center"/>
-
-                                            </StackPanel>
-
+                                            <TextBlock Text="{Binding Countdown}"
+                                                       FontSize="13"
+                                                       FontWeight="Bold"
+                                                       VerticalAlignment="Center">
+                                                <TextBlock.Style>
+                                                    <Style TargetType="TextBlock">
+                                                        <Setter Property="Foreground" Value="#15803D"/>
+                                                        <Style.Triggers>
+                                                            <DataTrigger Binding="{Binding Status}" Value="Attention">
+                                                                <Setter Property="Foreground" Value="#1D4ED8"/>
+                                                            </DataTrigger>
+                                                            <DataTrigger Binding="{Binding Status}" Value="Warning">
+                                                                <Setter Property="Foreground" Value="#B45309"/>
+                                                            </DataTrigger>
+                                                            <DataTrigger Binding="{Binding Status}" Value="Alert">
+                                                                <Setter Property="Foreground" Value="#B45309"/>
+                                                            </DataTrigger>
+                                                            <DataTrigger Binding="{Binding Status}" Value="Violation">
+                                                                <Setter Property="Foreground" Value="#B91C1C"/>
+                                                            </DataTrigger>
+                                                        </Style.Triggers>
+                                                    </Style>
+                                                </TextBlock.Style>
+                                            </TextBlock>
                                         </Border>
-
                                     </DataTemplate>
                                 </DataGridTemplateColumn.CellTemplate>
-
                             </DataGridTemplateColumn>
 
-                            <!-- ================================= -->
                             <!-- STATUS -->
-                            <!-- ================================= -->
-
-                            <DataGridTemplateColumn Header="STATUS"
-                            Width="1.2*">
-
+                            <DataGridTemplateColumn Header="STATUS" Width="1.15*">
                                 <DataGridTemplateColumn.CellTemplate>
                                     <DataTemplate>
-
                                         <Border HorizontalAlignment="Left"
-                        VerticalAlignment="Center"
-                        Padding="12,6"
-                        CornerRadius="14">
-
+                                                VerticalAlignment="Center"
+                                                Padding="11,5"
+                                                CornerRadius="9">
                                             <Border.Style>
-
                                                 <Style TargetType="Border">
-
-                                                    <Setter Property="Background"
-                                    Value="{DynamicResource StatusInsideBgBrush}"/>
-
+                                                    <Setter Property="Background" Value="#DCFCE7"/>
                                                     <Style.Triggers>
-
-                                                        <DataTrigger Binding="{Binding Status}"
-                                             Value="Attention">
-
-                                                            <Setter Property="Background"
-                                            Value="{DynamicResource StatusAttentionBgBrush}"/>
-
+                                                        <DataTrigger Binding="{Binding Status}" Value="Attention">
+                                                            <Setter Property="Background" Value="#DBEAFE"/>
                                                         </DataTrigger>
-
-                                                        <DataTrigger Binding="{Binding Status}"
-                                             Value="Warning">
-
-                                                            <Setter Property="Background"
-                                            Value="{DynamicResource StatusWarningBgBrush}"/>
-
+                                                        <DataTrigger Binding="{Binding Status}" Value="Warning">
+                                                            <Setter Property="Background" Value="#FEF3C7"/>
                                                         </DataTrigger>
-
-                                                        <DataTrigger Binding="{Binding Status}"
-                                             Value="Alert">
-
-                                                            <Setter Property="Background"
-                                            Value="{DynamicResource StatusWarningBgBrush}"/>
-
+                                                        <DataTrigger Binding="{Binding Status}" Value="Alert">
+                                                            <Setter Property="Background" Value="#FEF3C7"/>
                                                         </DataTrigger>
-
-                                                        <DataTrigger Binding="{Binding Status}"
-                                             Value="Violation">
-
-                                                            <Setter Property="Background"
-                                            Value="{DynamicResource CountdownViolationBgBrush}"/>
-
+                                                        <DataTrigger Binding="{Binding Status}" Value="Violation">
+                                                            <Setter Property="Background" Value="#FEE2E2"/>
                                                         </DataTrigger>
-
                                                     </Style.Triggers>
-
                                                 </Style>
-
                                             </Border.Style>
-
-
-                                            <StackPanel Orientation="Horizontal">
-
-                                                <Ellipse Width="7"
-                                 Height="7"
-                                 VerticalAlignment="Center"
-                                 Margin="0,0,7,0">
-
-                                                    <Ellipse.Style>
-
-                                                        <Style TargetType="Ellipse">
-
-                                                            <Setter Property="Fill"
-                                            Value="#22C55E"/>
-
-                                                            <Style.Triggers>
-
-                                                                <DataTrigger Binding="{Binding Status}"
-                                                     Value="Attention">
-
-                                                                    <Setter Property="Fill"
-                                                    Value="#38BDF8"/>
-
-                                                                </DataTrigger>
-
-                                                                <DataTrigger Binding="{Binding Status}"
-                                                     Value="Warning">
-
-                                                                    <Setter Property="Fill"
-                                                    Value="#FBBF24"/>
-
-                                                                </DataTrigger>
-
-                                                                <DataTrigger Binding="{Binding Status}"
-                                                     Value="Alert">
-
-                                                                    <Setter Property="Fill"
-                                                    Value="#FBBF24"/>
-
-                                                                </DataTrigger>
-
-                                                                <DataTrigger Binding="{Binding Status}"
-                                                     Value="Violation">
-
-                                                                    <Setter Property="Fill"
-                                                    Value="#F87171"/>
-
-                                                                </DataTrigger>
-
-                                                            </Style.Triggers>
-
-                                                        </Style>
-
-                                                    </Ellipse.Style>
-
-                                                </Ellipse>
-
-
-                                                <TextBlock Text="{Binding Status}"
-                                   FontSize="11"
-                                   FontWeight="SemiBold"
-                                   Foreground="{DynamicResource TextPrimaryBrush}"
-                                   VerticalAlignment="Center"/>
-
-                                            </StackPanel>
-
+                                            <TextBlock Text="{Binding Status}"
+                                                       FontSize="11"
+                                                       FontWeight="Bold"
+                                                       VerticalAlignment="Center">
+                                                <TextBlock.Style>
+                                                    <Style TargetType="TextBlock">
+                                                        <Setter Property="Foreground" Value="#166534"/>
+                                                        <Style.Triggers>
+                                                            <DataTrigger Binding="{Binding Status}" Value="Attention">
+                                                                <Setter Property="Foreground" Value="#1D4ED8"/>
+                                                            </DataTrigger>
+                                                            <DataTrigger Binding="{Binding Status}" Value="Warning">
+                                                                <Setter Property="Foreground" Value="#B45309"/>
+                                                            </DataTrigger>
+                                                            <DataTrigger Binding="{Binding Status}" Value="Alert">
+                                                                <Setter Property="Foreground" Value="#B45309"/>
+                                                            </DataTrigger>
+                                                            <DataTrigger Binding="{Binding Status}" Value="Violation">
+                                                                <Setter Property="Foreground" Value="#B91C1C"/>
+                                                            </DataTrigger>
+                                                        </Style.Triggers>
+                                                    </Style>
+                                                </TextBlock.Style>
+                                            </TextBlock>
                                         </Border>
-
                                     </DataTemplate>
                                 </DataGridTemplateColumn.CellTemplate>
-
                             </DataGridTemplateColumn>
 
-                            <!-- ================================= -->
-                            <!-- STOP VOICE -->
-                            <!-- ================================= -->
-
-                            <DataGridTemplateColumn Header="VOICE"
-                            Width="0.9*">
-
+                            <!-- VOICE -->
+                            <DataGridTemplateColumn Header="VOICE" Width="0.95*">
                                 <DataGridTemplateColumn.CellTemplate>
                                     <DataTemplate>
-
                                         <Button Content="Stop"
-                                                Width="72"
+                                                Width="70"
                                                 Height="30"
-                                                FontSize="12"
+                                                FontSize="11"
                                                 FontWeight="Bold"
                                                 Cursor="Hand"
                                                 Background="#DC2626"
@@ -2681,18 +2614,22 @@
                                                 Visibility="{Binding ShowStopVoice, Converter={StaticResource BooleanToVisibilityConverter}}">
                                             <Button.Template>
                                                 <ControlTemplate TargetType="Button">
-                                                    <Border Background="{TemplateBinding Background}"
+                                                    <Border x:Name="Bd"
+                                                            Background="{TemplateBinding Background}"
                                                             CornerRadius="8"
                                                             Padding="8,0">
                                                         <ContentPresenter HorizontalAlignment="Center" VerticalAlignment="Center"/>
                                                     </Border>
+                                                    <ControlTemplate.Triggers>
+                                                        <Trigger Property="IsMouseOver" Value="True">
+                                                            <Setter TargetName="Bd" Property="Opacity" Value="0.9"/>
+                                                        </Trigger>
+                                                    </ControlTemplate.Triggers>
                                                 </ControlTemplate>
                                             </Button.Template>
                                         </Button>
-
                                     </DataTemplate>
                                 </DataGridTemplateColumn.CellTemplate>
-
                             </DataGridTemplateColumn>
 
                         </DataGrid.Columns>

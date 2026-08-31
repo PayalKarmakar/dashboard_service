@@ -540,7 +540,8 @@ public class MonitoringService
    
     public async Task<List<SensorViolation>> GetActiveSensorViolationsAsync(long chamberId)
     {
-        await using var connection =new NpgsqlConnection(_configurationService.GetConnectionString());
+        await using var connection =
+            new NpgsqlConnection(_configurationService.GetConnectionString());
 
         await connection.OpenAsync();
 
@@ -570,15 +571,10 @@ public class MonitoringService
         ORDER BY started_at DESC;
     ";
 
-        await using var command =
-            new NpgsqlCommand(sql, connection);
+        await using var command = new NpgsqlCommand(sql, connection);
+        command.Parameters.AddWithValue("chamber_id", chamberId);
 
-        command.Parameters.AddWithValue(
-            "chamber_id",
-            chamberId);
-
-        await using var reader =
-            await command.ExecuteReaderAsync();
+        await using var reader = await command.ExecuteReaderAsync();
 
         var violations = new List<SensorViolation>();
 
@@ -591,32 +587,282 @@ public class MonitoringService
                 SensorModel = reader.GetString(2),
                 SensorType = reader.GetString(3),
                 Parameter = reader.GetString(4),
-                Unit = reader.IsDBNull(5)
-                    ? null
-                    : reader.GetString(5),
-                CreationSeverity = reader.IsDBNull(6)
-                    ? null
-                    : reader.GetString(6),
-                FinalSeverity = reader.IsDBNull(7)
-                    ? null
-                    : reader.GetString(7),
+                Unit = reader.IsDBNull(5) ? null : reader.GetString(5),
+                CreationSeverity = reader.IsDBNull(6) ? null : reader.GetString(6),
+                FinalSeverity = reader.IsDBNull(7) ? null : reader.GetString(7),
                 ThresholdType = reader.GetString(8),
                 ThresholdValue = reader.GetDecimal(9),
                 ActualValueAtStart = reader.GetDecimal(10),
                 StartedAt = reader.GetDateTime(11),
-                EndedAt = reader.IsDBNull(12)
-                    ? null
-                    : reader.GetDateTime(12),
-                DurationSeconds = reader.IsDBNull(13)
-                    ? null
-                    : reader.GetInt64(13),
+                EndedAt = reader.IsDBNull(12) ? null : reader.GetDateTime(12),
+                DurationSeconds = reader.IsDBNull(13) ? null : reader.GetInt64(13),
                 Status = reader.GetString(14),
-                LastAnnouncedAt = reader.IsDBNull(15) ? null: reader.GetDateTime(15),
-                LastAnnouncedSeverity = reader.IsDBNull(16) ? null: reader.GetString(16)
-                });
+                LastAnnouncedAt = reader.IsDBNull(15) ? null : reader.GetDateTime(15),
+                LastAnnouncedSeverity = reader.IsDBNull(16) ? null : reader.GetString(16)
+            });
+        }
+
+        await reader.CloseAsync();
+
+        if (violations.Count == 0)
+        {
+            return violations;
+        }
+
+        await RefreshOpenViolationSeveritiesAsync(connection, chamberId, violations);
+        return violations;
+    }
+
+    private async Task RefreshOpenViolationSeveritiesAsync(
+        NpgsqlConnection connection,
+        long chamberId,
+        List<SensorViolation> violations)
+    {
+        var thresholds = await LoadThresholdLookupAsync(connection);
+        SensorReading? latest = await LoadLatestReadingAsync(connection, chamberId);
+
+        foreach (var violation in violations)
+        {
+            try
+            {
+                decimal actual = ResolveCurrentValue(violation, latest) ?? violation.ActualValueAtStart;
+
+                string? evaluated = EvaluateSeverity(
+                    violation.Parameter,
+                    violation.ThresholdType,
+                    actual,
+                    thresholds,
+                    out decimal? breachedLimit);
+
+                // Prefer freshly evaluated severity; otherwise keep the strongest known severity.
+                string effective = PickStrongestSeverity(
+                    evaluated,
+                    violation.FinalSeverity,
+                    violation.CreationSeverity,
+                    violation.Status) ?? violation.Status;
+
+                effective = effective.ToUpperInvariant();
+
+                bool statusChanged =
+                    !effective.Equals(violation.Status, StringComparison.OrdinalIgnoreCase);
+                bool thresholdChanged =
+                    breachedLimit.HasValue &&
+                    breachedLimit.Value != violation.ThresholdValue;
+
+                if (statusChanged || thresholdChanged)
+                {
+                    await using var update = new NpgsqlCommand(@"
+                        UPDATE public.sensor_violations
+                        SET status = @status,
+                            final_severity = @status,
+                            threshold_value = COALESCE(@threshold_value, threshold_value),
+                            updated_at = NOW()
+                        WHERE sensor_violations_id = @id
+                          AND ended_at IS NULL;", connection);
+
+                    update.Parameters.AddWithValue("status", effective);
+                    var thresholdParam = update.Parameters.Add("threshold_value", NpgsqlTypes.NpgsqlDbType.Numeric);
+                    thresholdParam.Value = breachedLimit.HasValue
+                        ? breachedLimit.Value
+                        : DBNull.Value;
+                    update.Parameters.AddWithValue("id", violation.SensorViolationsId);
+                    await update.ExecuteNonQueryAsync();
+                }
+
+                violation.Status = effective;
+                violation.FinalSeverity = effective;
+                if (breachedLimit.HasValue)
+                {
+                    violation.ThresholdValue = breachedLimit.Value;
+                }
+            }
+            catch (Exception ex)
+            {
+                System.Diagnostics.Debug.WriteLine(
+                    $"Failed to refresh severity for {violation.Parameter}: {ex.Message}");
+            }
+        }
+    }
+
+    private static async Task<Dictionary<string, ThresholdLimits>> LoadThresholdLookupAsync(
+        NpgsqlConnection connection)
+    {
+        var map = new Dictionary<string, ThresholdLimits>(StringComparer.OrdinalIgnoreCase);
+
+        const string sql = @"
+            SELECT parameter, warning_low, warning_high, critical_low, critical_high
+            FROM public.sensor_thresholds
+            WHERE is_active = TRUE AND enabled = TRUE;";
+
+        await using var command = new NpgsqlCommand(sql, connection);
+        await using var reader = await command.ExecuteReaderAsync();
+
+        while (await reader.ReadAsync())
+        {
+            map[reader.GetString(0)] = new ThresholdLimits(
+                WarningLow: reader.IsDBNull(1) ? null : reader.GetDecimal(1),
+                WarningHigh: reader.IsDBNull(2) ? null : reader.GetDecimal(2),
+                CriticalLow: reader.IsDBNull(3) ? null : reader.GetDecimal(3),
+                CriticalHigh: reader.IsDBNull(4) ? null : reader.GetDecimal(4));
+        }
+
+        return map;
+    }
+
+    private static async Task<SensorReading?> LoadLatestReadingAsync(
+        NpgsqlConnection connection,
+        long chamberId)
+    {
+        const string sql = @"
+            SELECT temperature, humidity, co, co2, o2, recorded_at
+            FROM public.sensor_readings
+            WHERE chamber_id = @chamber_id
+            ORDER BY recorded_at DESC
+            LIMIT 1;";
+
+        await using var command = new NpgsqlCommand(sql, connection);
+        command.Parameters.AddWithValue("chamber_id", chamberId);
+        await using var reader = await command.ExecuteReaderAsync();
+
+        if (!await reader.ReadAsync())
+        {
+            return null;
+        }
+
+        return new SensorReading
+        {
+            Temperature = reader.IsDBNull(0) ? null : reader.GetDecimal(0),
+            Humidity = reader.IsDBNull(1) ? null : reader.GetDecimal(1),
+            CO = reader.IsDBNull(2) ? null : reader.GetDecimal(2),
+            CO2 = reader.IsDBNull(3) ? null : reader.GetDecimal(3),
+            O2 = reader.IsDBNull(4) ? null : reader.GetDecimal(4),
+            RecordedAt = reader.GetDateTime(5)
+        };
+    }
+
+    private static decimal? ResolveCurrentValue(SensorViolation violation, SensorReading? reading)
+    {
+        if (reading == null)
+        {
+            return null;
+        }
+
+        return violation.Parameter.ToUpperInvariant() switch
+        {
+            "TEMPERATURE" => reading.Temperature,
+            "HUMIDITY" => reading.Humidity,
+            "CO" => reading.CO,
+            "CO2" => reading.CO2,
+            "O2" or "OXYGEN" => reading.O2,
+            _ => null
+        };
+    }
+
+    private static string? EvaluateSeverity(
+        string parameter,
+        string thresholdType,
+        decimal actual,
+        IReadOnlyDictionary<string, ThresholdLimits> thresholds,
+        out decimal? breachedLimit)
+    {
+        breachedLimit = null;
+
+        if (!thresholds.TryGetValue(parameter, out ThresholdLimits? limits))
+        {
+            return null;
+        }
+
+        bool isLow =
+            thresholdType.Equals("LOW", StringComparison.OrdinalIgnoreCase) ||
+            parameter.Equals("O2", StringComparison.OrdinalIgnoreCase) ||
+            parameter.Equals("Oxygen", StringComparison.OrdinalIgnoreCase);
+
+        if (isLow)
+        {
+            if (limits.CriticalLow.HasValue && actual <= limits.CriticalLow.Value)
+            {
+                breachedLimit = limits.CriticalLow;
+                return "CRITICAL";
             }
 
-        return violations;
+            if (limits.WarningLow.HasValue && actual <= limits.WarningLow.Value)
+            {
+                breachedLimit = limits.WarningLow;
+                return "WARNING";
+            }
+
+            return null;
+        }
+
+        if (limits.CriticalHigh.HasValue && actual >= limits.CriticalHigh.Value)
+        {
+            breachedLimit = limits.CriticalHigh;
+            return "CRITICAL";
+        }
+
+        if (limits.WarningHigh.HasValue && actual >= limits.WarningHigh.Value)
+        {
+            breachedLimit = limits.WarningHigh;
+            return "WARNING";
+        }
+
+        return null;
+    }
+
+    private static string? PickStrongestSeverity(params string?[] values)
+    {
+        string? best = null;
+        int bestRank = -1;
+
+        foreach (string? value in values)
+        {
+            if (string.IsNullOrWhiteSpace(value))
+            {
+                continue;
+            }
+
+            int rank = value.ToUpperInvariant() switch
+            {
+                "CRITICAL" => 2,
+                "WARNING" => 1,
+                _ => 0
+            };
+
+            if (rank > bestRank)
+            {
+                bestRank = rank;
+                best = value.ToUpperInvariant();
+            }
+        }
+
+        return best;
+    }
+
+    private sealed record ThresholdLimits(
+        decimal? WarningLow,
+        decimal? WarningHigh,
+        decimal? CriticalLow,
+        decimal? CriticalHigh);
+
+    public async Task ClearSensorAnnouncementMarksAsync(long chamberId)
+    {
+        await using var connection =
+            new NpgsqlConnection(_configurationService.GetConnectionString());
+        await connection.OpenAsync();
+
+        const string sql = @"
+            UPDATE public.sensor_violations
+            SET last_announced_at = NULL,
+                last_announced_severity = NULL,
+                updated_at = NOW()
+            WHERE chamber_id = @chamber_id
+              AND ended_at IS NULL
+              AND status IN ('WARNING', 'CRITICAL');
+        ";
+
+        await using var command = new NpgsqlCommand(sql, connection);
+        command.Parameters.AddWithValue("chamber_id", chamberId);
+        await command.ExecuteNonQueryAsync();
     }
 
     public async Task MarkSensorViolationAnnouncedAsync(long sensorViolationId,string severity)

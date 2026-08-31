@@ -1,12 +1,10 @@
 using System.Collections.Concurrent;
-using System.Speech.Synthesis;
 using DashboardService.Models;
 
 namespace DashboardService.Services;
 
 public sealed class VoiceAnnouncementService : IDisposable
 {
-    private readonly ConfigurationService _configurationService = new();
     private readonly ConcurrentDictionary<long, LoopingAnnouncement> _active = new();
     private readonly ConcurrentQueue<long> _roundRobin = new();
     private readonly AutoResetEvent _workAvailable = new(false);
@@ -14,8 +12,8 @@ public sealed class VoiceAnnouncementService : IDisposable
     private readonly Thread _speechThread;
     private readonly Func<long, Task>? _markPlayedAsync;
     private readonly HashSet<long> _markedPlayed = new();
-    private SpeechSynthesizer? _synthesizer;
     private volatile bool _disposed;
+    private volatile bool _cancelCurrentSpeech;
     private long? _currentlySpeakingKey;
 
     private readonly ConcurrentQueue<VoiceAnnouncementLine> _oneTimeAnnouncements = new();
@@ -150,6 +148,8 @@ public sealed class VoiceAnnouncementService : IDisposable
         {
         }
 
+        ClearOneTimeQueue();
+
         foreach (long key in keys)
         {
             VoicePlayingChanged?.Invoke(key, false);
@@ -159,19 +159,41 @@ public sealed class VoiceAnnouncementService : IDisposable
         _workAvailable.Set();
     }
 
+    /// <summary>
+    /// Stops queued one-time (sensor) announcements and cancels if one is speaking now.
+    /// Does not stop looping employee alerts.
+    /// </summary>
+    public void StopOneTimeAnnouncements()
+    {
+        ClearOneTimeQueue();
+
+        lock (_speakLock)
+        {
+            if (_currentlySpeakingKey == null)
+            {
+                _cancelCurrentSpeech = true;
+                IndianOnlineTts.CancelActivePlayback();
+            }
+        }
+
+        _workAvailable.Set();
+    }
+
+    private void ClearOneTimeQueue()
+    {
+        while (_oneTimeAnnouncements.TryDequeue(out _))
+        {
+        }
+    }
+
     private void CancelIfSpeaking(long transactionId)
     {
         lock (_speakLock)
         {
             if (_currentlySpeakingKey == transactionId)
             {
-                try
-                {
-                    _synthesizer?.SpeakAsyncCancelAll();
-                }
-                catch
-                {
-                }
+                _cancelCurrentSpeech = true;
+                IndianOnlineTts.CancelActivePlayback();
             }
         }
     }
@@ -180,29 +202,13 @@ public sealed class VoiceAnnouncementService : IDisposable
     {
         lock (_speakLock)
         {
-            try
-            {
-                _synthesizer?.SpeakAsyncCancelAll();
-            }
-            catch
-            {
-            }
+            _cancelCurrentSpeech = true;
+            IndianOnlineTts.CancelActivePlayback();
         }
     }
 
     private void SpeechWorkerLoop()
     {
-        using var synthesizer = new SpeechSynthesizer
-        {
-            Volume = 100
-        };
-
-        _synthesizer = synthesizer;
-        ConfigureVoice(synthesizer, AlertMessageService.CultureEnglishIndia);
-
-        using var speakDone = new AutoResetEvent(false);
-        synthesizer.SpeakCompleted += (_, _) => speakDone.Set();
-
         while (!_disposed)
         {
             _workAvailable.WaitOne(TimeSpan.FromMilliseconds(400));
@@ -222,7 +228,7 @@ public sealed class VoiceAnnouncementService : IDisposable
 
             if (_oneTimeAnnouncements.TryDequeue(out VoiceAnnouncementLine? oneTimeLine))
             {
-                SpeakLine(synthesizer, speakDone, oneTimeLine, null);
+                SpeakLine(oneTimeLine, null);
                 continue;
             }
 
@@ -247,9 +253,10 @@ public sealed class VoiceAnnouncementService : IDisposable
                 lock (_speakLock)
                 {
                     _currentlySpeakingKey = transactionId;
+                    _cancelCurrentSpeech = false;
                 }
 
-                SpeakLine(synthesizer, speakDone, line, transactionId);
+                SpeakLine(line, transactionId);
 
                 if (item.AlertId is long alertId &&
                     _markPlayedAsync != null &&
@@ -276,6 +283,7 @@ public sealed class VoiceAnnouncementService : IDisposable
                 lock (_speakLock)
                 {
                     _currentlySpeakingKey = null;
+                    _cancelCurrentSpeech = false;
                 }
             }
 
@@ -285,95 +293,36 @@ public sealed class VoiceAnnouncementService : IDisposable
                 Thread.Sleep(250);
             }
         }
-
-        _synthesizer = null;
     }
 
-    private void SpeakLine(
-        SpeechSynthesizer synthesizer,
-        AutoResetEvent speakDone,
-        VoiceAnnouncementLine line,
-        long? transactionId)
+    private void SpeakLine(VoiceAnnouncementLine line, long? transactionId)
     {
         try
         {
-            ConfigureVoice(synthesizer, line.Culture);
-            speakDone.Reset();
-            synthesizer.SpeakAsync(line.Message);
+            // Always use online Indian TTS (en-IN / bn) — no local voice pack needed.
+            string culture = string.IsNullOrWhiteSpace(line.Culture)
+                ? AlertMessageService.CultureEnglishIndia
+                : line.Culture;
 
-            while (!speakDone.WaitOne(200))
+            if (culture.StartsWith("en", StringComparison.OrdinalIgnoreCase) &&
+                !culture.Equals(AlertMessageService.CultureEnglishIndia, StringComparison.OrdinalIgnoreCase))
             {
-                if (_disposed)
-                {
-                    synthesizer.SpeakAsyncCancelAll();
-                    speakDone.WaitOne(1000);
-                    break;
-                }
-
-                if (transactionId.HasValue && !_active.ContainsKey(transactionId.Value))
-                {
-                    synthesizer.SpeakAsyncCancelAll();
-                    speakDone.WaitOne(1000);
-                    break;
-                }
+                culture = AlertMessageService.CultureEnglishIndia;
             }
+
+            IndianOnlineTts.Speak(
+                line.Message,
+                culture,
+                shouldCancel: () =>
+                    _disposed ||
+                    _cancelCurrentSpeech ||
+                    (transactionId.HasValue && !_active.ContainsKey(transactionId.Value)));
         }
         catch (Exception ex)
         {
             System.Diagnostics.Debug.WriteLine(
                 $"Voice line failed ({line.Culture}): {ex.Message}");
         }
-    }
-
-    private void ConfigureVoice(SpeechSynthesizer synthesizer, string culture)
-    {
-        var settings = _configurationService.GetAlertSettings();
-        synthesizer.Rate = Math.Clamp(settings.VoiceRate, -10, 10);
-
-        var installedVoices = synthesizer
-            .GetInstalledVoices()
-            .Where(v => v.Enabled)
-            .Select(v => v.VoiceInfo)
-            .ToList();
-
-        if (installedVoices.Count == 0)
-        {
-            return;
-        }
-
-        VoiceInfo? selectedVoice = null;
-
-        if (!string.IsNullOrWhiteSpace(settings.VoiceName) &&
-            culture.Equals(AlertMessageService.CultureEnglishIndia, StringComparison.OrdinalIgnoreCase))
-        {
-            selectedVoice = installedVoices.FirstOrDefault(v =>
-                v.Name.Equals(settings.VoiceName, StringComparison.OrdinalIgnoreCase) ||
-                v.Description.Contains(settings.VoiceName, StringComparison.OrdinalIgnoreCase));
-        }
-
-        if (selectedVoice == null && !string.IsNullOrWhiteSpace(culture))
-        {
-            selectedVoice = installedVoices.FirstOrDefault(v =>
-                v.Culture.Name.Equals(culture, StringComparison.OrdinalIgnoreCase));
-        }
-
-        if (selectedVoice == null &&
-            culture.Equals(AlertMessageService.CultureBengaliIndia, StringComparison.OrdinalIgnoreCase))
-        {
-            selectedVoice = installedVoices.FirstOrDefault(v =>
-                v.Culture.Name.StartsWith("bn", StringComparison.OrdinalIgnoreCase));
-        }
-
-        selectedVoice ??= installedVoices.FirstOrDefault(v =>
-            v.Culture.Name.Equals(AlertMessageService.CultureEnglishIndia, StringComparison.OrdinalIgnoreCase) ||
-            v.Description.Contains("India", StringComparison.OrdinalIgnoreCase));
-
-        selectedVoice ??= installedVoices.FirstOrDefault(v =>
-            v.Culture.Name.Equals("en-US", StringComparison.OrdinalIgnoreCase));
-
-        selectedVoice ??= installedVoices[0];
-
-        synthesizer.SelectVoice(selectedVoice.Name);
     }
 
     public void Dispose()
@@ -386,6 +335,7 @@ public sealed class VoiceAnnouncementService : IDisposable
         _disposed = true;
         _active.Clear();
         CancelSpeech();
+        IndianOnlineTts.CancelActivePlayback();
         _workAvailable.Set();
 
         _oneTimeAnnouncements.Clear();

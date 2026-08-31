@@ -633,19 +633,19 @@
     ]
   },
   "packageFolders": {
-    "C:\\Users\\NIC\\.nuget\\packages\\": {}
+    "C:\\Users\\User\\.nuget\\packages\\": {}
   },
   "project": {
     "version": "1.0.0",
     "restore": {
-      "projectUniqueName": "E:\\New folder (2)\\dashboard_service\\DashboardService\\DashboardService.csproj",
+      "projectUniqueName": "C:\\Users\\User\\Desktop\\New folder (6)\\dashboard_service\\DashboardService\\DashboardService.csproj",
       "projectName": "DashboardService",
-      "projectPath": "E:\\New folder (2)\\dashboard_service\\DashboardService\\DashboardService.csproj",
-      "packagesPath": "C:\\Users\\NIC\\.nuget\\packages\\",
-      "outputPath": "E:\\New folder (2)\\dashboard_service\\DashboardService\\obj\\",
+      "projectPath": "C:\\Users\\User\\Desktop\\New folder (6)\\dashboard_service\\DashboardService\\DashboardService.csproj",
+      "packagesPath": "C:\\Users\\User\\.nuget\\packages\\",
+      "outputPath": "C:\\Users\\User\\Desktop\\New folder (6)\\dashboard_service\\DashboardService\\obj\\",
       "projectStyle": "PackageReference",
       "configFilePaths": [
-        "C:\\Users\\NIC\\AppData\\Roaming\\NuGet\\NuGet.Config"
+        "C:\\Users\\User\\AppData\\Roaming\\NuGet\\NuGet.Config"
       ],
       "originalTargetFrameworks": [
         "net8.0-windows"
@@ -706,7 +706,7 @@
             "privateAssets": "none"
           }
         },
-        "runtimeIdentifierGraphPath": "C:\\Users\\NIC\\AppData\\Local\\Microsoft\\dotnet\\sdk\\8.0.424/PortableRuntimeIdentifierGraph.json"
+        "runtimeIdentifierGraphPath": "C:\\Program Files\\dotnet\\sdk\\8.0.424/PortableRuntimeIdentifierGraph.json"
       }
     }
   }

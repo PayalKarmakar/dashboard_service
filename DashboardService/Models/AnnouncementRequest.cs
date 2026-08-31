@@ -14,7 +14,7 @@ public sealed class AnnouncementRequest
 
     public long TransactionId { get; init; }
 
-    public IReadOnlyList<VoiceAnnouncementLine> GetVoiceLines()
+    public IReadOnlyList<VoiceAnnouncementLine> GetVoiceLines(string? preferredCulture = null)
     {
         var lines = new List<VoiceAnnouncementLine>
         {
@@ -28,6 +28,25 @@ public sealed class AnnouncementRequest
                 SecondaryCulture ?? "bn-IN"));
         }
 
-        return lines;
+        if (string.IsNullOrWhiteSpace(preferredCulture))
+        {
+            return lines;
+        }
+
+        var preferred = lines
+            .Where(line => line.Culture.Equals(preferredCulture, StringComparison.OrdinalIgnoreCase))
+            .ToList();
+
+        if (preferred.Count > 0)
+        {
+            return preferred;
+        }
+
+        // Fallback: English, then first available line.
+        var english = lines
+            .Where(line => line.Culture.StartsWith("en", StringComparison.OrdinalIgnoreCase))
+            .ToList();
+
+        return english.Count > 0 ? english : lines;
     }
 }
