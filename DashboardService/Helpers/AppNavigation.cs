@@ -27,6 +27,7 @@ public static class AppNavigation
             "SensorReadingsReport" => new SensorReadingsReportPage(currentUser),
             "SensorConfiguration" => new SensorConfigurationPage(currentUser),
             "CameraConfiguration" => new CameraConfigurationPage(currentUser),
+            "LiveCamera" => new LiveCameraPage(currentUser),
             _ => throw new InvalidOperationException(menu)
         };
 

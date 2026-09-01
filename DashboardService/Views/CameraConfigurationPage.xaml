@@ -78,6 +78,12 @@
                                 <TextBlock Text="RFID Readers" VerticalAlignment="Center"/>
                             </StackPanel>
                         </Button>
+                        <Button Style="{StaticResource SidebarButtonStyle}" Click="LiveCameraMenu_Click">
+                            <StackPanel Orientation="Horizontal">
+                                <TextBlock Text="◎" FontSize="18" Width="30" VerticalAlignment="Center"/>
+                                <TextBlock Text="Live Camera" VerticalAlignment="Center"/>
+                            </StackPanel>
+                        </Button>
                         <Button Style="{StaticResource SidebarButtonStyle}" Click="ReportsToggle_Click">
                             <Grid>
                                 <StackPanel Orientation="Horizontal">
@@ -161,28 +167,120 @@
         </Border>
 
         <Grid Grid.Column="1" Margin="34,28,34,28">
-            <StackPanel VerticalAlignment="Center" HorizontalAlignment="Center">
-                <TextBlock Text="Camera Configuration" FontSize="28" FontWeight="Bold" Foreground="{DynamicResource TextPrimaryBrush}" HorizontalAlignment="Center"/>
-                <TextBlock Text="Camera settings will be configured here."
-                           FontSize="14"
-                           Foreground="{DynamicResource TextMutedBrush}"
-                           Margin="0,12,0,0"
-                           HorizontalAlignment="Center"/>
-                <Border Margin="0,24,0,0"
-                        Padding="24"
-                        CornerRadius="16"
-                        Background="{DynamicResource CardBgBrush}"
-                        BorderBrush="{DynamicResource CardBorderBrush}"
-                        BorderThickness="1">
-                    <StackPanel Width="420">
-                        <TextBlock Text="Coming soon" FontSize="16" FontWeight="SemiBold" Foreground="{DynamicResource TextPrimaryBrush}"/>
-                        <TextBlock Text="Add camera IP, stream URL, chamber mapping, and alert rules in the next step."
-                                   TextWrapping="Wrap"
-                                   Margin="0,8,0,0"
-                                   Foreground="{DynamicResource TextMutedBrush}"/>
-                    </StackPanel>
-                </Border>
-            </StackPanel>
+            <Grid.RowDefinitions>
+                <RowDefinition Height="Auto"/>
+                <RowDefinition Height="24"/>
+                <RowDefinition Height="Auto"/>
+                <RowDefinition Height="16"/>
+                <RowDefinition Height="*"/>
+            </Grid.RowDefinitions>
+
+            <Grid>
+                <StackPanel VerticalAlignment="Center">
+                    <TextBlock Text="Camera Configuration" FontSize="28" FontWeight="Bold" Foreground="{DynamicResource TextPrimaryBrush}"/>
+                    <TextBlock Text="Configure door cameras, RTSP streams, and RFID verification rules"
+                               FontSize="13"
+                               Foreground="{DynamicResource TextMutedBrush}"
+                               Margin="0,4,0,0"/>
+                </StackPanel>
+                <Button x:Name="AddCameraButton"
+                        Content="Add Camera"
+                        Width="150"
+                        Height="42"
+                        HorizontalAlignment="Right"
+                        Background="{DynamicResource AccentBrush}"
+                        Foreground="White"
+                        BorderThickness="0"
+                        FontWeight="SemiBold"
+                        Click="AddCamera_Click"/>
+            </Grid>
+
+            <Border Grid.Row="2"
+                    Background="{DynamicResource CardBgBrush}"
+                    BorderBrush="{DynamicResource CardBorderBrush}"
+                    BorderThickness="1"
+                    CornerRadius="14"
+                    Padding="16">
+                <StackPanel>
+                    <TextBlock Text="Door verification logic"
+                               FontSize="15"
+                               FontWeight="SemiBold"
+                               Foreground="{DynamicResource TextPrimaryBrush}"/>
+                    <TextBlock Text="Camera detects a person crossing the door. If no RFID scan happens within the match window, or more persons enter than scans, alerts can be raised."
+                               TextWrapping="Wrap"
+                               FontSize="12"
+                               Foreground="{DynamicResource TextMutedBrush}"
+                               Margin="0,6,0,0"/>
+                </StackPanel>
+            </Border>
+
+            <Border Grid.Row="4"
+                    Background="{DynamicResource CardBgBrush}"
+                    CornerRadius="16"
+                    BorderBrush="{DynamicResource CardBorderBrush}"
+                    BorderThickness="1"
+                    Padding="8">
+                <DataGrid x:Name="CamerasGrid"
+                          AutoGenerateColumns="False"
+                          IsReadOnly="True"
+                          CanUserAddRows="False"
+                          HeadersVisibility="Column"
+                          GridLinesVisibility="Horizontal"
+                          BorderThickness="0"
+                          Background="{DynamicResource CardBgBrush}"
+                          Foreground="{DynamicResource TextPrimaryBrush}"
+                          RowBackground="{DynamicResource CardBgBrush}"
+                          AlternatingRowBackground="{DynamicResource AltRowBgBrush}"
+                          HorizontalGridLinesBrush="{DynamicResource GridLineBrush}">
+                    <DataGrid.Resources>
+                        <Style TargetType="DataGridColumnHeader">
+                            <Setter Property="Background" Value="{DynamicResource DataGridHeaderBgBrush}"/>
+                            <Setter Property="Foreground" Value="{DynamicResource DataGridHeaderFgBrush}"/>
+                            <Setter Property="FontWeight" Value="SemiBold"/>
+                            <Setter Property="Height" Value="42"/>
+                            <Setter Property="Padding" Value="12,0"/>
+                        </Style>
+                        <Style TargetType="DataGridCell">
+                            <Setter Property="Foreground" Value="{DynamicResource TextPrimaryBrush}"/>
+                            <Setter Property="BorderThickness" Value="0"/>
+                            <Setter Property="Padding" Value="12,0"/>
+                            <Setter Property="VerticalContentAlignment" Value="Center"/>
+                            <Setter Property="Background" Value="Transparent"/>
+                        </Style>
+                        <Style x:Key="DataGridTextCellStyle" TargetType="TextBlock">
+                            <Setter Property="Foreground" Value="{DynamicResource TextPrimaryBrush}"/>
+                            <Setter Property="VerticalAlignment" Value="Center"/>
+                        </Style>
+                    </DataGrid.Resources>
+                    <DataGrid.Columns>
+                        <DataGridTextColumn Header="NAME" Binding="{Binding CameraName}" Width="1.1*" ElementStyle="{StaticResource DataGridTextCellStyle}"/>
+                        <DataGridTextColumn Header="CHAMBER" Binding="{Binding ChamberName}" Width="*" ElementStyle="{StaticResource DataGridTextCellStyle}"/>
+                        <DataGridTextColumn Header="PURPOSE" Binding="{Binding PurposeDisplay}" Width="0.8*" ElementStyle="{StaticResource DataGridTextCellStyle}"/>
+                        <DataGridTextColumn Header="RTSP" Binding="{Binding RtspDisplay}" Width="1.4*" ElementStyle="{StaticResource DataGridTextCellStyle}"/>
+                        <DataGridTextColumn Header="RFID READER" Binding="{Binding LinkedReaderDisplay}" Width="1*" ElementStyle="{StaticResource DataGridTextCellStyle}"/>
+                        <DataGridTextColumn Header="MATCH (S)" Binding="{Binding MatchWindowSeconds}" Width="0.7*" ElementStyle="{StaticResource DataGridTextCellStyle}"/>
+                        <DataGridTextColumn Header="DETECT" Binding="{Binding DetectionDisplay}" Width="0.7*" ElementStyle="{StaticResource DataGridTextCellStyle}"/>
+                        <DataGridTextColumn Header="STATUS" Binding="{Binding Status}" Width="0.7*" ElementStyle="{StaticResource DataGridTextCellStyle}"/>
+                        <DataGridTemplateColumn Header="ACTION" Width="180">
+                            <DataGridTemplateColumn.CellTemplate>
+                                <DataTemplate>
+                                    <StackPanel Orientation="Horizontal" Margin="4,2">
+                                        <Button Content="Edit"
+                                                Padding="8,4"
+                                                Margin="0,0,6,0"
+                                                Cursor="Hand"
+                                                Click="EditCamera_Click"/>
+                                        <Button Content="{Binding ToggleActionText}"
+                                                Padding="8,4"
+                                                Cursor="Hand"
+                                                Click="ToggleActive_Click"/>
+                                    </StackPanel>
+                                </DataTemplate>
+                            </DataGridTemplateColumn.CellTemplate>
+                        </DataGridTemplateColumn>
+                    </DataGrid.Columns>
+                </DataGrid>
+            </Border>
         </Grid>
     </Grid>
 </Page>

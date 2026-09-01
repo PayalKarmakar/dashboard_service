@@ -475,7 +475,7 @@ public class MonitoringService
     }
 
     //Payal
-    public async Task<SensorReading?> GetLatestSensorReadingAsync(long chamberId)
+    public async Task<SensorReading?> GetCurrentSensorReadingAsync(long chamberId)
     {
         await using var connection =
             new NpgsqlConnection(
@@ -485,15 +485,20 @@ public class MonitoringService
 
         const string sql = @"
         SELECT
+            chamber_id,
             temperature,
+            temperature_read_at,
             humidity,
+            humidity_read_at,
             co,
+            co_read_at,
             co2,
+            co2_read_at,
             o2,
-            recorded_at
-        FROM public.sensor_readings
+            o2_read_at,
+            updated_at
+        FROM public.sensor_current_readings
         WHERE chamber_id = @chamber_id
-        ORDER BY recorded_at DESC
         LIMIT 1;
     ";
 
@@ -512,30 +517,7 @@ public class MonitoringService
             return null;
         }
 
-        return new SensorReading
-        {
-            Temperature = reader.IsDBNull(0)
-                ? null
-                : reader.GetDecimal(0),
-
-            Humidity = reader.IsDBNull(1)
-                ? null
-                : reader.GetDecimal(1),
-
-            CO = reader.IsDBNull(2)
-                ? null
-                : reader.GetDecimal(2),
-
-            CO2 = reader.IsDBNull(3)
-                ? null
-                : reader.GetDecimal(3),
-
-            O2 = reader.IsDBNull(4)
-                ? null
-                : reader.GetDecimal(4),
-
-            RecordedAt = reader.GetDateTime(5)
-        };
+        return MapCurrentSensorReading(reader);
     }
    
     public async Task<List<SensorViolation>> GetActiveSensorViolationsAsync(long chamberId)
@@ -619,7 +601,7 @@ public class MonitoringService
         List<SensorViolation> violations)
     {
         var thresholds = await LoadThresholdLookupAsync(connection);
-        SensorReading? latest = await LoadLatestReadingAsync(connection, chamberId);
+        SensorReading? latest = await LoadCurrentReadingAsync(connection, chamberId);
 
         foreach (var violation in violations)
         {
@@ -709,15 +691,26 @@ public class MonitoringService
         return map;
     }
 
-    private static async Task<SensorReading?> LoadLatestReadingAsync(
+    private static async Task<SensorReading?> LoadCurrentReadingAsync(
         NpgsqlConnection connection,
         long chamberId)
     {
         const string sql = @"
-            SELECT temperature, humidity, co, co2, o2, recorded_at
-            FROM public.sensor_readings
+            SELECT
+                chamber_id,
+                temperature,
+                temperature_read_at,
+                humidity,
+                humidity_read_at,
+                co,
+                co_read_at,
+                co2,
+                co2_read_at,
+                o2,
+                o2_read_at,
+                updated_at
+            FROM public.sensor_current_readings
             WHERE chamber_id = @chamber_id
-            ORDER BY recorded_at DESC
             LIMIT 1;";
 
         await using var command = new NpgsqlCommand(sql, connection);
@@ -729,14 +722,28 @@ public class MonitoringService
             return null;
         }
 
+        return MapCurrentSensorReading(reader);
+    }
+
+    private static SensorReading MapCurrentSensorReading(NpgsqlDataReader reader)
+    {
+        DateTime updatedAt = reader.GetDateTime(11);
+
         return new SensorReading
         {
-            Temperature = reader.IsDBNull(0) ? null : reader.GetDecimal(0),
-            Humidity = reader.IsDBNull(1) ? null : reader.GetDecimal(1),
-            CO = reader.IsDBNull(2) ? null : reader.GetDecimal(2),
-            CO2 = reader.IsDBNull(3) ? null : reader.GetDecimal(3),
-            O2 = reader.IsDBNull(4) ? null : reader.GetDecimal(4),
-            RecordedAt = reader.GetDateTime(5)
+            ChamberId = reader.GetInt64(0),
+            Temperature = reader.IsDBNull(1) ? null : reader.GetDecimal(1),
+            TemperatureReadAt = reader.IsDBNull(2) ? null : reader.GetDateTime(2),
+            Humidity = reader.IsDBNull(3) ? null : reader.GetDecimal(3),
+            HumidityReadAt = reader.IsDBNull(4) ? null : reader.GetDateTime(4),
+            CO = reader.IsDBNull(5) ? null : reader.GetDecimal(5),
+            CoReadAt = reader.IsDBNull(6) ? null : reader.GetDateTime(6),
+            CO2 = reader.IsDBNull(7) ? null : reader.GetDecimal(7),
+            Co2ReadAt = reader.IsDBNull(8) ? null : reader.GetDateTime(8),
+            O2 = reader.IsDBNull(9) ? null : reader.GetDecimal(9),
+            O2ReadAt = reader.IsDBNull(10) ? null : reader.GetDateTime(10),
+            UpdatedAt = updatedAt,
+            RecordedAt = updatedAt
         };
     }
 

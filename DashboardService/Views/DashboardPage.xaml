@@ -495,6 +495,23 @@
                     </Button>
 
                     <Button Style="{StaticResource SidebarButtonStyle}"
+                            Click="LiveCameraMenu_Click">
+
+                        <StackPanel Orientation="Horizontal">
+
+                            <TextBlock Text="◎"
+                                       FontSize="18"
+                                       Width="30"
+                                       VerticalAlignment="Center"/>
+
+                            <TextBlock Text="Live Camera"
+                                       VerticalAlignment="Center"/>
+
+                        </StackPanel>
+
+                    </Button>
+
+                    <Button Style="{StaticResource SidebarButtonStyle}"
                             Click="ReportsToggle_Click">
 
                         <Grid>

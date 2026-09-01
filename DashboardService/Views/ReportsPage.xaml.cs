@@ -234,6 +234,9 @@ public partial class ReportsPage : Page
     private void SensorConfigurationMenu_Click(object sender, RoutedEventArgs e) =>
         AppNavigation.Go(NavigationService, "SensorConfiguration", _currentUser);
 
+    private void LiveCameraMenu_Click(object sender, RoutedEventArgs e) =>
+        AppNavigation.Go(NavigationService, "LiveCamera", _currentUser);
+
     private void CameraConfigurationMenu_Click(object sender, RoutedEventArgs e) =>
         AppNavigation.Go(NavigationService, "CameraConfiguration", _currentUser);
 

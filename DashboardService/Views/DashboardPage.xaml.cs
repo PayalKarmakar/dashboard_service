@@ -46,6 +46,7 @@ namespace DashboardService.Views
 
         //Payal
         private readonly DispatcherTimer _sensorViolationTimer;
+        private readonly DispatcherTimer _sensorReadingTimer;
         private readonly ConfigurationService _configurationService = new();
         private readonly SensorConfigurationService _sensorConfigurationService = new();
         private int _configuredSensorCount;
@@ -114,6 +115,13 @@ namespace DashboardService.Views
 
             _sensorViolationTimer.Tick += SensorViolationTimer_Tick;
             _sensorViolationTimer.Start();
+
+            _sensorReadingTimer = new DispatcherTimer
+            {
+                Interval = TimeSpan.FromSeconds(sensorAlertSettings.CheckLiveSensorReadingInterval)
+            };
+            _sensorReadingTimer.Tick += SensorReadingTimer_Tick;
+            _sensorReadingTimer.Start();
 
             _sensorBlinkTimer = new DispatcherTimer
             {
@@ -226,12 +234,14 @@ namespace DashboardService.Views
         private async void DashboardPage_Loaded(object sender, RoutedEventArgs e)
         {
             await RefreshLiveDataAsync();
+            await RefreshLiveSensorReadingAsync();
         }
 
         private void DashboardPage_Unloaded(object sender, RoutedEventArgs e)
         {
             _countdownTimer.Stop();
             _refreshTimer.Stop();
+            _sensorReadingTimer.Stop();
             _sensorViolationTimer.Stop();
             _sensorBlinkTimer.Stop();
             ThemeService.ThemeChanged -= ThemeService_ThemeChanged;
@@ -374,14 +384,31 @@ namespace DashboardService.Views
             await RefreshLiveDataAsync();
         }
 
+        private async void SensorReadingTimer_Tick(object? sender, EventArgs e)
+        {
+            await RefreshLiveSensorReadingAsync();
+        }
+
+        private async Task RefreshLiveSensorReadingAsync()
+        {
+            try
+            {
+                _latestSensorReading = await _monitoringService.GetCurrentSensorReadingAsync(1);
+                UpdateSensorDisplay();
+            }
+            catch (Exception ex)
+            {
+                System.Diagnostics.Debug.WriteLine(
+                    $"Live sensor reading refresh failed: {ex.Message}");
+            }
+        }
+
         private async Task RefreshLiveDataAsync()
         {
             try
             {
                 var chambers = await _monitoringService.GetChamberOccupancyAsync();
                 var members = await _monitoringService.GetMembersInsideAsync();
-                var sensorReading = await _monitoringService.GetLatestSensorReadingAsync(1);
-                _latestSensorReading = sensorReading;
 
                 Chambers.Clear();
                 foreach (var chamber in chambers)
@@ -405,11 +432,11 @@ namespace DashboardService.Views
                 await RefreshSensorConnectionStatusAsync();
                 await EnqueueUnplayedAnnouncementsAsync();
                 await ProcessDueAnnouncementsAsync();
-                UpdateSensorDisplay();
             }
             catch (Exception ex)
             {
                 _refreshTimer.Stop();
+            _sensorReadingTimer.Stop();
                 MessageBox.Show(
                     ex.Message,
                     "Dashboard",
@@ -809,6 +836,7 @@ namespace DashboardService.Views
             CloseAdminMenu();
             _countdownTimer.Stop();
             _refreshTimer.Stop();
+            _sensorReadingTimer.Stop();
             _voiceAnnouncementService.StopAll();
 
             var navigation = NavigationService;
@@ -829,6 +857,7 @@ namespace DashboardService.Views
         {
             _countdownTimer.Stop();
             _refreshTimer.Stop();
+            _sensorReadingTimer.Stop();
             AppNavigation.Go(NavigationService, "Chambers", _currentUser);
         }
 
@@ -836,6 +865,7 @@ namespace DashboardService.Views
         {
             _countdownTimer.Stop();
             _refreshTimer.Stop();
+            _sensorReadingTimer.Stop();
             AppNavigation.Go(NavigationService, "Employees", _currentUser);
         }
 
@@ -843,6 +873,7 @@ namespace DashboardService.Views
         {
             _countdownTimer.Stop();
             _refreshTimer.Stop();
+            _sensorReadingTimer.Stop();
             AppNavigation.Go(NavigationService, "Readers", _currentUser);
         }
 
@@ -857,6 +888,7 @@ namespace DashboardService.Views
         {
             _countdownTimer.Stop();
             _refreshTimer.Stop();
+            _sensorReadingTimer.Stop();
             AppNavigation.Go(NavigationService, "Reports", _currentUser);
         }
 
@@ -864,6 +896,7 @@ namespace DashboardService.Views
         {
             _countdownTimer.Stop();
             _refreshTimer.Stop();
+            _sensorReadingTimer.Stop();
             AppNavigation.Go(NavigationService, "ChamberEmployeesReport", _currentUser);
         }
 
@@ -871,6 +904,7 @@ namespace DashboardService.Views
         {
             _countdownTimer.Stop();
             _refreshTimer.Stop();
+            _sensorReadingTimer.Stop();
             AppNavigation.Go(NavigationService, "ChamberCriticalReport", _currentUser);
         }
 
@@ -878,12 +912,14 @@ namespace DashboardService.Views
         {
             _countdownTimer.Stop();
             _refreshTimer.Stop();
+            _sensorReadingTimer.Stop();
             AppNavigation.Go(NavigationService, "ProductionLossReport", _currentUser);
         }
         private void SensorReadingsReportMenu_Click(object sender, RoutedEventArgs e)
         {
             _countdownTimer.Stop();
             _refreshTimer.Stop();
+            _sensorReadingTimer.Stop();
             AppNavigation.Go(NavigationService, "SensorReadingsReport", _currentUser);
         }
 
@@ -894,13 +930,23 @@ namespace DashboardService.Views
         {
             _countdownTimer.Stop();
             _refreshTimer.Stop();
+            _sensorReadingTimer.Stop();
             AppNavigation.Go(NavigationService, "SensorConfiguration", _currentUser);
+        }
+
+        private void LiveCameraMenu_Click(object sender, RoutedEventArgs e)
+        {
+            _countdownTimer.Stop();
+            _refreshTimer.Stop();
+            _sensorReadingTimer.Stop();
+            AppNavigation.Go(NavigationService, "LiveCamera", _currentUser);
         }
 
         private void CameraConfigurationMenu_Click(object sender, RoutedEventArgs e)
         {
             _countdownTimer.Stop();
             _refreshTimer.Stop();
+            _sensorReadingTimer.Stop();
             AppNavigation.Go(NavigationService, "CameraConfiguration", _currentUser);
         }
 

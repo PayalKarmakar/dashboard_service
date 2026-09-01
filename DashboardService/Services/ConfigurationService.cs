@@ -37,6 +37,22 @@ public class ConfigurationService
             : value.Trim().TrimEnd('/');
     }
 
+    public CameraLiveSettings GetCameraLiveSettings()
+    {
+        double confidence = 0.45;
+        if (double.TryParse(_configuration["CameraLiveSettings:MinConfidence"], out double parsedConfidence))
+        {
+            confidence = Math.Clamp(parsedConfidence, 0.1, 0.95);
+        }
+
+        return new CameraLiveSettings
+        {
+            MinConfidence = confidence,
+            ZoneDividerPercent = ReadPositiveInt("CameraLiveSettings:ZoneDividerPercent", 50),
+            RfidRefreshIntervalSeconds = ReadPositiveInt("CameraLiveSettings:RfidRefreshIntervalSeconds", 2)
+        };
+    }
+
     public AlertSettings GetAlertSettings()
     {
         return new AlertSettings
@@ -77,6 +93,7 @@ public class ConfigurationService
             VoiceEnabled = ReadBool("SensorAlertSettings:VoiceEnabled", true),
             RepeatAfterMinutes = ReadPositiveInt("SensorAlertSettings:RepeatAfterMinutes", 5),
             SensorViolationDbCheckIntervalSeconds = ReadPositiveInt("SensorAlertSettings:SensorViolationDbCheckIntervalSeconds", 2),
+            CheckLiveSensorReadingInterval = ReadPositiveInt("SensorAlertSettings:CheckLiveSensorReadingInterval", 1),
             EnglishVoiceCulture = ReadMessage("SensorAlertSettings:EnglishVoiceCulture", "en-IN"),
             BengaliVoiceCulture = ReadMessage("SensorAlertSettings:BengaliVoiceCulture", "bn-IN")
         };

@@ -14,6 +14,8 @@ namespace DashboardService.Models
 
         public int SensorViolationDbCheckIntervalSeconds { get; set; }
 
+        public int CheckLiveSensorReadingInterval { get; set; }
+
         public string EnglishVoiceCulture { get; set; } = "en-IN";
 
         public string BengaliVoiceCulture { get; set; } = "bn-IN";
