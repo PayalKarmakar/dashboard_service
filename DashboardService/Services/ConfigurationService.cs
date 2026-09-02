@@ -1,3 +1,4 @@
+using System.IO;
 using DashboardService.Models;
 using Microsoft.Extensions.Configuration;
 
@@ -39,17 +40,28 @@ public class ConfigurationService
 
     public CameraLiveSettings GetCameraLiveSettings()
     {
-        double confidence = 0.45;
+        double confidence = 0.40;
         if (double.TryParse(_configuration["CameraLiveSettings:MinConfidence"], out double parsedConfidence))
         {
             confidence = Math.Clamp(parsedConfidence, 0.1, 0.95);
+        }
+
+        string modelPath = ReadMessage(
+            "CameraLiveSettings:ModelPath",
+            "Models/Vision/yolov5n.onnx");
+        if (!Path.IsPathRooted(modelPath))
+        {
+            modelPath = Path.Combine(AppContext.BaseDirectory, modelPath);
         }
 
         return new CameraLiveSettings
         {
             MinConfidence = confidence,
             ZoneDividerPercent = ReadPositiveInt("CameraLiveSettings:ZoneDividerPercent", 50),
-            RfidRefreshIntervalSeconds = ReadPositiveInt("CameraLiveSettings:RfidRefreshIntervalSeconds", 2)
+            RfidRefreshIntervalSeconds = ReadPositiveInt("CameraLiveSettings:RfidRefreshIntervalSeconds", 2),
+            DetectEveryNFrames = ReadPositiveInt("CameraLiveSettings:DetectEveryNFrames", 2),
+            InputSize = ReadPositiveInt("CameraLiveSettings:InputSize", 320),
+            ModelPath = modelPath
         };
     }
 

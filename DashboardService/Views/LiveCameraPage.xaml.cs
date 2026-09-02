@@ -100,7 +100,7 @@ public partial class LiveCameraPage : Page
             _selectedChamberId = option.Camera.ChamberId;
             RfidChamberText.Text = $"Chamber: {option.Camera.ChamberName}";
             DetectionModeText.Text = option.Camera.PersonDetectionEnabled
-                ? "Person detection: On (HOG)"
+                ? "Person detection: On (YOLO)"
                 : "Person detection: Off (stream only)";
         }
     }
@@ -122,7 +122,10 @@ public partial class LiveCameraPage : Page
             _selectedCamera.RtspUrl,
             _selectedCamera.PersonDetectionEnabled,
             settings.MinConfidence,
-            settings.ZoneDividerPercent);
+            settings.ZoneDividerPercent,
+            settings.DetectEveryNFrames,
+            settings.InputSize,
+            settings.ModelPath);
 
         StartButton.IsEnabled = false;
         StopButton.IsEnabled = true;

@@ -247,3 +247,15 @@ C:\Users\User\Desktop\New folder (6)\dashboard_service\DashboardService\bin\Debu
 C:\Users\User\Desktop\New folder (6)\dashboard_service\DashboardService\bin\Debug\net8.0-windows\runtimes\win\lib\net8.0\System.Speech.dll
 C:\Users\User\Desktop\New folder (6)\dashboard_service\DashboardService\obj\Debug\net8.0-windows\Views\SensorReadingsReportPage.baml
 C:\Users\User\Desktop\New folder (6)\dashboard_service\DashboardService\obj\Debug\net8.0-windows\Views\SensorReadingsReportPage.g.cs
+C:\Users\User\Desktop\New folder (6)\dashboard_service\DashboardService\bin\Debug\net8.0-windows\OpenCvSharp.dll
+C:\Users\User\Desktop\New folder (6)\dashboard_service\DashboardService\bin\Debug\net8.0-windows\OpenCvSharp.Extensions.dll
+C:\Users\User\Desktop\New folder (6)\dashboard_service\DashboardService\bin\Debug\net8.0-windows\OpenCvSharp.WpfExtensions.dll
+C:\Users\User\Desktop\New folder (6)\dashboard_service\DashboardService\bin\Debug\net8.0-windows\runtimes\win-x64\native\OpenCvSharpExtern.dll
+C:\Users\User\Desktop\New folder (6)\dashboard_service\DashboardService\bin\Debug\net8.0-windows\runtimes\win-x64\native\opencv_videoio_ffmpeg4100_64.dll
+C:\Users\User\Desktop\New folder (6)\dashboard_service\DashboardService\bin\Debug\net8.0-windows\runtimes\win-x86\native\OpenCvSharpExtern.dll
+C:\Users\User\Desktop\New folder (6)\dashboard_service\DashboardService\bin\Debug\net8.0-windows\runtimes\win-x86\native\opencv_videoio_ffmpeg4100.dll
+C:\Users\User\Desktop\New folder (6)\dashboard_service\DashboardService\obj\Debug\net8.0-windows\Views\AddCameraWindow.baml
+C:\Users\User\Desktop\New folder (6)\dashboard_service\DashboardService\obj\Debug\net8.0-windows\Views\LiveCameraPage.baml
+C:\Users\User\Desktop\New folder (6)\dashboard_service\DashboardService\obj\Debug\net8.0-windows\Views\AddCameraWindow.g.cs
+C:\Users\User\Desktop\New folder (6)\dashboard_service\DashboardService\obj\Debug\net8.0-windows\Views\LiveCameraPage.g.cs
+C:\Users\User\Desktop\New folder (6)\dashboard_service\DashboardService\bin\Debug\net8.0-windows\Models\Vision\yolov5n.onnx

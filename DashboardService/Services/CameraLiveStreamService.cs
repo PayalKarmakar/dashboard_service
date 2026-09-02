@@ -1,4 +1,5 @@
 using System.Diagnostics;
+using System.IO;
 using System.Windows.Media.Imaging;
 using DashboardService.Models;
 using OpenCvSharp;
@@ -12,18 +13,33 @@ public sealed class CameraLiveStreamService : IDisposable
     private Thread? _workerThread;
     private volatile bool _running;
     private VideoCapture? _capture;
-    private HOGDescriptor? _hog;
-    private double _minConfidence = 0.45;
+    private YoloPersonDetector? _detector;
+    private double _minConfidence = 0.40;
     private int _zoneDividerPercent = 50;
+    private int _detectEveryNFrames = 2;
+    private int _inputSize = 320;
+    private string _modelPath = string.Empty;
 
     public event Action<BitmapSource, CameraDetectionStats>? FrameReady;
 
-    public void Start(string streamUrl, bool enableDetection, double minConfidence, int zoneDividerPercent)
+    public void Start(
+        string streamUrl,
+        bool enableDetection,
+        double minConfidence,
+        int zoneDividerPercent,
+        int detectEveryNFrames = 2,
+        int inputSize = 320,
+        string? modelPath = null)
     {
         Stop();
 
         _minConfidence = Math.Clamp(minConfidence, 0.1, 0.95);
         _zoneDividerPercent = Math.Clamp(zoneDividerPercent, 20, 80);
+        _detectEveryNFrames = Math.Clamp(detectEveryNFrames, 1, 10);
+        _inputSize = inputSize <= 0 ? 320 : inputSize;
+        _modelPath = string.IsNullOrWhiteSpace(modelPath)
+            ? Path.Combine(AppContext.BaseDirectory, "Models", "Vision", "yolov5n.onnx")
+            : modelPath;
         _running = true;
 
         _workerThread = new Thread(() => RunLoop(streamUrl, enableDetection))
@@ -43,13 +59,13 @@ public sealed class CameraLiveStreamService : IDisposable
             _capture?.Release();
             _capture?.Dispose();
             _capture = null;
-            _hog?.Dispose();
-            _hog = null;
+            _detector?.Dispose();
+            _detector = null;
         }
 
         if (_workerThread != null && _workerThread.IsAlive)
         {
-            _workerThread.Join(TimeSpan.FromSeconds(2));
+            _workerThread.Join(TimeSpan.FromSeconds(3));
         }
 
         _workerThread = null;
@@ -64,29 +80,37 @@ public sealed class CameraLiveStreamService : IDisposable
         };
         PublishFrame(CreatePlaceholder("Connecting to camera..."), stats);
 
-        lock (_sync)
+        if (!TryOpenCapture(streamUrl, stats))
         {
-            _capture = new VideoCapture(streamUrl);
-        }
-
-        if (_capture == null || !_capture.IsOpened())
-        {
-            stats.StatusMessage = "Camera not reachable. Check RTSP URL and network.";
-            PublishFrame(CreatePlaceholder(stats.StatusMessage), stats);
             return;
         }
 
         if (enableDetection)
         {
-            _hog = new HOGDescriptor();
-            _hog.SetSVMDetector(HOGDescriptor.GetDefaultPeopleDetector());
+            try
+            {
+                _detector = new YoloPersonDetector(_modelPath, _minConfidence, _inputSize);
+                stats.StatusMessage = "Live (YOLO)";
+            }
+            catch (Exception ex)
+            {
+                stats.StatusMessage = $"YOLO model load failed: {ex.Message}";
+                PublishFrame(CreatePlaceholder(stats.StatusMessage), stats);
+                enableDetection = false;
+            }
         }
 
         stats.IsConnected = true;
-        stats.StatusMessage = "Live";
+        if (string.IsNullOrWhiteSpace(stats.StatusMessage) || stats.StatusMessage.StartsWith("Connecting"))
+        {
+            stats.StatusMessage = "Live";
+        }
 
         var fpsTimer = Stopwatch.StartNew();
         int frameCount = 0;
+        int frameIndex = 0;
+        IReadOnlyList<PersonDetection> lastDetections = [];
+        int consecutiveFails = 0;
 
         while (_running)
         {
@@ -100,19 +124,34 @@ public sealed class CameraLiveStreamService : IDisposable
 
             if (!readOk)
             {
+                consecutiveFails++;
                 stats.IsConnected = false;
                 stats.StatusMessage = "Stream interrupted. Retrying...";
                 PublishFrame(CreatePlaceholder(stats.StatusMessage), stats);
-                Thread.Sleep(500);
+
+                if (consecutiveFails >= 5)
+                {
+                    TryOpenCapture(streamUrl, stats);
+                    consecutiveFails = 0;
+                }
+
+                Thread.Sleep(200);
                 continue;
             }
 
+            consecutiveFails = 0;
             stats.IsConnected = true;
-            stats.StatusMessage = "Live";
+            stats.StatusMessage = enableDetection ? "Live (YOLO)" : "Live";
 
-            if (enableDetection && _hog != null)
+            frameIndex++;
+            if (enableDetection && _detector != null && frameIndex % _detectEveryNFrames == 0)
             {
-                ApplyPersonDetection(frame, stats);
+                lastDetections = _detector.Detect(frame);
+            }
+
+            if (enableDetection)
+            {
+                ApplyDetections(frame, lastDetections, stats);
             }
             else
             {
@@ -130,35 +169,46 @@ public sealed class CameraLiveStreamService : IDisposable
                 fpsTimer.Restart();
             }
 
-            using var display = frame.Clone();
-            DrawOverlay(display, stats, enableDetection);
-            PublishFrame(BitmapSourceConverter.ToBitmapSource(display), stats);
-            Thread.Sleep(33);
+            DrawOverlay(frame, stats, enableDetection);
+            PublishFrame(BitmapSourceConverter.ToBitmapSource(frame), stats);
         }
     }
 
-    private void ApplyPersonDetection(Mat frame, CameraDetectionStats stats)
+    private bool TryOpenCapture(string streamUrl, CameraDetectionStats stats)
     {
-        using var gray = new Mat();
-        Cv2.CvtColor(frame, gray, ColorConversionCodes.BGR2GRAY);
+        lock (_sync)
+        {
+            _capture?.Release();
+            _capture?.Dispose();
+            _capture = new VideoCapture(streamUrl, VideoCaptureAPIs.FFMPEG);
+            _capture.Set(VideoCaptureProperties.BufferSize, 1);
+            _capture.Set(VideoCaptureProperties.Fps, 15);
+        }
 
-        var rects = _hog!.DetectMultiScale(
-            gray,
-            out double[] weights,
-            hitThreshold: _minConfidence,
-            winStride: new Size(8, 8),
-            padding: new Size(8, 8),
-            scale: 1.05,
-            groupThreshold: 2);
+        if (_capture == null || !_capture.IsOpened())
+        {
+            stats.IsConnected = false;
+            stats.StatusMessage = "Camera not reachable. Check RTSP URL and network.";
+            PublishFrame(CreatePlaceholder(stats.StatusMessage), stats);
+            return false;
+        }
 
+        return true;
+    }
+
+    private void ApplyDetections(
+        Mat frame,
+        IReadOnlyList<PersonDetection> detections,
+        CameraDetectionStats stats)
+    {
         double lineX = frame.Width * _zoneDividerPercent / 100.0;
         int inside = 0;
         int outside = 0;
         double confidenceSum = 0;
 
-        for (int i = 0; i < rects.Length; i++)
+        foreach (var detection in detections)
         {
-            Rect rect = rects[i];
+            Rect rect = detection.Box;
             double centerX = rect.X + rect.Width / 2.0;
 
             if (centerX < lineX)
@@ -170,13 +220,12 @@ public sealed class CameraLiveStreamService : IDisposable
                 inside++;
             }
 
-            double confidence = NormalizeConfidence(weights.Length > i ? weights[i] : 0);
-            confidenceSum += confidence;
+            confidenceSum += detection.Confidence;
 
             Cv2.Rectangle(frame, rect, new Scalar(0, 220, 80), 2);
             Cv2.PutText(
                 frame,
-                $"{confidence:F0}%",
+                $"{detection.Confidence:F0}%",
                 new Point(rect.X, Math.Max(18, rect.Y - 6)),
                 HersheyFonts.HersheySimplex,
                 0.55,
@@ -184,10 +233,10 @@ public sealed class CameraLiveStreamService : IDisposable
                 2);
         }
 
-        stats.TotalDetected = rects.Length;
+        stats.TotalDetected = detections.Count;
         stats.InsideCount = inside;
         stats.OutsideCount = outside;
-        stats.AverageConfidence = rects.Length == 0 ? 0 : confidenceSum / rects.Length;
+        stats.AverageConfidence = detections.Count == 0 ? 0 : confidenceSum / detections.Count;
     }
 
     private void DrawOverlay(Mat frame, CameraDetectionStats stats, bool detectionEnabled)
@@ -233,12 +282,6 @@ public sealed class CameraLiveStreamService : IDisposable
             0.6,
             new Scalar(255, 255, 255),
             2);
-    }
-
-    private static double NormalizeConfidence(double weight)
-    {
-        // HOG SVM weights are typically around 0-1 for strong hits.
-        return Math.Clamp(weight * 100, 0, 100);
     }
 
     private static BitmapSource CreatePlaceholder(string message)
