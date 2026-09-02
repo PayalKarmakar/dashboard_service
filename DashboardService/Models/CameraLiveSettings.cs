@@ -13,4 +13,6 @@ public sealed class CameraLiveSettings
     public int InputSize { get; set; } = 320;
 
     public string ModelPath { get; set; } = "Models/Vision/yolov5n.onnx";
+
+    public bool UsePythonService { get; set; } = true;
 }

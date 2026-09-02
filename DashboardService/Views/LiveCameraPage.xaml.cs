@@ -14,7 +14,8 @@ public partial class LiveCameraPage : Page
     private readonly CameraConfigurationService _cameraService = new();
     private readonly MonitoringService _monitoringService = new();
     private readonly ConfigurationService _configurationService = new();
-    private readonly CameraLiveStreamService _streamService = new();
+    private readonly CameraLiveStreamService _opencvStreamService = new();
+    private readonly CameraPythonLiveService _pythonStreamService = new();
     private readonly DispatcherTimer _rfidTimer = new();
     private List<MasterCameraConfig> _cameras = [];
     private MasterCameraConfig? _selectedCamera;
@@ -27,7 +28,8 @@ public partial class LiveCameraPage : Page
         Loaded += LiveCameraPage_Loaded;
         Unloaded += LiveCameraPage_Unloaded;
 
-        _streamService.FrameReady += StreamService_FrameReady;
+        _opencvStreamService.FrameReady += StreamService_FrameReady;
+        _pythonStreamService.FrameReady += StreamService_FrameReady;
 
         var settings = _configurationService.GetCameraLiveSettings();
         _rfidTimer.Interval = TimeSpan.FromSeconds(settings.RfidRefreshIntervalSeconds);
@@ -41,7 +43,8 @@ public partial class LiveCameraPage : Page
     {
         ThemeService.ThemeChanged -= ThemeService_ThemeChanged;
         _rfidTimer.Stop();
-        _streamService.Stop();
+        _opencvStreamService.Stop();
+        _ = _pythonStreamService.StopAsync();
     }
 
     private void ThemeService_ThemeChanged(bool isDark)
@@ -100,12 +103,12 @@ public partial class LiveCameraPage : Page
             _selectedChamberId = option.Camera.ChamberId;
             RfidChamberText.Text = $"Chamber: {option.Camera.ChamberName}";
             DetectionModeText.Text = option.Camera.PersonDetectionEnabled
-                ? "Person detection: On (YOLO)"
+                ? "Person detection: On (Python YOLOv8)"
                 : "Person detection: Off (stream only)";
         }
     }
 
-    private void StartButton_Click(object sender, RoutedEventArgs e)
+    private async void StartButton_Click(object sender, RoutedEventArgs e)
     {
         if (_selectedCamera == null)
         {
@@ -118,21 +121,59 @@ public partial class LiveCameraPage : Page
         }
 
         var settings = _configurationService.GetCameraLiveSettings();
-        _streamService.Start(
-            _selectedCamera.RtspUrl,
-            _selectedCamera.PersonDetectionEnabled,
-            settings.MinConfidence,
-            settings.ZoneDividerPercent,
-            settings.DetectEveryNFrames,
-            settings.InputSize,
-            settings.ModelPath);
-
         StartButton.IsEnabled = false;
         StopButton.IsEnabled = true;
         CameraComboBox.IsEnabled = false;
         StreamStatusText.Text = "Connecting...";
         _rfidTimer.Start();
         _ = RefreshRfidInsideAsync();
+
+        try
+        {
+            bool preferPython = settings.UsePythonService;
+            bool pythonUp = preferPython && await _pythonStreamService.IsAvailableAsync();
+
+            if (preferPython && !pythonUp)
+            {
+                MessageBox.Show(
+                    "Python camera service is not running.\n\n" +
+                    "Start: camera_service\\run-camera-service.bat\n" +
+                    "Then click Start Stream again.\n\n" +
+                    "Falling back to OpenCV stream (detection may be weak).",
+                    "Live Camera",
+                    MessageBoxButton.OK,
+                    MessageBoxImage.Warning);
+            }
+
+            if (pythonUp)
+            {
+                DetectionModeText.Text = "Person detection: On (Python YOLOv8)";
+                await _pythonStreamService.StartAsync(
+                    _selectedCamera.RtspUrl,
+                    _selectedCamera.PersonDetectionEnabled,
+                    settings.MinConfidence,
+                    settings.ZoneDividerPercent);
+            }
+            else
+            {
+                DetectionModeText.Text = _selectedCamera.PersonDetectionEnabled
+                    ? "Person detection: On (OpenCV fallback)"
+                    : "Person detection: Off (stream only)";
+                _opencvStreamService.Start(
+                    _selectedCamera.RtspUrl,
+                    _selectedCamera.PersonDetectionEnabled,
+                    settings.MinConfidence,
+                    settings.ZoneDividerPercent,
+                    settings.DetectEveryNFrames,
+                    settings.InputSize,
+                    settings.ModelPath);
+            }
+        }
+        catch (Exception ex)
+        {
+            MessageBox.Show(ex.Message, "Live Camera", MessageBoxButton.OK, MessageBoxImage.Error);
+            StopStream();
+        }
     }
 
     private void StopButton_Click(object sender, RoutedEventArgs e)
@@ -142,7 +183,8 @@ public partial class LiveCameraPage : Page
 
     private void StopStream()
     {
-        _streamService.Stop();
+        _opencvStreamService.Stop();
+        _ = _pythonStreamService.StopAsync();
         _rfidTimer.Stop();
         StartButton.IsEnabled = true;
         StopButton.IsEnabled = false;

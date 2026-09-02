@@ -2,3 +2,14 @@
 **/.vs/
 bin/
 obj/
+# Python virtual environment
+camera_service/.venv/
+.venv/
+# Python cache
+camera_service/__pycache__/
+*.pyc
+
+# .NET
+**/bin/
+**/obj/
+**/.venv/

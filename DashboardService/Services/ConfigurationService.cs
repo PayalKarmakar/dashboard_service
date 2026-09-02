@@ -38,6 +38,14 @@ public class ConfigurationService
             : value.Trim().TrimEnd('/');
     }
 
+    public string GetCameraServiceBaseUrl()
+    {
+        string? value = _configuration["CameraService:BaseUrl"];
+        return string.IsNullOrWhiteSpace(value)
+            ? "http://localhost:64316"
+            : value.Trim().TrimEnd('/');
+    }
+
     public CameraLiveSettings GetCameraLiveSettings()
     {
         double confidence = 0.40;
@@ -61,7 +69,8 @@ public class ConfigurationService
             RfidRefreshIntervalSeconds = ReadPositiveInt("CameraLiveSettings:RfidRefreshIntervalSeconds", 2),
             DetectEveryNFrames = ReadPositiveInt("CameraLiveSettings:DetectEveryNFrames", 2),
             InputSize = ReadPositiveInt("CameraLiveSettings:InputSize", 320),
-            ModelPath = modelPath
+            ModelPath = modelPath,
+            UsePythonService = ReadBool("CameraLiveSettings:UsePythonService", true)
         };
     }
 
