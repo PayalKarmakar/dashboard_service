@@ -1,4 +1,5 @@
 using System.IO;
+using System.Runtime.InteropServices;
 using OpenCvSharp;
 using OpenCvSharp.Dnn;
 
@@ -9,7 +10,7 @@ public sealed class YoloPersonDetector : IDisposable
     private readonly Net _net;
     private readonly double _minConfidence;
     private readonly int _inputSize;
-    private readonly int _features;
+    private const int FeatureCount = 85; // x,y,w,h,obj + 80 COCO classes
 
     public YoloPersonDetector(string modelPath, double minConfidence, int inputSize = 320)
     {
@@ -20,7 +21,6 @@ public sealed class YoloPersonDetector : IDisposable
 
         _minConfidence = Math.Clamp(minConfidence, 0.1, 0.95);
         _inputSize = inputSize <= 0 ? 320 : inputSize;
-        _features = 85; // x,y,w,h,obj + 80 COCO classes
         _net = CvDnn.ReadNetFromOnnx(modelPath)
             ?? throw new InvalidOperationException("Failed to load YOLO ONNX model.");
         _net.SetPreferableBackend(Backend.OPENCV);
@@ -48,11 +48,7 @@ public sealed class YoloPersonDetector : IDisposable
             using var output = _net.Forward();
             return ParseDetections(output, frame.Width, frame.Height);
         }
-        catch (OpenCVException)
-        {
-            return [];
-        }
-        catch (Exception)
+        catch
         {
             return [];
         }
@@ -65,45 +61,38 @@ public sealed class YoloPersonDetector : IDisposable
             return [];
         }
 
-        // Flatten to float[] without reshape (avoids OpenCV maskTotal crash).
-        output.GetArray(out float[] data);
-        if (data.Length < _features)
+        float[]? data = TryCopyFloats(output);
+        if (data == null || data.Length < FeatureCount)
         {
             return [];
         }
 
-        // Detect layout:
-        // YOLOv5 classic: [1, N, 85]  -> row-major per proposal
-        // Some exports:   [1, 85, N]  -> feature-major
+        // Layout detection for YOLOv5-style ONNX:
+        // [1, N, 85]  -> row-major proposals
+        // [1, 85, N]  -> transposed features
         bool transposed = false;
-        int proposalCount;
+        int proposalCount = data.Length / FeatureCount;
 
         if (output.Dims >= 3)
         {
             int dim1 = output.Size(1);
             int dim2 = output.Size(2);
-            if (dim1 == _features)
+            if (dim1 == FeatureCount && dim2 > FeatureCount)
             {
                 transposed = true;
                 proposalCount = dim2;
             }
-            else if (dim2 == _features)
+            else if (dim2 == FeatureCount && dim1 > 1)
             {
+                transposed = false;
                 proposalCount = dim1;
             }
-            else
-            {
-                proposalCount = data.Length / _features;
-            }
-        }
-        else
-        {
-            proposalCount = data.Length / _features;
         }
 
-        if (proposalCount <= 0)
+        if (proposalCount <= 0 || proposalCount * FeatureCount > data.Length)
         {
-            return [];
+            proposalCount = data.Length / FeatureCount;
+            transposed = false;
         }
 
         float scaleX = (float)frameWidth / _inputSize;
@@ -123,7 +112,6 @@ public sealed class YoloPersonDetector : IDisposable
 
             if (transposed)
             {
-                // data layout: feature * proposalCount + i
                 cx = data[0 * proposalCount + i];
                 cy = data[1 * proposalCount + i];
                 w = data[2 * proposalCount + i];
@@ -133,13 +121,13 @@ public sealed class YoloPersonDetector : IDisposable
             }
             else
             {
-                int offset = i * _features;
+                int offset = i * FeatureCount;
                 if (offset + 5 >= data.Length)
                 {
                     break;
                 }
 
-                cx = data[offset + 0];
+                cx = data[offset];
                 cy = data[offset + 1];
                 w = data[offset + 2];
                 h = data[offset + 3];
@@ -158,7 +146,6 @@ public sealed class YoloPersonDetector : IDisposable
                 continue;
             }
 
-            // YOLOv5 coords are in letterboxed input pixels (0..inputSize)
             int x = (int)((cx - w / 2f) * scaleX);
             int y = (int)((cy - h / 2f) * scaleY);
             int width = (int)(w * scaleX);
@@ -183,35 +170,10 @@ public sealed class YoloPersonDetector : IDisposable
             return [];
         }
 
-        int[] indices;
-        try
-        {
-            CvDnn.NMSBoxes(boxes, scores, (float)_minConfidence, 0.45f, out indices);
-        }
-        catch (OpenCVException)
-        {
-            // Fallback: keep top scores without NMS
-            indices = scores
-                .Select((score, index) => (score, index))
-                .OrderByDescending(x => x.score)
-                .Take(Math.Min(10, scores.Count))
-                .Select(x => x.index)
-                .ToArray();
-        }
-
-        if (indices == null || indices.Length == 0)
-        {
-            return [];
-        }
-
+        int[] indices = SoftNms(boxes, scores);
         var results = new List<PersonDetection>(indices.Length);
         foreach (int index in indices)
         {
-            if (index < 0 || index >= boxes.Count)
-            {
-                continue;
-            }
-
             results.Add(new PersonDetection
             {
                 Box = boxes[index],
@@ -220,6 +182,64 @@ public sealed class YoloPersonDetector : IDisposable
         }
 
         return results;
+    }
+
+    /// <summary>
+    /// Copies DNN output floats without Mat.GetArray/Reshape (those throw on 3D/4D mats).
+    /// </summary>
+    private static float[]? TryCopyFloats(Mat output)
+    {
+        try
+        {
+            using var continuous = output.IsContinuous() ? output : output.Clone();
+            long total = continuous.Total() * continuous.Channels();
+            if (total <= 0 || total > int.MaxValue)
+            {
+                return null;
+            }
+
+            var data = new float[(int)total];
+            if (continuous.Type() == MatType.CV_32FC1 ||
+                continuous.Type() == MatType.CV_32F ||
+                continuous.Depth() == MatType.CV_32F)
+            {
+                Marshal.Copy(continuous.Data, data, 0, data.Length);
+                return data;
+            }
+
+            using var floated = new Mat();
+            continuous.ConvertTo(floated, MatType.CV_32FC1);
+            using var flat = floated.IsContinuous() ? floated : floated.Clone();
+            Marshal.Copy(flat.Data, data, 0, data.Length);
+            return data;
+        }
+        catch
+        {
+            return null;
+        }
+    }
+
+    private int[] SoftNms(List<Rect> boxes, List<float> scores)
+    {
+        try
+        {
+            CvDnn.NMSBoxes(boxes, scores, (float)_minConfidence, 0.45f, out int[] indices);
+            if (indices is { Length: > 0 })
+            {
+                return indices;
+            }
+        }
+        catch
+        {
+            // Manual fallback below.
+        }
+
+        return scores
+            .Select((score, index) => (score, index))
+            .OrderByDescending(x => x.score)
+            .Take(Math.Min(10, scores.Count))
+            .Select(x => x.index)
+            .ToArray();
     }
 
     public void Dispose()
