@@ -146,7 +146,15 @@ public sealed class CameraLiveStreamService : IDisposable
             frameIndex++;
             if (enableDetection && _detector != null && frameIndex % _detectEveryNFrames == 0)
             {
-                lastDetections = _detector.Detect(frame);
+                try
+                {
+                    lastDetections = _detector.Detect(frame);
+                }
+                catch
+                {
+                    // Keep last good detections; never crash the UI thread/worker.
+                    lastDetections = [];
+                }
             }
 
             if (enableDetection)
