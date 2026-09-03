@@ -1,3 +1,5 @@
+using System.Collections.ObjectModel;
+
 namespace DashboardService.Models;
 
 public sealed class SensorThresholdConfig
@@ -10,6 +12,7 @@ public sealed class SensorThresholdConfig
 
     public string Unit { get; set; } = string.Empty;
 
+    // DATABASE VALUES — KEEP AS STRING
     public string? WarningLow { get; set; }
 
     public string? WarningHigh { get; set; }
@@ -24,4 +27,14 @@ public sealed class SensorThresholdConfig
         Parameter.Equals("CO", StringComparison.OrdinalIgnoreCase) ||
         Parameter.Equals("CO2", StringComparison.OrdinalIgnoreCase) ||
         Parameter.Equals("O2", StringComparison.OrdinalIgnoreCase);
+
+    // UI ONLY — not stored in database
+    public ObservableCollection<ThresholdStatusRange> StatusRanges { get; set; } = new();
+}
+
+public sealed class ThresholdStatusRange
+{
+    public string Status { get; set; } = string.Empty;
+
+    public string Range { get; set; } = string.Empty;
 }

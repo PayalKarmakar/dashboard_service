@@ -1,10 +1,12 @@
-using System.Collections.ObjectModel;
-using System.Windows;
-using System.Windows.Controls;
-using System.Windows.Navigation;
+﻿using System.Windows.Media;
 using DashboardService.Helpers;
 using DashboardService.Models;
 using DashboardService.Services;
+using System.Collections.ObjectModel;
+using System.Windows;
+using System.Windows.Controls;
+using System.Windows.Media;
+using System.Windows.Navigation;
 
 namespace DashboardService.Views;
 
@@ -17,7 +19,6 @@ public partial class SensorConfigurationPage : Page
     public ObservableCollection<SensorThresholdConfig> MasterThresholds { get; } = new();
     public ObservableCollection<SensorViolationThresholdEdit> GasThresholds { get; } = new();
     public ObservableCollection<SensorViolationThresholdEdit> OtherViolations { get; } = new();
-
     public SensorConfigurationPage(User currentUser)
     {
         InitializeComponent();
@@ -184,4 +185,162 @@ public partial class SensorConfigurationPage : Page
         ExternalLinks.OpenCodeInq();
         e.Handled = true;
     }
+
+    private void ViewThresholdRanges_Click(object sender, RoutedEventArgs e)
+    {
+        if (sender is not Button button ||
+            button.Tag is not SensorThresholdConfig threshold)
+        {
+            return;
+        }
+
+        // Build the ranges from the existing database threshold values
+        BuildStatusRanges(threshold);
+
+        // Find the row containing this button
+        var row = FindVisualParent<DataGridRow>(button);
+
+        if (row == null)
+            return;
+
+        row.DetailsVisibility =
+            row.DetailsVisibility == Visibility.Visible
+                ? Visibility.Collapsed
+                : Visibility.Visible;
+
+        button.Content =
+            row.DetailsVisibility == Visibility.Visible
+                ? "Hide ranges  ↑"
+                : "View ranges  ›";
+    }
+
+    private static T? FindVisualParent<T>(DependencyObject child)
+    where T : DependencyObject
+    {
+        DependencyObject? parent = VisualTreeHelper.GetParent(child);
+
+        while (parent != null)
+        {
+            if (parent is T result)
+                return result;
+
+            parent = VisualTreeHelper.GetParent(parent);
+        }
+
+        return null;
+    }
+
+    private void BuildStatusRanges(SensorThresholdConfig threshold)
+    {
+        threshold.StatusRanges.Clear();
+
+        string unit = threshold.Unit ?? string.Empty;
+
+        decimal? warningLow = ParseThreshold(threshold.WarningLow);
+        decimal? warningHigh = ParseThreshold(threshold.WarningHigh);
+        decimal? criticalLow = ParseThreshold(threshold.CriticalLow);
+        decimal? criticalHigh = ParseThreshold(threshold.CriticalHigh);
+
+        // CRITICAL LOW
+        if (criticalLow.HasValue)
+        {
+            threshold.StatusRanges.Add(new ThresholdStatusRange
+            {
+                Status = "CRITICAL",
+                Range = $"Below {criticalLow.Value:0.00} {unit}"
+            });
+        }
+
+        // WARNING LOW
+        if (warningLow.HasValue)
+        {
+            string range = criticalLow.HasValue
+                ? $"{criticalLow.Value:0.00} – below {warningLow.Value:0.00} {unit}"
+                : $"Below {warningLow.Value:0.00} {unit}";
+
+            threshold.StatusRanges.Add(new ThresholdStatusRange
+            {
+                Status = "WARNING",
+                Range = range
+            });
+        }
+
+        // NORMAL
+        if (warningLow.HasValue && warningHigh.HasValue)
+        {
+            threshold.StatusRanges.Add(new ThresholdStatusRange
+            {
+                Status = "NORMAL",
+                Range =
+                    $"{warningLow.Value:0.00} – {warningHigh.Value:0.00} {unit}"
+            });
+        }
+        else if (warningLow.HasValue)
+        {
+            threshold.StatusRanges.Add(new ThresholdStatusRange
+            {
+                Status = "NORMAL",
+                Range =
+                    $"{warningLow.Value:0.00} {unit} and above"
+            });
+        }
+        else if (warningHigh.HasValue)
+        {
+            threshold.StatusRanges.Add(new ThresholdStatusRange
+            {
+                Status = "NORMAL",
+                Range =
+                    $"{warningHigh.Value:0.00} {unit} and below"
+            });
+        }
+
+        // WARNING HIGH
+        if (warningHigh.HasValue)
+        {
+            string range = criticalHigh.HasValue
+                ? $"Above {warningHigh.Value:0.00} – {criticalHigh.Value:0.00} {unit}"
+                : $"Above {warningHigh.Value:0.00} {unit}";
+
+            threshold.StatusRanges.Add(new ThresholdStatusRange
+            {
+                Status = "WARNING",
+                Range = range
+            });
+        }
+
+        // CRITICAL HIGH
+        if (criticalHigh.HasValue)
+        {
+            threshold.StatusRanges.Add(new ThresholdStatusRange
+            {
+                Status = "CRITICAL",
+                Range = $"Above {criticalHigh.Value:0.00} {unit}"
+            });
+        }
+
+        if (threshold.StatusRanges.Count == 0)
+        {
+            threshold.StatusRanges.Add(new ThresholdStatusRange
+            {
+                Status = "NORMAL",
+                Range = "No limits configured"
+            });
+        }
+    }
+
+    private static decimal? ParseThreshold(string? value)
+    {
+        if (string.IsNullOrWhiteSpace(value))
+            return null;
+
+        return decimal.TryParse(
+            value,
+            System.Globalization.NumberStyles.Any,
+            System.Globalization.CultureInfo.InvariantCulture,
+            out decimal result)
+            ? result
+            : null;
+    }
+
+
 }

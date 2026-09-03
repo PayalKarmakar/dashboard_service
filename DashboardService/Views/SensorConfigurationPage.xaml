@@ -103,7 +103,7 @@
             <Setter Property="GridLinesVisibility" Value="None"/>
             <Setter Property="BorderThickness" Value="1"/>
             <Setter Property="BorderBrush" Value="#E2E8F0"/>
-            <Setter Property="RowHeight" Value="46"/>
+            <Setter Property="RowHeight" Value="52"/>
             <Setter Property="Background" Value="#FFFFFF"/>
             <Setter Property="Foreground" Value="#0B2248"/>
             <Setter Property="RowBackground" Value="#FFFFFF"/>
@@ -177,13 +177,29 @@
             </Style.Triggers>
         </Style>
 
-        <Style x:Key="ConfigDataGridTextStyle" TargetType="TextBlock">
-            <Setter Property="Foreground" Value="#0B2248"/>
-            <Setter Property="VerticalAlignment" Value="Center"/>
-            <Setter Property="FontSize" Value="12"/>
-        </Style>
+		<Style x:Key="ConfigDataGridTextStyle" TargetType="TextBlock">
+			<Setter Property="Foreground" Value="#0B2248"/>
+			<Setter Property="VerticalAlignment" Value="Center"/>
+			<Setter Property="FontSize" Value="12"/>
+			<Setter Property="Margin" Value="8,0"/>
+		</Style>
 
-        <Style x:Key="ConfigDataGridTextRightStyle" TargetType="TextBlock"
+		<!-- Center aligned cell text -->
+		<Style x:Key="ConfigDataGridTextCenterStyle"
+       TargetType="TextBlock"
+       BasedOn="{StaticResource ConfigDataGridTextStyle}">
+			<Setter Property="HorizontalAlignment" Value="Center"/>
+			<Setter Property="TextAlignment" Value="Center"/>
+		</Style>
+
+		<!-- Center aligned column header -->
+		<Style x:Key="ConfigHeaderCenterStyle"
+       TargetType="DataGridColumnHeader"
+       BasedOn="{StaticResource ConfigDataGridColumnHeaderStyle}">
+			<Setter Property="HorizontalContentAlignment" Value="Center"/>
+		</Style>
+		
+		<Style x:Key="ConfigDataGridTextRightStyle" TargetType="TextBlock"
                BasedOn="{StaticResource ConfigDataGridTextStyle}">
             <Setter Property="HorizontalAlignment" Value="Right"/>
             <Setter Property="TextAlignment" Value="Right"/>
@@ -192,7 +208,10 @@
         <Style x:Key="ConfigDataGridMutedStyle" TargetType="TextBlock"
                BasedOn="{StaticResource ConfigDataGridTextStyle}">
             <Setter Property="Foreground" Value="#64748B"/>
-        </Style>
+			<Setter Property="VerticalAlignment" Value="Center"/>
+			<Setter Property="Margin" Value="8,0"/>
+			<Setter Property="Opacity" Value="0.7"/>
+		</Style>
 
         <Style x:Key="ConfigEditableFieldStyle" TargetType="TextBox">
             <Setter Property="Foreground" Value="#0A3776"/>
@@ -414,106 +433,390 @@
                         <StackPanel>
                             <StackPanel Orientation="Horizontal" Margin="0,0,0,2">
                                 <Border Width="3" Height="16" CornerRadius="2" Background="#0A3776" Margin="0,0,8,0" VerticalAlignment="Center"/>
-                                <TextBlock Text="COM Port Settings" Style="{StaticResource SectionTitleStyle}" VerticalAlignment="Center"/>
+                                <TextBlock Text="Sensor Configuration" Style="{StaticResource SectionTitleStyle}" VerticalAlignment="Center"/>
                             </StackPanel>
-                            <TextBlock Text="Only the blue COM port field can be changed." Style="{StaticResource SectionHintStyle}"/>
-                            <DataGrid x:Name="SensorsGrid"
-                                      Style="{StaticResource ConfigDataGridStyle}"
-                                      ColumnHeaderStyle="{StaticResource ConfigDataGridColumnHeaderStyle}"
-                                      CellStyle="{StaticResource ConfigDataGridCellStyle}"
-                                      RowStyle="{StaticResource ConfigDataGridRowStyle}">
-                                <DataGrid.Columns>
-                                    <DataGridTextColumn Header="CHAMBER" Binding="{Binding ChamberId}" Width="90" IsReadOnly="True"
-                                                          ElementStyle="{StaticResource ConfigDataGridTextStyle}"/>
-                                    <DataGridTextColumn Header="SENSOR TYPE" Binding="{Binding SensorType}" Width="*" IsReadOnly="True"
-                                                          ElementStyle="{StaticResource ConfigDataGridTextStyle}"/>
-                                    <DataGridTextColumn Header="MODEL" Binding="{Binding SensorModel}" Width="140" IsReadOnly="True"
-                                                          ElementStyle="{StaticResource ConfigDataGridMutedStyle}"/>
-                                    <DataGridTemplateColumn Header="COM PORT" Width="110">
-                                        <DataGridTemplateColumn.CellTemplate>
-                                            <DataTemplate>
-                                                <TextBox Text="{Binding Port, UpdateSourceTrigger=PropertyChanged}"
+                            <!--<TextBlock Text="Only the blue COM port field can be changed." Style="{StaticResource SectionHintStyle}"/>-->
+							<DataGrid x:Name="SensorsGrid"
+                                  Style="{StaticResource ConfigDataGridStyle}"
+                                  ColumnHeaderStyle="{StaticResource ConfigDataGridColumnHeaderStyle}"
+                                  CellStyle="{StaticResource ConfigDataGridCellStyle}"
+                                  RowStyle="{StaticResource ConfigDataGridRowStyle}"
+                                  Margin="2,0,2,0"> 
+
+								<DataGrid.Columns>
+
+									<!-- CHAMBER -->
+									<DataGridTextColumn Header="CHAMBER"
+                                        Binding="{Binding ChamberId}"
+                                        Width="0.8*"
+                                        IsReadOnly="True"
+                                        ElementStyle="{StaticResource ConfigDataGridTextCenterStyle}"
+                                        HeaderStyle="{StaticResource ConfigHeaderCenterStyle}"/>    
+
+									<!-- SENSOR TYPE -->
+									<DataGridTextColumn Header="SENSOR TYPE"
+                                        Binding="{Binding SensorType}"
+                                        Width="1.7*"
+                                        IsReadOnly="True"
+                                        ElementStyle="{StaticResource ConfigDataGridTextStyle}"/>
+
+									<!-- MODEL -->
+									<DataGridTextColumn Header="MODEL"
+                                        Binding="{Binding SensorModel}"
+                                        Width="1.5*"
+                                        IsReadOnly="True"
+                                        ElementStyle="{StaticResource ConfigDataGridTextCenterStyle}"
+                                        HeaderStyle="{StaticResource ConfigHeaderCenterStyle}"/>
+
+
+									<!--<DataGridTemplateColumn Header="COM PORT" Width="110">
+										<DataGridTemplateColumn.CellTemplate>
+											<DataTemplate>
+												<TextBox Text="{Binding Port, UpdateSourceTrigger=PropertyChanged}"
                                                          Style="{StaticResource ConfigEditablePortStyle}"
                                                          HorizontalAlignment="Left"/>
-                                            </DataTemplate>
-                                        </DataGridTemplateColumn.CellTemplate>
-                                    </DataGridTemplateColumn>
-                                    <DataGridTextColumn Header="DEVICE ID" Binding="{Binding DeviceId}" Width="90" IsReadOnly="True"
-                                                          ElementStyle="{StaticResource ConfigDataGridTextRightStyle}"
-                                                          HeaderStyle="{StaticResource ConfigHeaderRightStyle}"/>
-                                    <DataGridTextColumn Header="BAUD" Binding="{Binding BaudRate}" Width="80" IsReadOnly="True"
-                                                          ElementStyle="{StaticResource ConfigDataGridTextRightStyle}"
-                                                          HeaderStyle="{StaticResource ConfigHeaderRightStyle}"/>
-                                    <DataGridTextColumn Header="ENABLED" Binding="{Binding Enabled}" Width="90" IsReadOnly="True"
-                                                          ElementStyle="{StaticResource ConfigDataGridTextStyle}"/>
-                                </DataGrid.Columns>
-                            </DataGrid>
-                        </StackPanel>
+											</DataTemplate>
+										</DataGridTemplateColumn.CellTemplate>
+									</DataGridTemplateColumn>-->
+
+									<DataGridTextColumn Header="COM PORT"
+                                        Binding="{Binding Port}"
+                                        Width="1.2*"
+                                        IsReadOnly="True"
+                                        ElementStyle="{StaticResource ConfigDataGridTextCenterStyle}"
+                                        HeaderStyle="{StaticResource ConfigHeaderCenterStyle}"/>
+
+
+									<!-- DEVICE ID -->
+									<DataGridTextColumn Header="DEVICE ID"
+                                        Binding="{Binding DeviceId}"
+                                        Width="1.1*"
+                                        IsReadOnly="True"
+                                        ElementStyle="{StaticResource ConfigDataGridTextCenterStyle}"
+                                        HeaderStyle="{StaticResource ConfigHeaderCenterStyle}"/> 
+
+									<!-- BAUD -->
+									<DataGridTextColumn Header="BAUD RATE"
+                                        Binding="{Binding BaudRate}"
+                                        Width="1.1*"
+                                        IsReadOnly="True"
+                                        ElementStyle="{StaticResource ConfigDataGridTextCenterStyle}"
+                                        HeaderStyle="{StaticResource ConfigHeaderCenterStyle}"/>
+
+									<!-- PARITY -->
+									<DataGridTextColumn Header="PARITY"
+                                        Binding="{Binding Parity}"
+                                        Width="1.0*"
+                                        IsReadOnly="True"
+                                        ElementStyle="{StaticResource ConfigDataGridTextCenterStyle}"
+                                        HeaderStyle="{StaticResource ConfigHeaderCenterStyle}"/>
+
+
+									<!-- ENABLED STATUS-->
+									<DataGridTemplateColumn Header="STATUS"
+                                            Width="1.2*"
+                                            IsReadOnly="True"
+                                            HeaderStyle="{StaticResource ConfigHeaderCenterStyle}"> 
+
+										<DataGridTemplateColumn.CellTemplate>
+											<DataTemplate>
+												<Border Background="#DCFCE7"
+                                                    BorderBrush="#BBF7D0"
+                                                    BorderThickness="1"
+                                                    CornerRadius="8"
+                                                    Padding="10,5"
+                                                    HorizontalAlignment="Center"
+                                                    VerticalAlignment="Center"> 
+
+													<StackPanel Orientation="Horizontal" HorizontalAlignment="Center">
+
+														<Ellipse Width="7"
+                                                             Height="7"
+                                                             Fill="#16A34A"
+                                                             VerticalAlignment="Center"
+                                                             Margin="0,0,6,0"/>
+
+														<TextBlock Text="ENABLED"
+                                                               Foreground="#15803D"
+                                                               FontSize="10"
+                                                               FontWeight="Bold"
+                                                               VerticalAlignment="Center"/>     
+
+													</StackPanel>
+
+												</Border>
+
+											</DataTemplate>
+										</DataGridTemplateColumn.CellTemplate>
+
+									</DataGridTemplateColumn>
+
+								</DataGrid.Columns>
+
+							</DataGrid>
+						</StackPanel>
                     </Border>
 
                     <!-- Master WARNING / CRITICAL limits -->
-                    <Border Style="{StaticResource SectionCardStyle}">
-                        <StackPanel>
-                            <StackPanel Orientation="Horizontal" Margin="0,0,0,2">
-                                <Border Width="3" Height="16" CornerRadius="2" Background="#DC2626" Margin="0,0,8,0" VerticalAlignment="Center"/>
-                                <TextBlock Text="Warning / Critical Limits" Style="{StaticResource SectionTitleStyle}" VerticalAlignment="Center"/>
-                            </StackPanel>
-                            <TextBlock Text="Blue number fields set WARNING / CRITICAL limits. Leave blank if unused."
-                                       Style="{StaticResource SectionHintStyle}"/>
-                            <DataGrid x:Name="MasterThresholdsGrid"
-                                      Style="{StaticResource ConfigDataGridStyle}"
-                                      ColumnHeaderStyle="{StaticResource ConfigDataGridColumnHeaderStyle}"
-                                      CellStyle="{StaticResource ConfigDataGridCellStyle}"
-                                      RowStyle="{StaticResource ConfigDataGridRowStyle}">
-                                <DataGrid.Columns>
-                                    <DataGridTextColumn Header="PARAMETER" Binding="{Binding Parameter}" Width="120" IsReadOnly="True"
-                                                          ElementStyle="{StaticResource ConfigDataGridTextStyle}"/>
-                                    <DataGridTextColumn Header="TYPE" Binding="{Binding SensorType}" Width="90" IsReadOnly="True"
-                                                          ElementStyle="{StaticResource ConfigDataGridMutedStyle}"/>
-                                    <DataGridTextColumn Header="UNIT" Binding="{Binding Unit}" Width="70" IsReadOnly="True"
-                                                          ElementStyle="{StaticResource ConfigDataGridMutedStyle}"/>
-                                    <DataGridTemplateColumn Header="WARN LOW" Width="*" HeaderStyle="{StaticResource ConfigHeaderRightStyle}">
-                                        <DataGridTemplateColumn.CellTemplate>
-                                            <DataTemplate>
-                                                <TextBox Text="{Binding WarningLow, UpdateSourceTrigger=PropertyChanged}"
-                                                         Style="{StaticResource ConfigEditableFieldStyle}"
-                                                         HorizontalAlignment="Right"/>
-                                            </DataTemplate>
-                                        </DataGridTemplateColumn.CellTemplate>
-                                    </DataGridTemplateColumn>
-                                    <DataGridTemplateColumn Header="WARN HIGH" Width="*" HeaderStyle="{StaticResource ConfigHeaderRightStyle}">
-                                        <DataGridTemplateColumn.CellTemplate>
-                                            <DataTemplate>
-                                                <TextBox Text="{Binding WarningHigh, UpdateSourceTrigger=PropertyChanged}"
-                                                         Style="{StaticResource ConfigEditableFieldStyle}"
-                                                         HorizontalAlignment="Right"/>
-                                            </DataTemplate>
-                                        </DataGridTemplateColumn.CellTemplate>
-                                    </DataGridTemplateColumn>
-                                    <DataGridTemplateColumn Header="CRIT LOW" Width="*" HeaderStyle="{StaticResource ConfigHeaderRightStyle}">
-                                        <DataGridTemplateColumn.CellTemplate>
-                                            <DataTemplate>
-                                                <TextBox Text="{Binding CriticalLow, UpdateSourceTrigger=PropertyChanged}"
-                                                         Style="{StaticResource ConfigEditableFieldStyle}"
-                                                         HorizontalAlignment="Right"/>
-                                            </DataTemplate>
-                                        </DataGridTemplateColumn.CellTemplate>
-                                    </DataGridTemplateColumn>
-                                    <DataGridTemplateColumn Header="CRIT HIGH" Width="*" HeaderStyle="{StaticResource ConfigHeaderRightStyle}">
-                                        <DataGridTemplateColumn.CellTemplate>
-                                            <DataTemplate>
-                                                <TextBox Text="{Binding CriticalHigh, UpdateSourceTrigger=PropertyChanged}"
-                                                         Style="{StaticResource ConfigEditableFieldStyle}"
-                                                         HorizontalAlignment="Right"/>
-                                            </DataTemplate>
-                                        </DataGridTemplateColumn.CellTemplate>
-                                    </DataGridTemplateColumn>
-                                </DataGrid.Columns>
-                            </DataGrid>
-                        </StackPanel>
-                    </Border>
+					<Border Style="{StaticResource SectionCardStyle}">
+						<StackPanel>
 
-                    <!-- Gas + Other side by side on wide screens via two stacked compact cards -->
+							<!-- Section Header -->
+							<StackPanel Orientation="Horizontal" Margin="0,0,0,2">
+								<Border Width="3"
+                    Height="16"
+                    CornerRadius="2"
+                    Background="#DC2626"
+                    Margin="0,0,8,0"
+                    VerticalAlignment="Center"/>
+
+								<TextBlock Text="Warning / Critical Limits"
+                       Style="{StaticResource SectionTitleStyle}"
+                       VerticalAlignment="Center"/>
+							</StackPanel>
+
+							<!-- Explanation -->
+							<TextBlock Style="{StaticResource SectionHintStyle}"
+                   Text="Configure the database warning and critical limits. The status ranges below show how sensor values will be interpreted."/>
+
+							<DataGrid x:Name="MasterThresholdsGrid"
+          Style="{StaticResource ConfigDataGridStyle}"
+          ColumnHeaderStyle="{StaticResource ConfigDataGridColumnHeaderStyle}"
+          CellStyle="{StaticResource ConfigDataGridCellStyle}"
+          RowStyle="{StaticResource ConfigDataGridRowStyle}"
+          RowDetailsVisibilityMode="Collapsed"
+          AutoGenerateColumns="False"
+          Margin="10,0,10,0">
+
+								<DataGrid.Columns>
+
+									<!-- PARAMETER -->
+									<DataGridTextColumn Header="PARAMETER"
+                            Binding="{Binding Parameter}"
+                            Width="1.2*"
+                            IsReadOnly="True"
+                            ElementStyle="{StaticResource ConfigDataGridTextStyle}"/>
+
+									<!-- TYPE -->
+									<DataGridTextColumn Header="TYPE"
+                            Binding="{Binding SensorType}"
+                            Width="1*"
+                            IsReadOnly="True"
+                            ElementStyle="{StaticResource ConfigDataGridMutedStyle}"/>
+
+									<!-- UNIT -->
+									<DataGridTextColumn Header="UNIT"
+                            Binding="{Binding Unit}"
+                            Width="0.8*"
+                            IsReadOnly="True"
+                            ElementStyle="{StaticResource ConfigDataGridMutedStyle}"/>
+
+
+									<!-- WARNING LOW -->
+									<DataGridTemplateColumn Width="1.25*" HeaderStyle="{StaticResource ConfigHeaderCenterStyle}">
+
+										<DataGridTemplateColumn.HeaderTemplate>
+											<DataTemplate>
+												<StackPanel HorizontalAlignment="Center">
+													<TextBlock Text="WARNING LOW"
+                                   FontWeight="SemiBold"
+                                   HorizontalAlignment="Center"/>
+
+													<TextBlock Text="Normal starts at"
+                                   FontSize="10"
+                                   Opacity="0.65"
+                                   HorizontalAlignment="Center"/>
+												</StackPanel>
+											</DataTemplate>
+										</DataGridTemplateColumn.HeaderTemplate>
+
+										<DataGridTemplateColumn.CellTemplate>
+											<DataTemplate>
+												<TextBox Text="{Binding WarningLow,
+                                            UpdateSourceTrigger=PropertyChanged}"
+                             Style="{StaticResource ConfigEditableFieldStyle}"
+                             HorizontalAlignment="Center"/>
+											</DataTemplate>
+										</DataGridTemplateColumn.CellTemplate>
+
+									</DataGridTemplateColumn>
+
+
+									<!-- WARNING HIGH -->
+									<DataGridTemplateColumn Width="1.25*" HeaderStyle="{StaticResource ConfigHeaderCenterStyle}">
+
+										<DataGridTemplateColumn.HeaderTemplate>
+											<DataTemplate>
+												<StackPanel HorizontalAlignment="Center">
+													<TextBlock Text="WARNING HIGH"
+                                   FontWeight="SemiBold"
+                                   HorizontalAlignment="Center"/>
+
+													<TextBlock Text="Normal ends at"
+                                   FontSize="10"
+                                   Opacity="0.65"
+                                   HorizontalAlignment="Center"/>
+												</StackPanel>
+											</DataTemplate>
+										</DataGridTemplateColumn.HeaderTemplate>
+
+										<DataGridTemplateColumn.CellTemplate>
+											<DataTemplate>
+												<TextBox Text="{Binding WarningHigh,
+                                            UpdateSourceTrigger=PropertyChanged}"
+                             Style="{StaticResource ConfigEditableFieldStyle}"
+                             HorizontalAlignment="Center"/>
+											</DataTemplate>
+										</DataGridTemplateColumn.CellTemplate>
+
+									</DataGridTemplateColumn>
+
+
+									<!-- CRITICAL LOW -->
+									<DataGridTemplateColumn Width="1.25*" HeaderStyle="{StaticResource ConfigHeaderCenterStyle}">
+
+										<DataGridTemplateColumn.HeaderTemplate>
+											<DataTemplate>
+												<StackPanel HorizontalAlignment="Center">
+													<TextBlock Text="CRITICAL LOW"
+                                   FontWeight="SemiBold"
+                                   HorizontalAlignment="Center"/>
+
+													<TextBlock Text="Critical below"
+                                   FontSize="10"
+                                   Opacity="0.65"
+                                   HorizontalAlignment="Center"/>
+												</StackPanel>
+											</DataTemplate>
+										</DataGridTemplateColumn.HeaderTemplate>
+
+										<DataGridTemplateColumn.CellTemplate>
+											<DataTemplate>
+												<TextBox Text="{Binding CriticalLow,
+                                            UpdateSourceTrigger=PropertyChanged}"
+                             Style="{StaticResource ConfigEditableFieldStyle}"
+                             HorizontalAlignment="Center"/>
+											</DataTemplate>
+										</DataGridTemplateColumn.CellTemplate>
+
+									</DataGridTemplateColumn>
+
+
+									<!-- CRITICAL HIGH -->
+									<DataGridTemplateColumn Width="1.25*" HeaderStyle="{StaticResource ConfigHeaderCenterStyle}">
+
+										<DataGridTemplateColumn.HeaderTemplate>
+											<DataTemplate>
+												<StackPanel HorizontalAlignment="Center">
+													<TextBlock Text="CRITICAL HIGH"
+                                   FontWeight="SemiBold"
+                                   HorizontalAlignment="Center"/>
+
+													<TextBlock Text="Critical above"
+                                   FontSize="10"
+                                   Opacity="0.65"
+                                   HorizontalAlignment="Center"/>
+												</StackPanel>
+											</DataTemplate>
+										</DataGridTemplateColumn.HeaderTemplate>
+
+										<DataGridTemplateColumn.CellTemplate>
+											<DataTemplate>
+												<TextBox Text="{Binding CriticalHigh,
+                                            UpdateSourceTrigger=PropertyChanged}"
+                             Style="{StaticResource ConfigEditableFieldStyle}"
+                             HorizontalAlignment="Center"/>
+											</DataTemplate>
+										</DataGridTemplateColumn.CellTemplate>
+
+									</DataGridTemplateColumn>
+
+
+									<!-- STATUS RANGES -->
+									<DataGridTemplateColumn Header="STATUS RANGES"
+                                Width="1.25*">
+
+										<DataGridTemplateColumn.CellTemplate>
+											<DataTemplate>
+
+												<Button Content="View ranges"
+                            Tag="{Binding}"
+                            Click="ViewThresholdRanges_Click"
+                            Padding="12,5"
+                            Margin="4,0"
+                            HorizontalAlignment="Center"
+                            Cursor="Hand"
+                            Background="Transparent"
+                            BorderThickness="0"
+                            Foreground="#2563EB"
+                            FontSize="12"
+                            FontWeight="SemiBold"/>
+
+											</DataTemplate>
+										</DataGridTemplateColumn.CellTemplate>
+
+									</DataGridTemplateColumn>
+
+								</DataGrid.Columns>
+
+
+								<!-- Expanded interpretation -->
+								<DataGrid.RowDetailsTemplate>
+									<DataTemplate>
+
+										<Border Margin="15,0,15,12"
+                    Padding="16"
+                    CornerRadius="8"
+                    Background="#F8FAFC"
+                    BorderBrush="#E2E8F0"
+                    BorderThickness="1">
+
+											<StackPanel>
+
+												<TextBlock Text="{Binding Parameter, StringFormat={}{0} — Resulting Status Ranges}"
+                               FontSize="13"
+                               FontWeight="SemiBold"
+                               Margin="0,0,0,10"/>
+
+												<ItemsControl ItemsSource="{Binding StatusRanges}">
+
+													<ItemsControl.ItemTemplate>
+														<DataTemplate>
+
+															<Grid Margin="0,3">
+
+																<Grid.ColumnDefinitions>
+																	<ColumnDefinition Width="110"/>
+																	<ColumnDefinition Width="*"/>
+																</Grid.ColumnDefinitions>
+
+																<TextBlock Text="{Binding Status}"
+                                               FontWeight="SemiBold"/>
+
+																<TextBlock Grid.Column="1"
+                                               Text="{Binding Range}"
+                                               Foreground="#475569"/>
+
+															</Grid>
+
+														</DataTemplate>
+													</ItemsControl.ItemTemplate>
+
+												</ItemsControl>
+
+											</StackPanel>
+
+										</Border>
+
+									</DataTemplate>
+								</DataGrid.RowDetailsTemplate>
+
+							</DataGrid>
+
+						</StackPanel>
+					</Border>
+
+					<!-- Gas + Other side by side on wide screens via two stacked compact cards -->
                     <Border Style="{StaticResource SectionCardStyle}">
                         <StackPanel>
                             <StackPanel Orientation="Horizontal" Margin="0,0,0,2">
