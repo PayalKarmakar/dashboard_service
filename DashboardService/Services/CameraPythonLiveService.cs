@@ -46,6 +46,7 @@ public sealed class CameraPythonLiveService : IDisposable
         bool enableDetection,
         double minConfidence,
         int zoneDividerPercent,
+        string? cameraPurpose = null,
         CancellationToken cancellationToken = default)
     {
         await StopAsync();
@@ -56,7 +57,8 @@ public sealed class CameraPythonLiveService : IDisposable
             rtspUrl,
             enableDetection,
             minConfidence,
-            zoneDividerPercent
+            zoneDividerPercent,
+            cameraPurpose = string.IsNullOrWhiteSpace(cameraPurpose) ? "DOOR" : cameraPurpose.Trim().ToUpperInvariant()
         };
 
         using var response = await _http.PostAsJsonAsync(

@@ -19,6 +19,7 @@ public sealed class CameraLiveStreamService : IDisposable
     private int _detectEveryNFrames = 2;
     private int _inputSize = 320;
     private string _modelPath = string.Empty;
+    private bool _showDoorLine = true;
 
     public event Action<BitmapSource, CameraDetectionStats>? FrameReady;
 
@@ -29,7 +30,8 @@ public sealed class CameraLiveStreamService : IDisposable
         int zoneDividerPercent,
         int detectEveryNFrames = 2,
         int inputSize = 320,
-        string? modelPath = null)
+        string? modelPath = null,
+        string? cameraPurpose = null)
     {
         Stop();
 
@@ -37,6 +39,7 @@ public sealed class CameraLiveStreamService : IDisposable
         _zoneDividerPercent = Math.Clamp(zoneDividerPercent, 20, 80);
         _detectEveryNFrames = Math.Clamp(detectEveryNFrames, 1, 10);
         _inputSize = inputSize <= 0 ? 320 : inputSize;
+        _showDoorLine = !string.Equals(cameraPurpose, "MONITORING", StringComparison.OrdinalIgnoreCase);
         _modelPath = string.IsNullOrWhiteSpace(modelPath)
             ? Path.Combine(AppContext.BaseDirectory, "Models", "Vision", "yolov5n.onnx")
             : modelPath;
@@ -254,34 +257,38 @@ public sealed class CameraLiveStreamService : IDisposable
             return;
         }
 
-        double lineX = frame.Width * _zoneDividerPercent / 100.0;
-        Cv2.Line(
-            frame,
-            new Point(lineX, 0),
-            new Point(lineX, frame.Height),
-            new Scalar(0, 220, 255),
-            2);
+        if (_showDoorLine)
+        {
+            double lineX = frame.Width * _zoneDividerPercent / 100.0;
+            Cv2.Line(
+                frame,
+                new Point(lineX, 0),
+                new Point(lineX, frame.Height),
+                new Scalar(0, 220, 255),
+                2);
 
-        Cv2.PutText(
-            frame,
-            "OUTSIDE",
-            new Point(12, 28),
-            HersheyFonts.HersheySimplex,
-            0.8,
-            new Scalar(0, 220, 255),
-            2);
+            Cv2.PutText(
+                frame,
+                "OUTSIDE",
+                new Point(12, 28),
+                HersheyFonts.HersheySimplex,
+                0.8,
+                new Scalar(0, 220, 255),
+                2);
 
-        Cv2.PutText(
-            frame,
-            "INSIDE",
-            new Point(lineX + 12, 28),
-            HersheyFonts.HersheySimplex,
-            0.8,
-            new Scalar(0, 220, 255),
-            2);
+            Cv2.PutText(
+                frame,
+                "INSIDE",
+                new Point(lineX + 12, 28),
+                HersheyFonts.HersheySimplex,
+                0.8,
+                new Scalar(0, 220, 255),
+                2);
+        }
 
-        string summary =
-            $"Detected: {stats.TotalDetected} | In: {stats.InsideCount} | Out: {stats.OutsideCount} | Acc: {stats.AccuracyDisplay}";
+        string summary = _showDoorLine
+            ? $"Detected: {stats.TotalDetected} | In: {stats.InsideCount} | Out: {stats.OutsideCount} | Acc: {stats.AccuracyDisplay}"
+            : $"Persons: {stats.TotalDetected} | Acc: {stats.AccuracyDisplay}";
         Cv2.PutText(
             frame,
             summary,
