@@ -17,8 +17,8 @@ public partial class SensorConfigurationPage : Page
 
     public ObservableCollection<MasterSensorConfig> Sensors { get; } = new();
     public ObservableCollection<SensorThresholdConfig> MasterThresholds { get; } = new();
-    public ObservableCollection<SensorViolationThresholdEdit> GasThresholds { get; } = new();
-    public ObservableCollection<SensorViolationThresholdEdit> OtherViolations { get; } = new();
+    //public ObservableCollection<SensorViolationThresholdEdit> GasThresholds { get; } = new();
+    //public ObservableCollection<SensorViolationThresholdEdit> OtherViolations { get; } = new();
     public SensorConfigurationPage(User currentUser)
     {
         InitializeComponent();
@@ -26,8 +26,8 @@ public partial class SensorConfigurationPage : Page
 
         SensorsGrid.ItemsSource = Sensors;
         MasterThresholdsGrid.ItemsSource = MasterThresholds;
-        GasThresholdsGrid.ItemsSource = GasThresholds;
-        OtherViolationsGrid.ItemsSource = OtherViolations;
+        //GasThresholdsGrid.ItemsSource = GasThresholds;
+        //OtherViolationsGrid.ItemsSource = OtherViolations;
 
         Loaded += SensorConfigurationPage_Loaded;
         Unloaded += SensorConfigurationPage_Unloaded;
@@ -74,20 +74,20 @@ public partial class SensorConfigurationPage : Page
                 MasterThresholds.Add(threshold);
             }
 
-            GasThresholds.Clear();
-            OtherViolations.Clear();
+            //GasThresholds.Clear();
+            //OtherViolations.Clear();
 
-            foreach (var row in await _sensorConfigurationService.GetActiveViolationThresholdsAsync())
-            {
-                if (row.IsGasParameter)
-                {
-                    GasThresholds.Add(row);
-                }
-                else
-                {
-                    OtherViolations.Add(row);
-                }
-            }
+            //foreach (var row in await _sensorConfigurationService.GetActiveViolationThresholdsAsync())
+            //{
+            //    if (row.IsGasParameter)
+            //    {
+            //        GasThresholds.Add(row);
+            //    }
+            //    else
+            //    {
+            //        OtherViolations.Add(row);
+            //    }
+            //}
         }
         catch (Exception ex)
         {
@@ -103,8 +103,8 @@ public partial class SensorConfigurationPage : Page
             SensorsGrid.CommitEdit();
             MasterThresholdsGrid.CommitEdit(DataGridEditingUnit.Row, true);
             MasterThresholdsGrid.CommitEdit();
-            GasThresholdsGrid.CommitEdit(DataGridEditingUnit.Row, true);
-            GasThresholdsGrid.CommitEdit();
+            //GasThresholdsGrid.CommitEdit(DataGridEditingUnit.Row, true);
+            //GasThresholdsGrid.CommitEdit();
 
             foreach (var sensor in Sensors)
             {
@@ -118,12 +118,12 @@ public partial class SensorConfigurationPage : Page
                 await _sensorConfigurationService.UpdateSensorThresholdAsync(threshold);
             }
 
-            foreach (var threshold in GasThresholds)
-            {
-                await _sensorConfigurationService.UpdateViolationThresholdAsync(
-                    threshold.SensorViolationsId,
-                    threshold.ThresholdValue);
-            }
+            //foreach (var threshold in GasThresholds)
+            //{
+            //    await _sensorConfigurationService.UpdateViolationThresholdAsync(
+            //        threshold.SensorViolationsId,
+            //        threshold.ThresholdValue);
+            //}
 
             MessageBox.Show(
                 "COM port, warning/critical limits, and active violation thresholds saved.",
