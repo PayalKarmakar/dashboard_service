@@ -1,5 +1,6 @@
 using System.Windows;
 using System.Windows.Controls;
+using System.Windows.Media;
 using System.Windows.Media.Imaging;
 using System.Windows.Threading;
 using DashboardService.Helpers;
@@ -12,14 +13,21 @@ public partial class LiveCameraPage : Page
 {
     private readonly User _currentUser;
     private readonly CameraConfigurationService _cameraService = new();
+    private readonly RfidReaderService _readerService = new();
     private readonly MonitoringService _monitoringService = new();
     private readonly ConfigurationService _configurationService = new();
     private readonly CameraLiveStreamService _opencvStreamService = new();
     private readonly CameraPythonLiveService _pythonStreamService = new();
+    private readonly CameraDoorVerificationService _doorVerificationService = new();
+    private readonly CameraOccupancyVerificationService _occupancyVerificationService = new();
+    private readonly VoiceAnnouncementService _voiceAnnouncementService = new();
     private readonly DispatcherTimer _rfidTimer = new();
+    private readonly DispatcherTimer _verifyTimer = new();
     private List<MasterCameraConfig> _cameras = [];
     private MasterCameraConfig? _selectedCamera;
     private long _selectedChamberId;
+    private bool _verifyBusy;
+    private int _latestDetectedCount;
 
     public LiveCameraPage(User currentUser)
     {
@@ -30,10 +38,15 @@ public partial class LiveCameraPage : Page
 
         _opencvStreamService.FrameReady += StreamService_FrameReady;
         _pythonStreamService.FrameReady += StreamService_FrameReady;
+        _doorVerificationService.AlertRaised += DoorVerificationService_AlertRaised;
+        _occupancyVerificationService.AlertRaised += DoorVerificationService_AlertRaised;
 
         var settings = _configurationService.GetCameraLiveSettings();
         _rfidTimer.Interval = TimeSpan.FromSeconds(settings.RfidRefreshIntervalSeconds);
         _rfidTimer.Tick += RfidTimer_Tick;
+
+        _verifyTimer.Interval = TimeSpan.FromSeconds(1);
+        _verifyTimer.Tick += VerifyTimer_Tick;
 
         ApplySciFiChrome(ThemeService.IsDarkMode);
         ThemeService.ThemeChanged += ThemeService_ThemeChanged;
@@ -42,9 +55,13 @@ public partial class LiveCameraPage : Page
     private void LiveCameraPage_Unloaded(object sender, RoutedEventArgs e)
     {
         ThemeService.ThemeChanged -= ThemeService_ThemeChanged;
+        _doorVerificationService.AlertRaised -= DoorVerificationService_AlertRaised;
+        _occupancyVerificationService.AlertRaised -= DoorVerificationService_AlertRaised;
         _rfidTimer.Stop();
+        _verifyTimer.Stop();
         _opencvStreamService.Stop();
         _ = _pythonStreamService.StopAsync();
+        _voiceAnnouncementService.Dispose();
     }
 
     private void ThemeService_ThemeChanged(bool isDark)
@@ -95,7 +112,7 @@ public partial class LiveCameraPage : Page
         }
     }
 
-    private void CameraComboBox_SelectionChanged(object sender, SelectionChangedEventArgs e)
+    private async void CameraComboBox_SelectionChanged(object sender, SelectionChangedEventArgs e)
     {
         if (CameraComboBox.SelectedItem is CameraOption option)
         {
@@ -105,7 +122,69 @@ public partial class LiveCameraPage : Page
             DetectionModeText.Text = option.Camera.PersonDetectionEnabled
                 ? "Person detection: On (Python YOLOv8)"
                 : "Person detection: Off (stream only)";
+
+            ApplyCameraModeUi(option.Camera);
+            await ConfigureDoorVerificationAsync(option.Camera);
         }
+    }
+
+    private void ApplyCameraModeUi(MasterCameraConfig camera)
+    {
+        bool monitoring = string.Equals(
+            camera.CameraPurpose,
+            "MONITORING",
+            StringComparison.OrdinalIgnoreCase);
+
+        ExitStatCard.Visibility = monitoring ? Visibility.Collapsed : Visibility.Visible;
+        EntryStatCard.Visibility = monitoring ? Visibility.Collapsed : Visibility.Visible;
+
+        DetectedTitleText.Text = monitoring ? "CAMERA IN CHAMBER" : "PERSONS NOW";
+        DetectedHintText.Text = monitoring
+            ? "People currently detected by monitoring camera"
+            : "Currently visible in frame";
+
+        VerifyStatusTitleText.Text = monitoring ? "OCCUPANCY MATCH" : "DOOR VERIFY STATUS";
+        DoorVerifyStatusText.Text = monitoring
+            ? $"Compare camera count vs RFID inside · stable {camera.MatchWindowSeconds}s"
+            : camera.AlertOnNoRfid || camera.AlertOnTailgate
+                ? $"Watching IN events · match {camera.MatchWindowSeconds}s"
+                : "Alerts disabled for this camera";
+    }
+
+    private async Task ConfigureDoorVerificationAsync(MasterCameraConfig camera)
+    {
+        RfidReader? linkedReader = null;
+        if (camera.RfidReaderId is > 0)
+        {
+            var readers = await _readerService.GetAllAsync();
+            linkedReader = readers.FirstOrDefault(r => r.ReaderId == camera.RfidReaderId.Value);
+        }
+
+        _doorVerificationService.Configure(camera, linkedReader);
+        _occupancyVerificationService.Configure(camera);
+
+        bool monitoring = string.Equals(
+            camera.CameraPurpose,
+            "MONITORING",
+            StringComparison.OrdinalIgnoreCase);
+
+        if (monitoring)
+        {
+            DoorVerifyStatusText.Text =
+                camera.AlertOnNoRfid || camera.AlertOnTailgate
+                    ? $"Monitoring occupancy · match after {camera.MatchWindowSeconds}s stable"
+                    : "Occupancy alerts disabled for this camera";
+            return;
+        }
+
+        string readerLabel = linkedReader == null
+            ? "chamber RFID (any reader)"
+            : linkedReader.ReaderName;
+
+        DoorVerifyStatusText.Text =
+            camera.AlertOnNoRfid || camera.AlertOnTailgate
+                ? $"Watching IN events · match {camera.MatchWindowSeconds}s · {readerLabel}"
+                : "Alerts disabled for this camera";
     }
 
     private async void StartButton_Click(object sender, RoutedEventArgs e)
@@ -125,7 +204,12 @@ public partial class LiveCameraPage : Page
         StopButton.IsEnabled = true;
         CameraComboBox.IsEnabled = false;
         StreamStatusText.Text = "Connecting...";
+        DoorAlertBanner.Visibility = Visibility.Collapsed;
+        _doorVerificationService.Reset();
+        _occupancyVerificationService.Reset();
+        await ConfigureDoorVerificationAsync(_selectedCamera);
         _rfidTimer.Start();
+        _verifyTimer.Start();
         _ = RefreshRfidInsideAsync();
 
         try
@@ -186,10 +270,14 @@ public partial class LiveCameraPage : Page
         _opencvStreamService.Stop();
         _ = _pythonStreamService.StopAsync();
         _rfidTimer.Stop();
+        _verifyTimer.Stop();
+        _doorVerificationService.Reset();
+        _occupancyVerificationService.Reset();
         StartButton.IsEnabled = true;
         StopButton.IsEnabled = false;
         CameraComboBox.IsEnabled = true;
         StreamStatusText.Text = "Stream stopped";
+        DoorVerifyStatusText.Text = "Idle";
         ResetStats();
     }
 
@@ -204,12 +292,113 @@ public partial class LiveCameraPage : Page
             OutsideCountText.Text = stats.OutsideCount.ToString();
             AccuracyText.Text = stats.AccuracyDisplay;
             FpsText.Text = stats.FpsDisplay;
+            _latestDetectedCount = stats.TotalDetected;
+
+            // InsideCount is mapped from camera service ENTRY (IN) cumulative count.
+            _doorVerificationService.ObserveCameraEntryCount(stats.InsideCount);
+
+            if (_selectedCamera != null
+                && string.Equals(
+                    _selectedCamera.CameraPurpose,
+                    "MONITORING",
+                    StringComparison.OrdinalIgnoreCase))
+            {
+                var status = _occupancyVerificationService.GetLastStatus();
+                if (!string.IsNullOrWhiteSpace(status.StatusText)
+                    && status.StatusText != "Idle"
+                    && status.StatusText != "Waiting for detections...")
+                {
+                    DoorVerifyStatusText.Text = status.StatusText;
+                }
+            }
         });
     }
 
     private async void RfidTimer_Tick(object? sender, EventArgs e)
     {
         await RefreshRfidInsideAsync();
+    }
+
+    private async void VerifyTimer_Tick(object? sender, EventArgs e)
+    {
+        if (_verifyBusy)
+        {
+            return;
+        }
+
+        _verifyBusy = true;
+        try
+        {
+            await _doorVerificationService.ProcessDueAsync();
+
+            if (_selectedCamera != null
+                && string.Equals(
+                    _selectedCamera.CameraPurpose,
+                    "MONITORING",
+                    StringComparison.OrdinalIgnoreCase))
+            {
+                await _occupancyVerificationService.EvaluateAsync(_latestDetectedCount);
+                var status = _occupancyVerificationService.GetLastStatus();
+                DoorVerifyStatusText.Text = status.StatusText;
+                if (status.RfidCount >= 0 && status.CameraCount >= 0)
+                {
+                    RfidInsideText.Text = status.RfidCount.ToString();
+                }
+            }
+        }
+        catch
+        {
+            // Keep stream alive even if verification query fails.
+        }
+        finally
+        {
+            _verifyBusy = false;
+        }
+    }
+
+    private void DoorVerificationService_AlertRaised(CameraDoorAlert alert)
+    {
+        Dispatcher.Invoke(() =>
+        {
+            DoorVerifyStatusText.Text = $"{alert.TitleDisplay}: camera {alert.CameraPersonCount} / RFID {alert.RfidScanCount}";
+
+            if (alert.AlertType is "NO_RFID" or "TAILGATE" or "OCCUPANCY_NO_RFID" or "OCCUPANCY_MISMATCH")
+            {
+                ShowDoorAlertBanner(alert);
+                _voiceAnnouncementService.AnnounceOnce(alert.Message, "en-IN");
+            }
+            else
+            {
+                DoorAlertBanner.Visibility = Visibility.Collapsed;
+            }
+        });
+    }
+
+    private void ShowDoorAlertBanner(CameraDoorAlert alert)
+    {
+        bool critical = alert.AlertType is "NO_RFID" or "OCCUPANCY_NO_RFID";
+        DoorAlertBanner.Background = new SolidColorBrush(
+            (Color)ColorConverter.ConvertFromString(critical ? "#FEF2F2" : "#FFFBEB"));
+        DoorAlertBanner.BorderBrush = new SolidColorBrush(
+            (Color)ColorConverter.ConvertFromString(critical ? "#FECACA" : "#FDE68A"));
+        DoorAlertTitleText.Text = alert.AlertType switch
+        {
+            "NO_RFID" => "CRITICAL · Camera entry without RFID",
+            "OCCUPANCY_NO_RFID" => "CRITICAL · People in chamber without RFID",
+            "OCCUPANCY_MISMATCH" => "WARNING · Camera count > RFID inside",
+            _ => "WARNING · Possible tailgating"
+        };
+        DoorAlertTitleText.Foreground = new SolidColorBrush(
+            (Color)ColorConverter.ConvertFromString(critical ? "#7F1D1D" : "#92400E"));
+        DoorAlertMessageText.Text = alert.Message;
+        DoorAlertMessageText.Foreground = new SolidColorBrush(
+            (Color)ColorConverter.ConvertFromString(critical ? "#991B1B" : "#A16207"));
+        DoorAlertBanner.Visibility = Visibility.Visible;
+    }
+
+    private void DismissDoorAlert_Click(object sender, RoutedEventArgs e)
+    {
+        DoorAlertBanner.Visibility = Visibility.Collapsed;
     }
 
     private async Task RefreshRfidInsideAsync()

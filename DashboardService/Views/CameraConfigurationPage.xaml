@@ -206,7 +206,7 @@
                                FontSize="15"
                                FontWeight="SemiBold"
                                Foreground="{DynamicResource TextPrimaryBrush}"/>
-                    <TextBlock Text="Camera detects a person crossing the door. If no RFID scan happens within the match window, or more persons enter than scans, alerts can be raised."
+                    <TextBlock Text="Door cameras match each IN crossing with RFID scans in the match window. Monitoring cameras compare people visible in the chamber with open RFID entries and alert on mismatch."
                                TextWrapping="Wrap"
                                FontSize="12"
                                Foreground="{DynamicResource TextMutedBrush}"

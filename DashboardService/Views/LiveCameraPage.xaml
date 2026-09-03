@@ -173,14 +173,16 @@
         <Grid Grid.Column="1" Margin="34,28,34,28">
             <Grid.RowDefinitions>
                 <RowDefinition Height="Auto"/>
-                <RowDefinition Height="20"/>
+                <RowDefinition Height="12"/>
+                <RowDefinition Height="Auto"/>
+                <RowDefinition Height="12"/>
                 <RowDefinition Height="*"/>
             </Grid.RowDefinitions>
 
             <Grid>
                 <StackPanel VerticalAlignment="Center">
                     <TextBlock Text="Live Camera" FontSize="28" FontWeight="Bold" Foreground="{DynamicResource TextPrimaryBrush}"/>
-                    <TextBlock Text="RTSP live stream with YOLO tracking — door line crossing counts ENTRY (IN) and EXIT (OUT)"
+                    <TextBlock Text="Camera IN/OUT + RFID match-window verification alerts"
                                FontSize="13"
                                Foreground="{DynamicResource TextMutedBrush}"
                                Margin="0,4,0,0"/>
@@ -214,7 +216,39 @@
                 </StackPanel>
             </Grid>
 
-            <Grid Grid.Row="2">
+            <Border x:Name="DoorAlertBanner"
+                    Grid.Row="2"
+                    Visibility="Collapsed"
+                    CornerRadius="12"
+                    Padding="14,10"
+                    BorderThickness="1">
+                <Grid>
+                    <Grid.ColumnDefinitions>
+                        <ColumnDefinition Width="*"/>
+                        <ColumnDefinition Width="Auto"/>
+                    </Grid.ColumnDefinitions>
+                    <StackPanel>
+                        <TextBlock x:Name="DoorAlertTitleText"
+                                   FontSize="12"
+                                   FontWeight="Bold"
+                                   Foreground="#7F1D1D"/>
+                        <TextBlock x:Name="DoorAlertMessageText"
+                                   FontSize="12"
+                                   TextWrapping="Wrap"
+                                   Margin="0,4,0,0"
+                                   Foreground="#991B1B"/>
+                    </StackPanel>
+                    <Button Grid.Column="1"
+                            Content="Dismiss"
+                            Height="32"
+                            Padding="12,0"
+                            Margin="12,0,0,0"
+                            VerticalAlignment="Center"
+                            Click="DismissDoorAlert_Click"/>
+                </Grid>
+            </Border>
+
+            <Grid Grid.Row="4">
                 <Grid.ColumnDefinitions>
                     <ColumnDefinition Width="2.2*"/>
                     <ColumnDefinition Width="20"/>
@@ -249,16 +283,17 @@
                 <StackPanel Grid.Column="2">
                     <Border Style="{StaticResource StatCardStyle}" Margin="0,0,0,12">
                         <StackPanel>
-                            <TextBlock Text="PERSONS NOW" FontSize="11" FontWeight="Bold" Foreground="{DynamicResource TextMutedBrush}"/>
+                            <TextBlock x:Name="DetectedTitleText" Text="PERSONS NOW" FontSize="11" FontWeight="Bold" Foreground="{DynamicResource TextMutedBrush}"/>
                             <TextBlock x:Name="DetectedCountText" Text="0" FontSize="34" FontWeight="Bold" Foreground="{DynamicResource TextPrimaryBrush}" Margin="0,6,0,0"/>
-                            <TextBlock Text="Currently visible in frame"
+                            <TextBlock x:Name="DetectedHintText"
+                                       Text="Currently visible in frame"
                                        FontSize="11"
                                        Foreground="{DynamicResource TextMutedBrush}"
                                        Margin="0,4,0,0"/>
                         </StackPanel>
                     </Border>
 
-                    <Border Style="{StaticResource StatCardStyle}" Margin="0,0,0,12">
+                    <Border x:Name="ExitStatCard" Style="{StaticResource StatCardStyle}" Margin="0,0,0,12">
                         <StackPanel>
                             <TextBlock Text="EXIT (OUT)" FontSize="11" FontWeight="Bold" Foreground="{DynamicResource TextMutedBrush}"/>
                             <TextBlock x:Name="OutsideCountText" Text="0" FontSize="34" FontWeight="Bold" Foreground="#FF8C42" Margin="0,6,0,0"/>
@@ -269,7 +304,7 @@
                         </StackPanel>
                     </Border>
 
-                    <Border Style="{StaticResource StatCardStyle}" Margin="0,0,0,12">
+                    <Border x:Name="EntryStatCard" Style="{StaticResource StatCardStyle}" Margin="0,0,0,12">
                         <StackPanel>
                             <TextBlock Text="ENTRY (IN)" FontSize="11" FontWeight="Bold" Foreground="{DynamicResource TextMutedBrush}"/>
                             <TextBlock x:Name="InsideCountText" Text="0" FontSize="34" FontWeight="Bold" Foreground="#4CD964" Margin="0,6,0,0"/>
@@ -300,6 +335,19 @@
                                        FontSize="11"
                                        Foreground="{DynamicResource TextMutedBrush}"
                                        Margin="0,4,0,0"/>
+                        </StackPanel>
+                    </Border>
+
+                    <Border Style="{StaticResource StatCardStyle}" Margin="0,0,0,12">
+                        <StackPanel>
+                            <TextBlock x:Name="VerifyStatusTitleText" Text="DOOR VERIFY STATUS" FontSize="11" FontWeight="Bold" Foreground="{DynamicResource TextMutedBrush}"/>
+                            <TextBlock x:Name="DoorVerifyStatusText"
+                                       Text="Idle"
+                                       FontSize="14"
+                                       FontWeight="SemiBold"
+                                       Foreground="{DynamicResource TextPrimaryBrush}"
+                                       Margin="0,8,0,0"
+                                       TextWrapping="Wrap"/>
                         </StackPanel>
                     </Border>
 
