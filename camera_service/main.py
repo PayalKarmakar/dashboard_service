@@ -49,6 +49,7 @@ class StartRequest(BaseModel):
     enableDetection: bool = True
     minConfidence: float = 0.40
     zoneDividerPercent: int = 50
+    cameraPurpose: str = "DOOR"
 
 
 class CameraWorker:
@@ -58,11 +59,14 @@ class CameraWorker:
         enable_detection: bool,
         min_confidence: float,
         zone_divider_percent: int,
+        camera_purpose: str = "DOOR",
     ) -> None:
         self.rtsp_url = rtsp_url
         self.enable_detection = enable_detection
         self.min_confidence = max(0.1, min(0.95, min_confidence))
         self.zone_divider_percent = max(20, min(80, zone_divider_percent))
+        self.camera_purpose = (camera_purpose or "DOOR").strip().upper()
+        self.show_door_line = self.camera_purpose != "MONITORING"
         self._running = False
         self._thread: threading.Thread | None = None
         self._cap: cv2.VideoCapture | None = None
@@ -123,7 +127,7 @@ class CameraWorker:
             "lastEvent": self.last_event,
             "boxes": list(self._boxes),
             "detectionEngine": "YOLOv8n-track" if self.enable_detection else "Off",
-            "mode": "line_crossing",
+            "mode": "occupancy" if not self.show_door_line else "line_crossing",
         }
 
     def jpeg(self) -> bytes | None:
@@ -237,21 +241,22 @@ class CameraWorker:
                     if ids is not None:
                         track_id = int(ids[i].item())
                         seen_ids.add(track_id)
-                        side = self._side_of(cx, line_x)
-                        prev = self._track_side.get(track_id)
-                        last_cross = self._track_last_cross_ts.get(track_id, 0.0)
+                        if self.show_door_line:
+                            side = self._side_of(cx, line_x)
+                            prev = self._track_side.get(track_id)
+                            last_cross = self._track_last_cross_ts.get(track_id, 0.0)
 
-                        if prev is not None and prev != side and (now - last_cross) >= self._cross_cooldown_sec:
-                            if prev == "OUT" and side == "IN":
-                                self.entry_count += 1
-                                self.last_event = f"IN #{self.entry_count}"
-                                self._track_last_cross_ts[track_id] = now
-                            elif prev == "IN" and side == "OUT":
-                                self.exit_count += 1
-                                self.last_event = f"OUT #{self.exit_count}"
-                                self._track_last_cross_ts[track_id] = now
+                            if prev is not None and prev != side and (now - last_cross) >= self._cross_cooldown_sec:
+                                if prev == "OUT" and side == "IN":
+                                    self.entry_count += 1
+                                    self.last_event = f"IN #{self.entry_count}"
+                                    self._track_last_cross_ts[track_id] = now
+                                elif prev == "IN" and side == "OUT":
+                                    self.exit_count += 1
+                                    self.last_event = f"OUT #{self.exit_count}"
+                                    self._track_last_cross_ts[track_id] = now
 
-                        self._track_side[track_id] = side
+                            self._track_side[track_id] = side
 
                     conf_sum += conf
                     boxes.append((x1, y1, x2, y2, conf, track_id))
@@ -289,34 +294,35 @@ class CameraWorker:
         line_x = int(w * self.zone_divider_percent / 100.0)
 
         if self.enable_detection:
-            cv2.line(frame, (line_x, 0), (line_x, h), (0, 220, 255), 2)
-            cv2.putText(
-                frame,
-                "OUT  -->",
-                (max(8, line_x - 110), 28),
-                cv2.FONT_HERSHEY_SIMPLEX,
-                0.7,
-                (0, 220, 255),
-                2,
-            )
-            cv2.putText(
-                frame,
-                "<--  IN",
-                (line_x + 12, 28),
-                cv2.FONT_HERSHEY_SIMPLEX,
-                0.7,
-                (0, 220, 255),
-                2,
-            )
-            cv2.putText(
-                frame,
-                "DOOR LINE",
-                (max(8, line_x - 55), 54),
-                cv2.FONT_HERSHEY_SIMPLEX,
-                0.5,
-                (0, 220, 255),
-                1,
-            )
+            if self.show_door_line:
+                cv2.line(frame, (line_x, 0), (line_x, h), (0, 220, 255), 2)
+                cv2.putText(
+                    frame,
+                    "OUT  -->",
+                    (max(8, line_x - 110), 28),
+                    cv2.FONT_HERSHEY_SIMPLEX,
+                    0.7,
+                    (0, 220, 255),
+                    2,
+                )
+                cv2.putText(
+                    frame,
+                    "<--  IN",
+                    (line_x + 12, 28),
+                    cv2.FONT_HERSHEY_SIMPLEX,
+                    0.7,
+                    (0, 220, 255),
+                    2,
+                )
+                cv2.putText(
+                    frame,
+                    "DOOR LINE",
+                    (max(8, line_x - 55), 54),
+                    cv2.FONT_HERSHEY_SIMPLEX,
+                    0.5,
+                    (0, 220, 255),
+                    1,
+                )
 
             for x1, y1, x2, y2, conf, track_id in boxes:
                 cv2.rectangle(frame, (x1, y1), (x2, y2), (0, 220, 80), 2)
@@ -331,12 +337,17 @@ class CameraWorker:
                     2,
                 )
 
-            summary = (
-                f"Now: {self.total_detected} | IN: {self.entry_count} | "
-                f"OUT: {self.exit_count} | Acc: {self.average_confidence:.0f}%"
-            )
-            if self.last_event:
-                summary += f" | Last: {self.last_event}"
+            if self.show_door_line:
+                summary = (
+                    f"Now: {self.total_detected} | IN: {self.entry_count} | "
+                    f"OUT: {self.exit_count} | Acc: {self.average_confidence:.0f}%"
+                )
+                if self.last_event:
+                    summary += f" | Last: {self.last_event}"
+            else:
+                summary = (
+                    f"Persons: {self.total_detected} | Acc: {self.average_confidence:.0f}%"
+                )
             cv2.putText(
                 frame,
                 summary,
@@ -373,9 +384,11 @@ def start_stream(req: StartRequest) -> dict[str, Any]:
             enable_detection=req.enableDetection,
             min_confidence=req.minConfidence,
             zone_divider_percent=req.zoneDividerPercent,
+            camera_purpose=req.cameraPurpose,
         )
         _worker.start()
-    return {"success": True, "message": "Stream started (line-crossing IN/OUT)."}
+    mode = "occupancy" if _worker.show_door_line is False else "line-crossing IN/OUT"
+    return {"success": True, "message": f"Stream started ({mode})."}
 
 
 @app.post("/api/stream/stop")

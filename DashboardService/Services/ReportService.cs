@@ -297,6 +297,69 @@ public class ReportService
         return rows;
     }
 
+    public async Task<List<SystemLogReportRow>> GetSystemLogsAsync(
+        DateTime fromDate,
+        DateTime toDate,
+        string? statusFilter = null)
+    {
+        var rows = new List<SystemLogReportRow>();
+
+        DateTime from = fromDate.Date;
+        DateTime to = toDate.Date.AddDays(1).AddTicks(-1);
+        string filter = (statusFilter ?? string.Empty).Trim().ToUpperInvariant();
+
+        await using var connection = new NpgsqlConnection(_configurationService.GetConnectionString());
+        await connection.OpenAsync();
+
+        const string sql = @"
+            SELECT
+                sl.log_id,
+                sl.created_at,
+                COALESCE(sl.service_name, ''),
+                COALESCE(sl.log_level, ''),
+                COALESCE(sl.event_type, ''),
+                COALESCE(sl.message, ''),
+                COALESCE(sl.source_port, '')
+            FROM public.system_logs sl
+            WHERE sl.created_at >= @fromDate
+              AND sl.created_at <= @toDate
+              AND (
+                    @filter = ''
+                    OR (@filter = 'CONNECTED'
+                        AND UPPER(sl.event_type) LIKE '%CONNECTED%'
+                        AND UPPER(sl.event_type) NOT LIKE '%DISCONNECTED%')
+                    OR (@filter = 'DISCONNECTED'
+                        AND UPPER(sl.event_type) LIKE '%DISCONNECTED%')
+                    OR (@filter = 'RECONNECTED'
+                        AND UPPER(sl.event_type) LIKE '%RECONNECTED%')
+                  )
+            ORDER BY sl.created_at DESC, sl.log_id DESC;
+        ";
+
+        await using var command = new NpgsqlCommand(sql, connection);
+        command.Parameters.AddWithValue("fromDate", from);
+        command.Parameters.AddWithValue("toDate", to);
+        command.Parameters.AddWithValue("filter", filter);
+
+        await using var reader = await command.ExecuteReaderAsync();
+
+        while (await reader.ReadAsync())
+        {
+            rows.Add(new SystemLogReportRow
+            {
+                LogId = reader.GetInt64(0),
+                CreatedAt = reader.GetDateTime(1),
+                ServiceName = reader.GetString(2),
+                LogLevel = reader.GetString(3),
+                EventType = reader.GetString(4),
+                Message = reader.GetString(5),
+                SourcePort = reader.IsDBNull(6) ? string.Empty : reader.GetString(6)
+            });
+        }
+
+        return rows;
+    }
+
     private async Task<List<SensorViolationRecord>> GetSensorViolationRecordsAsync(
         DateTime fromDate,
         DateTime toDate,

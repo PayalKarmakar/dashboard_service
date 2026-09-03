@@ -128,6 +128,17 @@ public partial class LiveCameraPage : Page
         }
     }
 
+    private bool _sidebarExpanded = true;
+
+    private void SidebarToggle_Click(object sender, RoutedEventArgs e)
+    {
+        _sidebarExpanded = !_sidebarExpanded;
+        SidebarColumn.Width = new GridLength(_sidebarExpanded ? 230 : 0);
+        SidebarHost.Visibility = _sidebarExpanded ? Visibility.Visible : Visibility.Collapsed;
+        SidebarToggleButton.Content = _sidebarExpanded ? "«" : "☰";
+        SidebarToggleButton.ToolTip = _sidebarExpanded ? "Minimize sidebar" : "Show sidebar";
+    }
+
     private void ApplyCameraModeUi(MasterCameraConfig camera)
     {
         bool monitoring = string.Equals(
@@ -135,13 +146,17 @@ public partial class LiveCameraPage : Page
             "MONITORING",
             StringComparison.OrdinalIgnoreCase);
 
-        ExitStatCard.Visibility = monitoring ? Visibility.Collapsed : Visibility.Visible;
-        EntryStatCard.Visibility = monitoring ? Visibility.Collapsed : Visibility.Visible;
+        ExitStatCard.Visibility = Visibility.Collapsed;
+        EntryStatCard.Visibility = Visibility.Collapsed;
+        RfidStatCard.Visibility = Visibility.Collapsed;
+        VerifyStatCard.Visibility = Visibility.Collapsed;
+        DetectedStatCard.Visibility = monitoring ? Visibility.Visible : Visibility.Collapsed;
 
-        DetectedTitleText.Text = monitoring ? "CAMERA IN CHAMBER" : "PERSONS NOW";
-        DetectedHintText.Text = monitoring
-            ? "People currently detected by monitoring camera"
-            : "Currently visible in frame";
+        DetectedTitleText.Text = "PERSONS INSIDE";
+        DetectedHintText.Text = "People currently detected in the chamber";
+        LiveCameraSubtitleText.Text = monitoring
+            ? "Monitoring stream — accuracy, FPS, and persons inside"
+            : "Door stream — accuracy and FPS";
 
         VerifyStatusTitleText.Text = monitoring ? "OCCUPANCY MATCH" : "DOOR VERIFY STATUS";
         DoorVerifyStatusText.Text = monitoring
@@ -236,7 +251,8 @@ public partial class LiveCameraPage : Page
                     _selectedCamera.RtspUrl,
                     _selectedCamera.PersonDetectionEnabled,
                     settings.MinConfidence,
-                    settings.ZoneDividerPercent);
+                    settings.ZoneDividerPercent,
+                    _selectedCamera.CameraPurpose);
             }
             else
             {
@@ -250,7 +266,8 @@ public partial class LiveCameraPage : Page
                     settings.ZoneDividerPercent,
                     settings.DetectEveryNFrames,
                     settings.InputSize,
-                    settings.ModelPath);
+                    settings.ModelPath,
+                    _selectedCamera.CameraPurpose);
             }
         }
         catch (Exception ex)
