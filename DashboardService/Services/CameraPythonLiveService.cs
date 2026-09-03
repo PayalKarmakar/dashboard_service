@@ -52,13 +52,19 @@ public sealed class CameraPythonLiveService : IDisposable
         await StopAsync();
 
         string baseUrl = _configurationService.GetCameraServiceBaseUrl();
-        var payload = new
+        string purpose = string.IsNullOrWhiteSpace(cameraPurpose)
+            ? "DOOR"
+            : cameraPurpose.Trim().ToUpperInvariant();
+        bool showDoorLine = purpose is "ENTRY" or "EXIT" or "DOOR";
+
+        var payload = new StartStreamRequest
         {
-            rtspUrl,
-            enableDetection,
-            minConfidence,
-            zoneDividerPercent,
-            cameraPurpose = string.IsNullOrWhiteSpace(cameraPurpose) ? "DOOR" : cameraPurpose.Trim().ToUpperInvariant()
+            RtspUrl = rtspUrl,
+            EnableDetection = enableDetection,
+            MinConfidence = minConfidence,
+            ZoneDividerPercent = zoneDividerPercent,
+            CameraPurpose = purpose,
+            ShowDoorLine = showDoorLine
         };
 
         using var response = await _http.PostAsJsonAsync(
@@ -207,6 +213,27 @@ public sealed class CameraPythonLiveService : IDisposable
     {
         StopAsync().GetAwaiter().GetResult();
         _http.Dispose();
+    }
+
+    private sealed class StartStreamRequest
+    {
+        [JsonPropertyName("rtspUrl")]
+        public string RtspUrl { get; set; } = string.Empty;
+
+        [JsonPropertyName("enableDetection")]
+        public bool EnableDetection { get; set; }
+
+        [JsonPropertyName("minConfidence")]
+        public double MinConfidence { get; set; }
+
+        [JsonPropertyName("zoneDividerPercent")]
+        public int ZoneDividerPercent { get; set; }
+
+        [JsonPropertyName("cameraPurpose")]
+        public string CameraPurpose { get; set; } = "DOOR";
+
+        [JsonPropertyName("showDoorLine")]
+        public bool ShowDoorLine { get; set; }
     }
 
     private sealed class StatusResponse

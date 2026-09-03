@@ -22,7 +22,7 @@ except ImportError as exc:  # pragma: no cover
         "ultralytics not installed. Run: pip install -r requirements.txt"
     ) from exc
 
-app = FastAPI(title="SRP Camera Detection Service", version="1.1.0")
+app = FastAPI(title="SRP Camera Detection Service", version="1.2.0")
 app.add_middleware(
     CORSMiddleware,
     allow_origins=["*"],
@@ -50,6 +50,15 @@ class StartRequest(BaseModel):
     minConfidence: float = 0.40
     zoneDividerPercent: int = 50
     cameraPurpose: str = "DOOR"
+    showDoorLine: bool | None = None
+
+
+def _resolve_show_door_line(camera_purpose: str, show_door_line: bool | None) -> bool:
+    purpose = (camera_purpose or "DOOR").strip().upper()
+    if show_door_line is not None:
+        return bool(show_door_line)
+    # Only door/entry/exit cameras draw the IN/OUT counting line.
+    return purpose in {"ENTRY", "EXIT", "DOOR"}
 
 
 class CameraWorker:
@@ -60,13 +69,14 @@ class CameraWorker:
         min_confidence: float,
         zone_divider_percent: int,
         camera_purpose: str = "DOOR",
+        show_door_line: bool | None = None,
     ) -> None:
         self.rtsp_url = rtsp_url
         self.enable_detection = enable_detection
         self.min_confidence = max(0.1, min(0.95, min_confidence))
         self.zone_divider_percent = max(20, min(80, zone_divider_percent))
         self.camera_purpose = (camera_purpose or "DOOR").strip().upper()
-        self.show_door_line = self.camera_purpose != "MONITORING"
+        self.show_door_line = _resolve_show_door_line(self.camera_purpose, show_door_line)
         self._running = False
         self._thread: threading.Thread | None = None
         self._cap: cv2.VideoCapture | None = None
@@ -128,6 +138,8 @@ class CameraWorker:
             "boxes": list(self._boxes),
             "detectionEngine": "YOLOv8n-track" if self.enable_detection else "Off",
             "mode": "occupancy" if not self.show_door_line else "line_crossing",
+            "cameraPurpose": self.camera_purpose,
+            "showDoorLine": self.show_door_line,
         }
 
     def jpeg(self) -> bytes | None:
@@ -370,12 +382,19 @@ class CameraWorker:
 
 @app.get("/api/health")
 def health() -> dict[str, Any]:
-    return {"success": True, "message": "Camera service is running.", "mode": "line_crossing"}
+    return {
+        "success": True,
+        "message": "Camera service is running.",
+        "version": "1.2.0",
+        "mode": "purpose_aware",
+    }
 
 
 @app.post("/api/stream/start")
 def start_stream(req: StartRequest) -> dict[str, Any]:
     global _worker
+    purpose = (req.cameraPurpose or "DOOR").strip().upper()
+    show_line = _resolve_show_door_line(purpose, req.showDoorLine)
     with _lock:
         if _worker is not None:
             _worker.stop()
@@ -384,11 +403,17 @@ def start_stream(req: StartRequest) -> dict[str, Any]:
             enable_detection=req.enableDetection,
             min_confidence=req.minConfidence,
             zone_divider_percent=req.zoneDividerPercent,
-            camera_purpose=req.cameraPurpose,
+            camera_purpose=purpose,
+            show_door_line=show_line,
         )
         _worker.start()
-    mode = "occupancy" if _worker.show_door_line is False else "line-crossing IN/OUT"
-    return {"success": True, "message": f"Stream started ({mode})."}
+    mode = "occupancy" if not show_line else "line-crossing IN/OUT"
+    return {
+        "success": True,
+        "message": f"Stream started ({mode}).",
+        "cameraPurpose": purpose,
+        "showDoorLine": show_line,
+    }
 
 
 @app.post("/api/stream/stop")
