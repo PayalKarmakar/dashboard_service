@@ -35,8 +35,7 @@ namespace DashboardService.Views
         
         private readonly User _currentUser;
         private readonly MonitoringService _monitoringService = new();
-        private readonly RfidReaderStatusService _rfidReaderStatusService = new();
-        private readonly SensorStatusService _sensorStatusService = new();
+        private readonly SystemLogStatusService _systemLogStatusService = new();
         private readonly AlertMessageService _alertMessageService = new();
         private readonly VoiceAnnouncementService _voiceAnnouncementService;
         private readonly HashSet<long> _announcementInFlight = new();
@@ -447,133 +446,173 @@ namespace DashboardService.Views
 
         private async Task RefreshRfidReaderStatusAsync()
         {
-            var snapshot = await _rfidReaderStatusService.GetStatusAsync();
+            try
+            {
+            var statuses = await _systemLogStatusService.GetLatestRfidStatusesAsync();
 
             ConnectedRfidReaders.Clear();
             DisconnectedRfidReaders.Clear();
 
-            if (!snapshot.ServiceAvailable)
+            var connected = statuses.Where(x => x.IsConnected).ToList();
+            var disconnected = statuses.Where(x => !x.IsConnected).ToList();
+
+            foreach (var row in connected)
             {
-                RfidServiceStatusText.Text = snapshot.Message ?? "RFID service is not running.";
-                ConnectedReadersCountText.Text = "(—)";
-                DisconnectedReadersCountText.Text = "(—)";
-                NoConnectedReadersText.Text = "RFID service unavailable.";
-                NoDisconnectedReadersText.Text = "Start RFID service to see reader status.";
-                NoConnectedReadersText.Visibility = Visibility.Visible;
-                NoDisconnectedReadersText.Visibility = Visibility.Visible;
-                return;
+                ConnectedRfidReaders.Add(MapRfidLog(row));
             }
 
-            foreach (var reader in snapshot.Connected)
+            foreach (var row in disconnected)
             {
-                ConnectedRfidReaders.Add(reader);
+                DisconnectedRfidReaders.Add(MapRfidLog(row));
             }
 
-            foreach (var reader in snapshot.Disconnected)
-            {
-                DisconnectedRfidReaders.Add(reader);
-            }
+            DateTime? lastAt = statuses.Count > 0 ? statuses.Max(x => x.CreatedAt) : null;
+            RfidLastCheckedText.Text = lastAt.HasValue
+                ? $"Last log: {lastAt:dd-MM-yyyy HH:mm:ss}"
+                : "Last log: --";
 
-            RfidServiceStatusText.Text = $"{snapshot.Connected.Count} connected · {snapshot.Disconnected.Count} disconnected";
+            RfidServiceStatusText.Text =
+                statuses.Count == 0
+                    ? "No RFID connection logs in system_logs."
+                    : $"{connected.Count} connected · {disconnected.Count} disconnected";
 
-            ConnectedReadersCountText.Text = $"({snapshot.Connected.Count})";
-            DisconnectedReadersCountText.Text = $"({snapshot.Disconnected.Count})";
+            ConnectedReadersCountText.Text = $"({connected.Count})";
+            DisconnectedReadersCountText.Text = $"({disconnected.Count})";
+
+            NoConnectedReadersText.Text = statuses.Count == 0
+                ? "No RFID connection events in system_logs."
+                : "No RFID readers connected.";
+            NoDisconnectedReadersText.Text = statuses.Count == 0
+                ? "No RFID disconnect events in system_logs."
+                : "All RFID readers are connected.";
 
             NoConnectedReadersText.Visibility =
-                snapshot.Connected.Count == 0
-                    ? Visibility.Visible
-                    : Visibility.Collapsed;
-
+                connected.Count == 0 ? Visibility.Visible : Visibility.Collapsed;
             NoDisconnectedReadersText.Visibility =
-                snapshot.Disconnected.Count == 0
-                    ? Visibility.Visible
-                    : Visibility.Collapsed;
+                disconnected.Count == 0 ? Visibility.Visible : Visibility.Collapsed;
+            }
+            catch (Exception ex)
+            {
+                NoConnectedReadersText.Text = $"Could not load system_logs: {ex.Message}";
+                NoDisconnectedReadersText.Text = "RFID connection history unavailable.";
+                NoConnectedReadersText.Visibility = Visibility.Visible;
+                NoDisconnectedReadersText.Visibility = Visibility.Visible;
+            }
         }
 
         private async Task RefreshSensorConnectionStatusAsync()
         {
-            var snapshot = await _sensorStatusService.GetStatusAsync();
+            try
+            {
+            var statuses = await _systemLogStatusService.GetLatestSensorStatusesAsync();
 
             ConnectedSensors.Clear();
             DisconnectedSensors.Clear();
 
-            if (!snapshot.ServiceAvailable)
+            var connected = statuses.Where(x => x.IsConnected).ToList();
+            var disconnected = statuses.Where(x => !x.IsConnected).ToList();
+
+            foreach (var row in connected)
             {
-                if (SensorServiceStatusText != null)
-                {
-                    SensorServiceStatusText.Text =
-                        snapshot.Message ?? "Sensor service is not running.";
-                }
-
-                if (ConnectedSensorsCountText != null)
-                {
-                    ConnectedSensorsCountText.Text = "(—)";
-                }
-
-                if (DisconnectedSensorsCountText != null)
-                {
-                    DisconnectedSensorsCountText.Text = "(—)";
-                }
-
-                if (NoConnectedSensorsText != null)
-                {
-                    NoConnectedSensorsText.Text = "Sensor service unavailable.";
-                    NoConnectedSensorsText.Visibility = Visibility.Visible;
-                }
-
-                if (NoDisconnectedSensorsText != null)
-                {
-                    NoDisconnectedSensorsText.Text = "Start Sensor service to see sensor status.";
-                    NoDisconnectedSensorsText.Visibility = Visibility.Visible;
-                }
-
-                return;
+                ConnectedSensors.Add(MapSensorLog(row));
             }
 
-            foreach (var sensor in snapshot.Connected)
+            foreach (var row in disconnected)
             {
-                ConnectedSensors.Add(sensor);
+                DisconnectedSensors.Add(MapSensorLog(row));
             }
 
-            foreach (var sensor in snapshot.Disconnected)
-            {
-                DisconnectedSensors.Add(sensor);
-            }
+            int connectedCount = ConnectedSensors.Count;
+            int disconnectedCount = DisconnectedSensors.Count;
+            _configuredSensorCount = Math.Max(1, connectedCount + disconnectedCount);
 
-            int connected = ConnectedSensors.Count;
-            int disconnected = DisconnectedSensors.Count;
-            _configuredSensorCount = Math.Max(1, connected + disconnected);
+            DateTime? lastAt = statuses.Count > 0 ? statuses.Max(x => x.CreatedAt) : null;
+            if (SensorLastCheckedText != null)
+            {
+                SensorLastCheckedText.Text = lastAt.HasValue
+                    ? $"Last log: {lastAt:dd-MM-yyyy HH:mm:ss}"
+                    : "Last log: --";
+            }
 
             if (SensorServiceStatusText != null)
             {
                 SensorServiceStatusText.Text =
-                    $"{connected} connected · {disconnected} disconnected";
+                    statuses.Count == 0
+                        ? "No sensor connection logs in system_logs."
+                        : $"{connectedCount} connected · {disconnectedCount} disconnected";
             }
 
             if (ConnectedSensorsCountText != null)
             {
-                ConnectedSensorsCountText.Text = $"({connected})";
+                ConnectedSensorsCountText.Text = $"({connectedCount})";
             }
 
             if (DisconnectedSensorsCountText != null)
             {
-                DisconnectedSensorsCountText.Text = $"({disconnected})";
+                DisconnectedSensorsCountText.Text = $"({disconnectedCount})";
             }
 
             if (NoConnectedSensorsText != null)
             {
                 NoConnectedSensorsText.Visibility =
-                    connected == 0 ? Visibility.Visible : Visibility.Collapsed;
-                NoConnectedSensorsText.Text = "No sensors connected.";
+                    connectedCount == 0 ? Visibility.Visible : Visibility.Collapsed;
+                NoConnectedSensorsText.Text = statuses.Count == 0
+                    ? "No sensor connection events in system_logs."
+                    : "No sensors connected.";
             }
 
             if (NoDisconnectedSensorsText != null)
             {
                 NoDisconnectedSensorsText.Visibility =
-                    disconnected == 0 ? Visibility.Visible : Visibility.Collapsed;
-                NoDisconnectedSensorsText.Text = "All sensors are connected.";
+                    disconnectedCount == 0 ? Visibility.Visible : Visibility.Collapsed;
+                NoDisconnectedSensorsText.Text = statuses.Count == 0
+                    ? "No sensor disconnect events in system_logs."
+                    : "All sensors are connected.";
+            }
+            }
+            catch (Exception ex)
+            {
+                if (NoConnectedSensorsText != null)
+                {
+                    NoConnectedSensorsText.Text = $"Could not load system_logs: {ex.Message}";
+                    NoConnectedSensorsText.Visibility = Visibility.Visible;
+                }
+
+                if (NoDisconnectedSensorsText != null)
+                {
+                    NoDisconnectedSensorsText.Text = "Sensor connection history unavailable.";
+                    NoDisconnectedSensorsText.Visibility = Visibility.Visible;
+                }
             }
         }
+
+        private static RfidReaderLiveStatus MapRfidLog(SystemLogConnectionStatus row)
+        {
+            string ip = row.LocationDisplay;
+            int port = 0;
+            int colon = row.LocationDisplay.LastIndexOf(':');
+            if (colon > 0 && int.TryParse(row.LocationDisplay[(colon + 1)..], out int parsedPort))
+            {
+                ip = row.LocationDisplay[..colon];
+                port = parsedPort;
+            }
+
+            return new RfidReaderLiveStatus
+            {
+                ReaderName = row.DeviceName,
+                IpAddress = ip,
+                Port = port,
+                ReaderPurpose = row.DetailDisplay
+            };
+        }
+
+        private static SensorLiveStatus MapSensorLog(SystemLogConnectionStatus row) =>
+            new()
+            {
+                SensorName = row.DeviceName,
+                LocationDisplay = row.LocationDisplay,
+                DetailDisplay = $"{row.LocationDisplay} · {row.DetailDisplay}"
+            };
 
         private void RefreshPreviewMembers()
         {
