@@ -454,8 +454,7 @@ namespace DashboardService.Views
 
             if (!snapshot.ServiceAvailable)
             {
-                RfidServiceStatusText.Text =
-                    snapshot.Message ?? "RFID service is not running.";
+                RfidServiceStatusText.Text = snapshot.Message ?? "RFID service is not running.";
                 ConnectedReadersCountText.Text = "(—)";
                 DisconnectedReadersCountText.Text = "(—)";
                 NoConnectedReadersText.Text = "RFID service unavailable.";
@@ -475,8 +474,7 @@ namespace DashboardService.Views
                 DisconnectedRfidReaders.Add(reader);
             }
 
-            RfidServiceStatusText.Text =
-                $"{snapshot.Connected.Count} connected · {snapshot.Disconnected.Count} disconnected";
+            RfidServiceStatusText.Text = $"{snapshot.Connected.Count} connected · {snapshot.Disconnected.Count} disconnected";
 
             ConnectedReadersCountText.Text = $"({snapshot.Connected.Count})";
             DisconnectedReadersCountText.Text = $"({snapshot.Disconnected.Count})";
@@ -1251,9 +1249,7 @@ namespace DashboardService.Views
                     continue;
                 }
 
-                var templates = await _alertMessageService.GetTemplatesAsync(
-                    AlertMessageService.CategorySensor,
-                    currentSeverity);
+                var templates = await _alertMessageService.GetTemplatesAsync(AlertMessageService.CategorySensor,currentSeverity);
 
                 string chamberName = $"Chamber {violation.ChamberId}";
                 var voiceLines = new List<VoiceAnnouncementLine>();
@@ -1274,11 +1270,9 @@ namespace DashboardService.Views
                             chamberName),
                         preferredCulture));
                 }
-                else if (templates.TryGetValue(fallbackCulture, out string? fallbackTemplate) &&
-                         !string.IsNullOrWhiteSpace(fallbackTemplate))
+                else if (templates.TryGetValue(fallbackCulture, out string? fallbackTemplate) &&  !string.IsNullOrWhiteSpace(fallbackTemplate))
                 {
-                    voiceLines.Add(new VoiceAnnouncementLine(
-                        MonitoringService.FormatSensorMessage(
+                    voiceLines.Add(new VoiceAnnouncementLine(MonitoringService.FormatSensorMessage(
                             fallbackTemplate,
                             violation.Parameter,
                             chamberName),
@@ -1292,10 +1286,7 @@ namespace DashboardService.Views
 
                 _voiceAnnouncementService.AnnounceOnce(voiceLines);
 
-                await _monitoringService
-                    .MarkSensorViolationAnnouncedAsync(
-                        violation.SensorViolationsId,
-                        currentSeverity);
+                await _monitoringService.MarkSensorViolationAnnouncedAsync(violation.SensorViolationsId,currentSeverity);
             }
         }
 

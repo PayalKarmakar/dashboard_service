@@ -34,9 +34,7 @@ public sealed class AlertMessageService
         return GetAppsettingsFallback(category, alertType, culture);
     }
 
-    public async Task<IReadOnlyDictionary<string, string>> GetTemplatesAsync(
-        string category,
-        string alertType)
+    public async Task<IReadOnlyDictionary<string, string>> GetTemplatesAsync(string category,string alertType)
     {
         await EnsureLoadedAsync();
 

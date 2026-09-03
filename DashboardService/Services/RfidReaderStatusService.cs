@@ -9,8 +9,7 @@ public class RfidReaderStatusService
 {
     private readonly ConfigurationService _configurationService = new();
 
-    public async Task<RfidReaderStatusSnapshot> GetStatusAsync(
-        CancellationToken cancellationToken = default)
+    public async Task<RfidReaderStatusSnapshot> GetStatusAsync(CancellationToken cancellationToken = default)
     {
         string baseUrl = _configurationService.GetRfidServiceBaseUrl();
 
@@ -22,12 +21,10 @@ public class RfidReaderStatusService
                 Timeout = TimeSpan.FromSeconds(5)
             };
 
-            using var response = await httpClient.GetAsync(
-                "/api/readers/status",
+            using var response = await httpClient.GetAsync("/api/readers/status",
                 cancellationToken);
 
-            var payload = await response.Content.ReadFromJsonAsync<StatusResponse>(
-                cancellationToken: cancellationToken);
+            var payload = await response.Content.ReadFromJsonAsync<StatusResponse>(cancellationToken: cancellationToken);
 
             if (!response.IsSuccessStatusCode || payload?.Success != true)
             {
