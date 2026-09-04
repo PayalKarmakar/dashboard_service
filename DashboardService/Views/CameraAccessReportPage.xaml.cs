@@ -98,7 +98,7 @@ public partial class CameraAccessReportPage : Page
             SummaryEntryText.Text = all.Where(r => r.EventType == "ENTRY").Sum(r => r.PersonCount).ToString();
             SummaryExitText.Text = all.Where(r => r.EventType == "EXIT").Sum(r => r.PersonCount).ToString();
             SummaryUnauthorizedText.Text = all
-                .Where(r => r.EventType is "NO_RFID" or "TAILGATE")
+                .Where(r => r.EventType is "NO_RFID" or "NO_RFID_EXIT" or "TAILGATE" or "EXIT_TAILGATE")
                 .Sum(r => r.PersonCount)
                 .ToString();
         }

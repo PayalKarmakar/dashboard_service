@@ -14,16 +14,19 @@ public sealed class CameraDoorAlert
 
     public string Severity => AlertType switch
     {
-        "NO_RFID" => "CRITICAL",
-        "TAILGATE" => "WARNING",
+        "NO_RFID" or "NO_RFID_EXIT" => "CRITICAL",
+        "TAILGATE" or "EXIT_TAILGATE" => "WARNING",
         _ => "INFO"
     };
 
     public string TitleDisplay => AlertType switch
     {
-        "NO_RFID" => "No RFID scan",
-        "TAILGATE" => "Tailgating",
-        "MATCHED" => "Verified",
+        "NO_RFID" => "No RFID entry scan",
+        "NO_RFID_EXIT" => "No RFID exit scan",
+        "TAILGATE" => "Tailgating (entry)",
+        "EXIT_TAILGATE" => "Tailgating (exit)",
+        "MATCHED" => "Entry verified",
+        "EXIT_MATCHED" => "Exit verified",
         "OCCUPANCY_NO_RFID" => "Occupancy without RFID",
         "OCCUPANCY_MISMATCH" => "Occupancy mismatch",
         "OCCUPANCY_MATCHED" => "Occupancy matched",

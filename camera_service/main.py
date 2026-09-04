@@ -171,7 +171,11 @@ class CameraWorker:
                     self._publish_placeholder(self.status_message)
                     time.sleep(1.0)
                     continue
-                self.status_message = "Live (YOLO track)" if self.enable_detection else "Live"
+                self.status_message = (
+                    "Live (YOLO occupancy)"
+                    if self.enable_detection and not self.show_door_line
+                    else ("Live (YOLO track)" if self.enable_detection else "Live")
+                )
                 fail_count = 0
 
             ok, frame = self._cap.read()
@@ -190,7 +194,11 @@ class CameraWorker:
 
             fail_count = 0
             self.connected = True
-            self.status_message = "Live (YOLO track)" if self.enable_detection else "Live"
+            self.status_message = (
+                "Live (YOLO occupancy)"
+                if self.enable_detection and not self.show_door_line
+                else ("Live (YOLO track)" if self.enable_detection else "Live")
+            )
             frame_index += 1
 
             if self.enable_detection and frame_index % detect_every == 0:
@@ -225,16 +233,25 @@ class CameraWorker:
         line_x = w * self.zone_divider_percent / 100.0
         now = time.time()
 
-        # ByteTrack gives stable IDs for line-crossing.
-        results = model.track(
-            source=frame,
-            conf=self.min_confidence,
-            classes=[0],
-            verbose=False,
-            imgsz=320,
-            persist=True,
-            tracker="bytetrack.yaml",
-        )
+        # Monitoring: plain detect (occupancy). Entry/Exit: ByteTrack for line-crossing.
+        if self.show_door_line:
+            results = model.track(
+                source=frame,
+                conf=self.min_confidence,
+                classes=[0],
+                verbose=False,
+                imgsz=320,
+                persist=True,
+                tracker="bytetrack.yaml",
+            )
+        else:
+            results = model.predict(
+                source=frame,
+                conf=max(0.25, self.min_confidence * 0.85),
+                classes=[0],
+                verbose=False,
+                imgsz=416,
+            )
 
         boxes: list[tuple[int, int, int, int, float, int]] = []
         conf_sum = 0.0
@@ -243,7 +260,7 @@ class CameraWorker:
         if results:
             r0 = results[0]
             if r0.boxes is not None and len(r0.boxes) > 0:
-                ids = r0.boxes.id
+                ids = getattr(r0.boxes, "id", None)
                 for i, box in enumerate(r0.boxes):
                     xyxy = box.xyxy[0].tolist()
                     conf = float(box.conf[0].item()) * 100.0
@@ -251,24 +268,32 @@ class CameraWorker:
                     cx = (x1 + x2) / 2.0
                     track_id = -1
                     if ids is not None:
-                        track_id = int(ids[i].item())
-                        seen_ids.add(track_id)
-                        if self.show_door_line:
-                            side = self._side_of(cx, line_x)
-                            prev = self._track_side.get(track_id)
-                            last_cross = self._track_last_cross_ts.get(track_id, 0.0)
+                        try:
+                            track_id = int(ids[i].item())
+                        except Exception:
+                            track_id = -1
+                        if track_id >= 0:
+                            seen_ids.add(track_id)
+                            if self.show_door_line:
+                                side = self._side_of(cx, line_x)
+                                prev = self._track_side.get(track_id)
+                                last_cross = self._track_last_cross_ts.get(track_id, 0.0)
 
-                            if prev is not None and prev != side and (now - last_cross) >= self._cross_cooldown_sec:
-                                if prev == "OUT" and side == "IN":
-                                    self.entry_count += 1
-                                    self.last_event = f"IN #{self.entry_count}"
-                                    self._track_last_cross_ts[track_id] = now
-                                elif prev == "IN" and side == "OUT":
-                                    self.exit_count += 1
-                                    self.last_event = f"OUT #{self.exit_count}"
-                                    self._track_last_cross_ts[track_id] = now
+                                if (
+                                    prev is not None
+                                    and prev != side
+                                    and (now - last_cross) >= self._cross_cooldown_sec
+                                ):
+                                    if prev == "OUT" and side == "IN":
+                                        self.entry_count += 1
+                                        self.last_event = f"IN #{self.entry_count}"
+                                        self._track_last_cross_ts[track_id] = now
+                                    elif prev == "IN" and side == "OUT":
+                                        self.exit_count += 1
+                                        self.last_event = f"OUT #{self.exit_count}"
+                                        self._track_last_cross_ts[track_id] = now
 
-                            self._track_side[track_id] = side
+                                self._track_side[track_id] = side
 
                     conf_sum += conf
                     boxes.append((x1, y1, x2, y2, conf, track_id))

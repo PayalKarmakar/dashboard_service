@@ -91,7 +91,9 @@ public sealed class CameraAccessEventService
         CancellationToken cancellationToken = default)
     {
         string type = alert.AlertType.Trim().ToUpperInvariant();
-        if (type is not ("NO_RFID" or "TAILGATE" or "MATCHED"))
+        if (type is not (
+            "NO_RFID" or "NO_RFID_EXIT" or "TAILGATE" or "EXIT_TAILGATE"
+            or "MATCHED" or "EXIT_MATCHED"))
         {
             return;
         }
@@ -143,10 +145,10 @@ public sealed class CameraAccessEventService
                     OR (@filter = 'ENTRY' AND event_type = 'ENTRY')
                     OR (@filter = 'EXIT' AND event_type = 'EXIT')
                     OR (@filter = 'UNAUTHORIZED'
-                        AND event_type IN ('NO_RFID', 'TAILGATE'))
-                    OR (@filter = 'NO_RFID' AND event_type = 'NO_RFID')
-                    OR (@filter = 'TAILGATE' AND event_type = 'TAILGATE')
-                    OR (@filter = 'MATCHED' AND event_type = 'MATCHED')
+                        AND event_type IN ('NO_RFID', 'NO_RFID_EXIT', 'TAILGATE', 'EXIT_TAILGATE'))
+                    OR (@filter = 'NO_RFID' AND event_type IN ('NO_RFID', 'NO_RFID_EXIT'))
+                    OR (@filter = 'TAILGATE' AND event_type IN ('TAILGATE', 'EXIT_TAILGATE'))
+                    OR (@filter = 'MATCHED' AND event_type IN ('MATCHED', 'EXIT_MATCHED'))
                   )
             ORDER BY occurred_at DESC, event_id DESC;
         ";

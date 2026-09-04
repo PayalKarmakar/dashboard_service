@@ -178,7 +178,7 @@ public partial class LiveCameraPage : Page
         DoorVerifyStatusText.Text = monitoring
             ? $"Compare camera count vs RFID inside · stable {camera.MatchWindowSeconds}s"
             : camera.AlertOnNoRfid || camera.AlertOnTailgate
-                ? $"Watching IN events · match {camera.MatchWindowSeconds}s"
+                ? $"Watching IN/OUT events · match {camera.MatchWindowSeconds}s"
                 : "Alerts disabled for this camera";
     }
 
@@ -214,7 +214,7 @@ public partial class LiveCameraPage : Page
 
         DoorVerifyStatusText.Text =
             camera.AlertOnNoRfid || camera.AlertOnTailgate
-                ? $"Watching IN events · match {camera.MatchWindowSeconds}s · {readerLabel}"
+                ? $"Watching IN/OUT events · match {camera.MatchWindowSeconds}s · {readerLabel}"
                 : "Alerts disabled for this camera";
     }
 
@@ -327,8 +327,9 @@ public partial class LiveCameraPage : Page
             FpsText.Text = stats.FpsDisplay;
             _latestDetectedCount = stats.TotalDetected;
 
-            // InsideCount is mapped from camera service ENTRY (IN) cumulative count.
+            // InsideCount / OutsideCount = cumulative ENTRY / EXIT crossings.
             _doorVerificationService.ObserveCameraEntryCount(stats.InsideCount);
+            _doorVerificationService.ObserveCameraExitCount(stats.OutsideCount);
             PersistCrossingDeltas(stats.InsideCount, stats.OutsideCount);
 
             if (_selectedCamera != null
@@ -440,20 +441,22 @@ public partial class LiveCameraPage : Page
         {
             DoorVerifyStatusText.Text = $"{alert.TitleDisplay}: camera {alert.CameraPersonCount} / RFID {alert.RfidScanCount}";
 
-            if (alert.AlertType is "NO_RFID" or "TAILGATE")
+            if (alert.AlertType is "NO_RFID" or "NO_RFID_EXIT" or "TAILGATE" or "EXIT_TAILGATE")
             {
                 _unauthorizedSessionCount += Math.Max(1, alert.CameraPersonCount);
                 UnauthorizedCountText.Text = _unauthorizedSessionCount.ToString();
             }
 
             if (_selectedCamera != null
-                && alert.AlertType is "NO_RFID" or "TAILGATE" or "MATCHED")
+                && alert.AlertType is "NO_RFID" or "NO_RFID_EXIT" or "TAILGATE" or "EXIT_TAILGATE"
+                    or "MATCHED" or "EXIT_MATCHED")
             {
                 MasterCameraConfig camera = _selectedCamera;
                 _ = PersistAlertSafeAsync(camera, alert);
             }
 
-            if (alert.AlertType is "NO_RFID" or "TAILGATE" or "OCCUPANCY_NO_RFID" or "OCCUPANCY_MISMATCH")
+            if (alert.AlertType is "NO_RFID" or "NO_RFID_EXIT" or "TAILGATE" or "EXIT_TAILGATE"
+                or "OCCUPANCY_NO_RFID" or "OCCUPANCY_MISMATCH")
             {
                 ShowDoorAlertBanner(alert);
                 _voiceAnnouncementService.AnnounceOnce(alert.Message, "en-IN");
@@ -479,7 +482,7 @@ public partial class LiveCameraPage : Page
 
     private void ShowDoorAlertBanner(CameraDoorAlert alert)
     {
-        bool critical = alert.AlertType is "NO_RFID" or "OCCUPANCY_NO_RFID";
+        bool critical = alert.AlertType is "NO_RFID" or "NO_RFID_EXIT" or "OCCUPANCY_NO_RFID";
         DoorAlertBanner.Background = new SolidColorBrush(
             (Color)ColorConverter.ConvertFromString(critical ? "#FEF2F2" : "#FFFBEB"));
         DoorAlertBanner.BorderBrush = new SolidColorBrush(
@@ -487,8 +490,10 @@ public partial class LiveCameraPage : Page
         DoorAlertTitleText.Text = alert.AlertType switch
         {
             "NO_RFID" => "CRITICAL · Camera entry without RFID",
+            "NO_RFID_EXIT" => "CRITICAL · Camera exit without RFID",
             "OCCUPANCY_NO_RFID" => "CRITICAL · People in chamber without RFID",
             "OCCUPANCY_MISMATCH" => "WARNING · Camera count > RFID inside",
+            "EXIT_TAILGATE" => "WARNING · Possible exit tailgating",
             _ => "WARNING · Possible tailgating"
         };
         DoorAlertTitleText.Foreground = new SolidColorBrush(

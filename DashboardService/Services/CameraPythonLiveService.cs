@@ -124,27 +124,37 @@ public sealed class CameraPythonLiveService : IDisposable
         {
             try
             {
-                var status = await _http.GetFromJsonAsync<StatusResponse>(
-                    $"{baseUrl}/api/stream/status",
-                    cancellationToken);
+                StatusResponse? status = null;
+                using (var statusResponse = await _http.GetAsync(
+                           $"{baseUrl}/api/stream/status",
+                           cancellationToken))
+                {
+                    if (statusResponse.IsSuccessStatusCode)
+                    {
+                        status = await statusResponse.Content.ReadFromJsonAsync<StatusResponse>(
+                            cancellationToken: cancellationToken);
+                    }
+                }
 
                 BitmapSource? frame = null;
-                try
+                using (var frameResponse = await _http.GetAsync(
+                           $"{baseUrl}/api/stream/frame.jpg",
+                           cancellationToken))
                 {
-                    byte[] bytes = await _http.GetByteArrayAsync(
-                        $"{baseUrl}/api/stream/frame.jpg",
-                        cancellationToken);
-                    frame = BytesToBitmap(bytes);
-                }
-                catch
-                {
-                    // Status can still update without a frame.
+                    if (frameResponse.IsSuccessStatusCode)
+                    {
+                        byte[] bytes = await frameResponse.Content.ReadAsByteArrayAsync(cancellationToken);
+                        if (bytes.Length > 0)
+                        {
+                            frame = BytesToBitmap(bytes);
+                        }
+                    }
                 }
 
                 var stats = new CameraDetectionStats
                 {
                     IsConnected = status?.Connected == true,
-                    StatusMessage = status?.Message ?? "Waiting...",
+                    StatusMessage = status?.Message ?? "Waiting for camera service...",
                     TotalDetected = status?.TotalDetected ?? 0,
                     InsideCount = status?.InsideCount ?? 0,
                     OutsideCount = status?.OutsideCount ?? 0,
@@ -158,6 +168,17 @@ public sealed class CameraPythonLiveService : IDisposable
             catch (OperationCanceledException)
             {
                 break;
+            }
+            catch (HttpRequestException)
+            {
+                // Camera service down / unreachable — show placeholder, avoid debugger spam.
+                FrameReady?.Invoke(
+                    CreatePlaceholder("Camera service unavailable. Start camera_service."),
+                    new CameraDetectionStats
+                    {
+                        IsConnected = false,
+                        StatusMessage = "Camera service unavailable. Start camera_service."
+                    });
             }
             catch (Exception ex)
             {

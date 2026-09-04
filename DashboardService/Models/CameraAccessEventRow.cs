@@ -28,9 +28,12 @@ public sealed class CameraAccessEventRow
     {
         "ENTRY" => "Entry",
         "EXIT" => "Exit",
-        "NO_RFID" => "Unauthorized (No RFID)",
-        "TAILGATE" => "Unauthorized (Tailgate)",
-        "MATCHED" => "Verified",
+        "NO_RFID" => "Unauthorized (No RFID entry)",
+        "NO_RFID_EXIT" => "Unauthorized (No RFID exit)",
+        "TAILGATE" => "Unauthorized (Entry tailgate)",
+        "EXIT_TAILGATE" => "Unauthorized (Exit tailgate)",
+        "MATCHED" => "Entry verified",
+        "EXIT_MATCHED" => "Exit verified",
         _ => EventType
     };
 
