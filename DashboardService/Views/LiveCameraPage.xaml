@@ -387,12 +387,6 @@
                         <StackPanel>
                             <TextBlock Text="FPS" FontSize="11" FontWeight="Bold" Foreground="{DynamicResource TextMutedBrush}"/>
                             <TextBlock x:Name="FpsText" Text="0.0 fps" FontSize="22" FontWeight="SemiBold" Foreground="{DynamicResource TextPrimaryBrush}" Margin="0,6,0,0"/>
-                            <TextBlock x:Name="DetectionModeText"
-                                       Text="Person detection: Off"
-                                       FontSize="11"
-                                       Foreground="{DynamicResource TextMutedBrush}"
-                                       Margin="0,4,0,0"
-                                       TextWrapping="Wrap"/>
                         </StackPanel>
                     </Border>
                 </StackPanel>

@@ -132,9 +132,6 @@ public partial class LiveCameraPage : Page
             _selectedCamera = option.Camera;
             _selectedChamberId = option.Camera.ChamberId;
             RfidChamberText.Text = $"Chamber: {option.Camera.ChamberName}";
-            DetectionModeText.Text = option.Camera.PersonDetectionEnabled
-                ? "Person detection: On (Python YOLOv8)"
-                : "Person detection: Off (stream only)";
 
             ApplyCameraModeUi(option.Camera);
             await ConfigureDoorVerificationAsync(option.Camera);
@@ -159,10 +156,13 @@ public partial class LiveCameraPage : Page
             "MONITORING",
             StringComparison.OrdinalIgnoreCase);
 
+        bool showEntryExitStats = !monitoring
+            && _configurationService.GetCameraLiveSettings().ShowEntryExitStats;
+
         DetectedStatCard.Visibility = monitoring ? Visibility.Visible : Visibility.Collapsed;
-        EntryStatCard.Visibility = monitoring ? Visibility.Collapsed : Visibility.Visible;
-        ExitStatCard.Visibility = monitoring ? Visibility.Collapsed : Visibility.Visible;
-        UnauthorizedStatCard.Visibility = monitoring ? Visibility.Collapsed : Visibility.Visible;
+        EntryStatCard.Visibility = showEntryExitStats ? Visibility.Visible : Visibility.Collapsed;
+        ExitStatCard.Visibility = showEntryExitStats ? Visibility.Visible : Visibility.Collapsed;
+        UnauthorizedStatCard.Visibility = showEntryExitStats ? Visibility.Visible : Visibility.Collapsed;
         VerifyStatCard.Visibility = monitoring ? Visibility.Collapsed : Visibility.Visible;
         RfidStatCard.Visibility = Visibility.Collapsed;
 
@@ -170,7 +170,9 @@ public partial class LiveCameraPage : Page
         DetectedHintText.Text = "People currently detected in the chamber";
         LiveCameraSubtitleText.Text = monitoring
             ? "Monitoring stream — accuracy, FPS, and persons inside"
-            : "Entry/Exit stream — persons, unauthorized, accuracy, FPS";
+            : showEntryExitStats
+                ? "Entry/Exit stream — persons, unauthorized, accuracy, FPS"
+                : "Entry/Exit stream — accuracy and FPS";
 
         VerifyStatusTitleText.Text = monitoring ? "OCCUPANCY MATCH" : "VERIFY STATUS";
         DoorVerifyStatusText.Text = monitoring
@@ -264,7 +266,6 @@ public partial class LiveCameraPage : Page
 
             if (pythonUp)
             {
-                DetectionModeText.Text = "Person detection: On (Python YOLOv8)";
                 await _pythonStreamService.StartAsync(
                     _selectedCamera.RtspUrl,
                     _selectedCamera.PersonDetectionEnabled,
@@ -274,9 +275,6 @@ public partial class LiveCameraPage : Page
             }
             else
             {
-                DetectionModeText.Text = _selectedCamera.PersonDetectionEnabled
-                    ? "Person detection: On (OpenCV fallback)"
-                    : "Person detection: Off (stream only)";
                 _opencvStreamService.Start(
                     _selectedCamera.RtspUrl,
                     _selectedCamera.PersonDetectionEnabled,

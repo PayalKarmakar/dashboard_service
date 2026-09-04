@@ -70,7 +70,8 @@ public class ConfigurationService
             DetectEveryNFrames = ReadPositiveInt("CameraLiveSettings:DetectEveryNFrames", 2),
             InputSize = ReadPositiveInt("CameraLiveSettings:InputSize", 320),
             ModelPath = modelPath,
-            UsePythonService = ReadBool("CameraLiveSettings:UsePythonService", true)
+            UsePythonService = ReadBool("CameraLiveSettings:UsePythonService", true),
+            ShowEntryExitStats = ReadBool("CameraLiveSettings:ShowEntryExitStats", true)
         };
     }
 

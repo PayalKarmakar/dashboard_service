@@ -15,4 +15,9 @@ public sealed class CameraLiveSettings
     public string ModelPath { get; set; } = "Models/Vision/yolov5n.onnx";
 
     public bool UsePythonService { get; set; } = true;
+
+    /// <summary>
+    /// When true, Entry/Exit/Unauthorized stat cards show for ENTRY/EXIT cameras.
+    /// </summary>
+    public bool ShowEntryExitStats { get; set; } = true;
 }
