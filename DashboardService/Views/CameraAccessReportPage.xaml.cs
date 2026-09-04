@@ -53,7 +53,6 @@ public partial class CameraAccessReportPage : Page
             _suppressFilterReload = true;
             FromDatePicker.SelectedDate = DateTime.Today.AddDays(-7);
             ToDatePicker.SelectedDate = DateTime.Today;
-            EventComboBox.SelectedIndex = 0;
             _suppressFilterReload = false;
             await LoadReportAsync();
         }
@@ -81,26 +80,14 @@ public partial class CameraAccessReportPage : Page
         {
             DateTime from = FromDatePicker.SelectedDate ?? DateTime.Today.AddDays(-7);
             DateTime to = ToDatePicker.SelectedDate ?? DateTime.Today;
-            string filter = string.Empty;
-            if (EventComboBox.SelectedItem is ComboBoxItem item && item.Tag is string tag)
-            {
-                filter = tag;
-            }
 
-            _rows = await _eventService.GetReportAsync(from, to, filter);
+            // Camera Access Report shows only No-RFID violations.
+            _rows = await _eventService.GetReportAsync(from, to, "NO_RFID");
             EventsGrid.ItemsSource = _rows;
 
-            // Totals always from unfiltered range for the summary cards.
-            var all = string.IsNullOrEmpty(filter)
-                ? _rows
-                : await _eventService.GetReportAsync(from, to, null);
-
-            SummaryEntryText.Text = all.Where(r => r.EventType == "ENTRY").Sum(r => r.PersonCount).ToString();
-            SummaryExitText.Text = all.Where(r => r.EventType == "EXIT").Sum(r => r.PersonCount).ToString();
-            SummaryUnauthorizedText.Text = all
-                .Where(r => r.EventType is "NO_RFID" or "NO_RFID_EXIT" or "TAILGATE" or "EXIT_TAILGATE")
-                .Sum(r => r.PersonCount)
-                .ToString();
+            SummaryEntryText.Text = _rows.Where(r => r.EventType == "NO_RFID").Sum(r => r.PersonCount).ToString();
+            SummaryExitText.Text = _rows.Where(r => r.EventType == "NO_RFID_EXIT").Sum(r => r.PersonCount).ToString();
+            SummaryUnauthorizedText.Text = _rows.Sum(r => r.PersonCount).ToString();
         }
         catch (Exception ex)
         {
@@ -194,4 +181,7 @@ public partial class CameraAccessReportPage : Page
 
     private void CameraConfigurationMenu_Click(object sender, RoutedEventArgs e) =>
         AppNavigation.Go(NavigationService, "CameraConfiguration", _currentUser);
+
+    private void ManualRfidMenu_Click(object sender, RoutedEventArgs e) =>
+        AppNavigation.Go(NavigationService, "ManualRfidTransactions", _currentUser);
 }

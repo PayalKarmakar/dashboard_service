@@ -27,6 +27,7 @@ public static class AppNavigation
             "SensorReadingsReport" => new SensorReadingsReportPage(currentUser),
             "SystemLogsReport" => new SystemLogsReportPage(currentUser),
             "CameraAccessReport" => new CameraAccessReportPage(currentUser),
+            "ManualRfidTransactions" => new ManualRfidTransactionsPage(currentUser),
             "SensorConfiguration" => new SensorConfigurationPage(currentUser),
             "CameraConfiguration" => new CameraConfigurationPage(currentUser),
             "LiveCamera" => new LiveCameraPage(currentUser),

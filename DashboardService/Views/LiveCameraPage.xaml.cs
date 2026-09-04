@@ -589,6 +589,9 @@ public partial class LiveCameraPage : Page
     private void CameraConfigurationMenu_Click(object sender, RoutedEventArgs e) =>
         NavigateAway("CameraConfiguration");
 
+    private void ManualRfidMenu_Click(object sender, RoutedEventArgs e) =>
+        NavigateAway("ManualRfidTransactions");
+
     private void NavigateAway(string menu)
     {
         StopStream();

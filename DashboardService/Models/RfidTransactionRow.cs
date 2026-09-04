@@ -1,0 +1,34 @@
+namespace DashboardService.Models;
+
+public sealed class RfidTransactionRow
+{
+    public long TransactionId { get; set; }
+
+    public long EmployeeId { get; set; }
+
+    public string EmployeeCode { get; set; } = string.Empty;
+
+    public string EmployeeName { get; set; } = string.Empty;
+
+    public string CardUid { get; set; } = string.Empty;
+
+    public long ChamberId { get; set; }
+
+    public string ChamberName { get; set; } = string.Empty;
+
+    public DateTime EntryTime { get; set; }
+
+    public DateTime? ExitTime { get; set; }
+
+    public string Status { get; set; } = string.Empty;
+
+    public string EntryDisplay => EntryTime.ToString("dd-MMM-yyyy HH:mm:ss");
+
+    public string ExitDisplay => ExitTime?.ToString("dd-MMM-yyyy HH:mm:ss") ?? "—";
+
+    public string StatusDisplay =>
+        string.Equals(Status, "OPEN", StringComparison.OrdinalIgnoreCase) ? "Open (Inside)" : "Closed (Exited)";
+
+    public bool CanClose =>
+        string.Equals(Status, "OPEN", StringComparison.OrdinalIgnoreCase) && ExitTime == null;
+}

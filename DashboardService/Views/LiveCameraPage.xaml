@@ -165,6 +165,12 @@
                                         <TextBlock Text="Camera" VerticalAlignment="Center"/>
                                     </StackPanel>
                                 </Button>
+                                <Button Style="{StaticResource SidebarButtonStyle}" Height="40" Click="ManualRfidMenu_Click">
+                                    <StackPanel Orientation="Horizontal">
+                                        <TextBlock Text="▸" FontSize="14" Width="24" VerticalAlignment="Center"/>
+                                        <TextBlock Text="RFID Manual" VerticalAlignment="Center"/>
+                                    </StackPanel>
+                                </Button>
                             </StackPanel>
                         </StackPanel>
                     </ScrollViewer>

@@ -995,6 +995,14 @@ namespace DashboardService.Views
             AppNavigation.Go(NavigationService, "CameraConfiguration", _currentUser);
         }
 
+        private void ManualRfidMenu_Click(object sender, RoutedEventArgs e)
+        {
+            _countdownTimer.Stop();
+            _refreshTimer.Stop();
+            _sensorReadingTimer.Stop();
+            AppNavigation.Go(NavigationService, "ManualRfidTransactions", _currentUser);
+        }
+
         private void CodeInqLink_RequestNavigate(object sender, RequestNavigateEventArgs e)
         {
             ExternalLinks.OpenCodeInq();
