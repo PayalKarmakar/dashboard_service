@@ -148,10 +148,14 @@ public partial class EmployeesPage : Page
         }
 
         bool nextLost = !employee.IsLost;
-        string action = nextLost ? "mark as lost" : "clear lost status for";
-        string note = nextLost
-            ? "\n\nThe employee will also be set to Inactive."
-            : string.Empty;
+        if (!nextLost)
+        {
+            // Lost rows have no grid actions; clearing lost is not offered from ACTION.
+            return;
+        }
+
+        string action = "mark as lost";
+        string note = "\n\nThe employee will also be set to Inactive.";
 
         var confirm = MessageBox.Show(
             $"Do you want to {action} \"{employee.EmployeeName}\"?{note}",
