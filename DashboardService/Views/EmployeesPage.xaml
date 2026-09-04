@@ -340,14 +340,21 @@
                         <DataGridTextColumn Header="MOBILE" Binding="{Binding Mobile}" Width="*" ElementStyle="{StaticResource DataGridTextCellStyle}"/>
                         <DataGridTextColumn Header="CHAMBER" Binding="{Binding ChamberName}" Width="*" ElementStyle="{StaticResource DataGridTextCellStyle}"/>
                         <DataGridTextColumn Header="STATUS" Binding="{Binding Status}" Width="0.7*" ElementStyle="{StaticResource DataGridTextCellStyle}"/>
-                        <DataGridTemplateColumn Header="ACTION" Width="110">
+                        <DataGridTemplateColumn Header="ACTION" Width="200">
                             <DataGridTemplateColumn.CellTemplate>
                                 <DataTemplate>
-                                    <Button Content="{Binding ToggleActionText}"
-                                            Padding="8,4"
-                                            Margin="4,2"
-                                            Cursor="Hand"
-                                            Click="ToggleActive_Click"/>
+                                    <StackPanel Orientation="Horizontal">
+                                        <Button Content="{Binding ToggleActionText}"
+                                                Padding="8,4"
+                                                Margin="4,2"
+                                                Cursor="Hand"
+                                                Click="ToggleActive_Click"/>
+                                        <Button Content="{Binding LostActionText}"
+                                                Padding="8,4"
+                                                Margin="4,2"
+                                                Cursor="Hand"
+                                                Click="ToggleLost_Click"/>
+                                    </StackPanel>
                                 </DataTemplate>
                             </DataGridTemplateColumn.CellTemplate>
                         </DataGridTemplateColumn>

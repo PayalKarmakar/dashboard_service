@@ -117,8 +117,8 @@ public class ReportService
                   )
               AND (
                     @active = ''
-                    OR (@active = '1' AND e.is_active = TRUE)
-                    OR (@active = '0' AND e.is_active = FALSE)
+                    OR (@active = '1' AND e.is_active = TRUE AND e.is_lost = FALSE)
+                    OR (@active = '0' AND (e.is_active = FALSE OR e.is_lost = TRUE))
                   )
             ORDER BY
                 COALESCE(c.chamber_name, 'zzz'),

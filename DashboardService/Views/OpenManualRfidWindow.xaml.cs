@@ -23,7 +23,7 @@ public partial class OpenManualRfidWindow : Window
         try
         {
             var employees = (await _employeeService.GetAllAsync())
-                .Where(x => x.IsActive)
+                .Where(x => x.IsActive && !x.IsLost)
                 .Select(x => new EmployeeOption
                 {
                     EmployeeId = x.EmployeeId,

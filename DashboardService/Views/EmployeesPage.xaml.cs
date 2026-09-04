@@ -96,6 +96,16 @@ public partial class EmployeesPage : Page
         }
 
         bool nextActive = !employee.IsActive;
+        if (nextActive && employee.IsLost)
+        {
+            MessageBox.Show(
+                "Lost employees cannot be activated. Clear Lost status first.",
+                "Employees",
+                MessageBoxButton.OK,
+                MessageBoxImage.Warning);
+            return;
+        }
+
         string action = nextActive ? "activate" : "deactivate";
 
         var confirm = MessageBox.Show(
@@ -112,6 +122,51 @@ public partial class EmployeesPage : Page
         try
         {
             await _employeeService.SetActiveAsync(employee.EmployeeId, nextActive, _currentUser.UserId);
+            await LoadEmployeesAsync();
+        }
+        catch (Exception ex)
+        {
+            MessageBox.Show(ex.Message, "Employees", MessageBoxButton.OK, MessageBoxImage.Error);
+        }
+    }
+
+    private async void ToggleLost_Click(object sender, RoutedEventArgs e)
+    {
+        if (!string.Equals(_currentUser.Role, "ADMIN", StringComparison.OrdinalIgnoreCase))
+        {
+            MessageBox.Show(
+                "Only admin can change lost status.",
+                "Employees",
+                MessageBoxButton.OK,
+                MessageBoxImage.Warning);
+            return;
+        }
+
+        if (sender is not Button button || button.DataContext is not EmployeeRecord employee)
+        {
+            return;
+        }
+
+        bool nextLost = !employee.IsLost;
+        string action = nextLost ? "mark as lost" : "clear lost status for";
+        string note = nextLost
+            ? "\n\nThe employee will also be set to Inactive."
+            : string.Empty;
+
+        var confirm = MessageBox.Show(
+            $"Do you want to {action} \"{employee.EmployeeName}\"?{note}",
+            "Employees",
+            MessageBoxButton.YesNo,
+            MessageBoxImage.Question);
+
+        if (confirm != MessageBoxResult.Yes)
+        {
+            return;
+        }
+
+        try
+        {
+            await _employeeService.SetLostAsync(employee.EmployeeId, nextLost, _currentUser.UserId);
             await LoadEmployeesAsync();
         }
         catch (Exception ex)

@@ -405,12 +405,28 @@
                 <TextBlock Text="Chamber" FontSize="12" FontWeight="SemiBold" Foreground="{DynamicResource TextPrimaryBrush}"/>
                 <ComboBox x:Name="ChamberComboBox"
                           Height="40"
-                          Margin="0,6,0,20"
+                          Margin="0,6,0,14"
                           Style="{StaticResource ThemedComboBoxStyle}"
                           IsEditable="False"
                           MaxDropDownHeight="220"
                           DisplayMemberPath="Label"
                           Cursor="Hand"/>
+
+                <StackPanel Orientation="Horizontal" Margin="0,0,0,20">
+                    <CheckBox x:Name="ActiveCheckBox"
+                              Content="Active"
+                              IsChecked="True"
+                              Margin="0,0,24,0"
+                              VerticalAlignment="Center"
+                              Foreground="{DynamicResource TextPrimaryBrush}"/>
+                    <CheckBox x:Name="LostCheckBox"
+                              Content="Lost"
+                              IsChecked="False"
+                              VerticalAlignment="Center"
+                              Foreground="{DynamicResource TextPrimaryBrush}"
+                              Checked="LostCheckBox_Changed"
+                              Unchecked="LostCheckBox_Changed"/>
+                </StackPanel>
             </StackPanel>
 
             <StackPanel Orientation="Horizontal" HorizontalAlignment="Right">

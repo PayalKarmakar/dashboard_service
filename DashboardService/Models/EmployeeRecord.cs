@@ -22,7 +22,16 @@ public class EmployeeRecord
 
     public bool IsActive { get; set; } = true;
 
-    public string Status => IsActive ? "Active" : "Inactive";
+    public bool IsLost { get; set; }
+
+    public long? LostCreatedBy { get; set; }
+
+    public DateTime? LostUpdatedAt { get; set; }
+
+    public string Status =>
+        IsLost ? "Lost" : (IsActive ? "Active" : "Inactive");
 
     public string ToggleActionText => IsActive ? "Deactivate" : "Activate";
+
+    public string LostActionText => IsLost ? "Clear Lost" : "Mark Lost";
 }

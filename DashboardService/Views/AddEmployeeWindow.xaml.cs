@@ -125,6 +125,24 @@ public partial class AddEmployeeWindow : Window
             || string.Equals(purpose.Trim(), "Employee Registration", StringComparison.OrdinalIgnoreCase);
     }
 
+    private void LostCheckBox_Changed(object sender, RoutedEventArgs e)
+    {
+        bool isLost = LostCheckBox.IsChecked == true;
+        if (isLost)
+        {
+            ActiveCheckBox.IsChecked = false;
+            ActiveCheckBox.IsEnabled = false;
+        }
+        else
+        {
+            ActiveCheckBox.IsEnabled = true;
+            if (ActiveCheckBox.IsChecked != true)
+            {
+                ActiveCheckBox.IsChecked = true;
+            }
+        }
+    }
+
     private Chamber? GetSelectedChamber()
     {
         if (ChamberComboBox.SelectedItem is ChamberPickerItem item && !item.IsPlaceholder)
@@ -422,6 +440,7 @@ public partial class AddEmployeeWindow : Window
             return;
         }
 
+        bool isLost = LostCheckBox.IsChecked == true;
         var employee = new EmployeeRecord
         {
             EmployeeCode = code,
@@ -430,7 +449,9 @@ public partial class AddEmployeeWindow : Window
             Department = DepartmentTextBox.Text.Trim(),
             Designation = DesignationTextBox.Text.Trim(),
             Mobile = MobileTextBox.Text.Trim(),
-            ChamberId = GetSelectedChamber()?.ChamberId
+            ChamberId = GetSelectedChamber()?.ChamberId,
+            IsLost = isLost,
+            IsActive = !isLost && ActiveCheckBox.IsChecked == true
         };
 
         try

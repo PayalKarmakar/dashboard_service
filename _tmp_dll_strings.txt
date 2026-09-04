@@ -1,0 +1,9 @@
+=== C:\Users\User\Desktop\rfid_service\RfidManagementSystem\bin\Release\net8.0-windows\RfidManagementSystem.dll exists=True ===
+U16[applied live]: rationMinutes.5.RFID card scan is already in progress..\s*\(applied live,\s*no service restart\)\.?.TCP Server stopped..Employee Registration Controller
+U16[no service restart]: RFID card scan is already in progress..\s*\(applied live,\s*no service restart\)\.?.TCP Server stopped..Employee Registration Controller is working!.--backgro
+U16[ENTRY_EXIT]: ard detected. Card UID: .Unauthorized RFID card..ENTRY.EXIT.ENTRY_EXIT.Unsupported reader purpose: .RFID_TRANSACTION_ERROR.Error processing card .Erro
+U16[ENTRY_EXIT]: ..................................................ENTRY.....ENTRY_EXIT................................................................................
+=== C:\Users\User\Desktop\rfid_service\RfidManagementSystem\bin\Release\net8.0-windows\win-x64\RfidService.dll exists=True ===
+U16[ENTRY_EXIT]: ard detected. Card UID: .Unauthorized RFID card..ENTRY.EXIT.ENTRY_EXIT.Unsupported reader purpose: .RFID_TRANSACTION_ERROR.Error processing card .Erro
+U16[ENTRY_EXIT]: ..................................................ENTRY.....ENTRY_EXIT................................................................................
+=== C:\Users\User\Desktop\rfid_service\RfidManagementSystem\bin\Release\net8.0-windows\win-x64\RfidService.exe exists=True ===
