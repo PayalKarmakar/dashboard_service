@@ -86,7 +86,7 @@
             <StackPanel Margin="0,0,0,14">
                 <TextBlock x:Name="TitleText" Text="Add Camera" FontSize="22" FontWeight="Bold" Foreground="{DynamicResource AccentBrush}"/>
                 <TextBlock x:Name="SubtitleText"
-                           Text="Configure door camera and RFID verification settings"
+                           Text="Configure camera purpose and RFID verification settings"
                            FontSize="12"
                            Foreground="{DynamicResource TextMutedBrush}"
                            Margin="0,4,0,0"/>
@@ -120,10 +120,9 @@
                                   Height="38"
                                   Margin="0,0,0,14"
                                   Style="{StaticResource ThemedComboBoxStyle}"
-                                  SelectedIndex="2">
+                                  SelectedIndex="0">
                             <ComboBoxItem Content="Entry" Tag="ENTRY"/>
                             <ComboBoxItem Content="Exit" Tag="EXIT"/>
-                            <ComboBoxItem Content="Door" Tag="DOOR"/>
                             <ComboBoxItem Content="Monitoring" Tag="MONITORING"/>
                         </ComboBox>
 
@@ -181,7 +180,7 @@
                                           Content="Alert when camera count is higher than RFID (mismatch / tailgate)"
                                           IsChecked="True"
                                           Foreground="{DynamicResource TextPrimaryBrush}"/>
-                                <TextBlock Text="Door/Entry: match IN events with RFID scans. Monitoring: match people visible in chamber with RFID open entries."
+                                <TextBlock Text="Entry/Exit: match IN events with RFID scans. Monitoring: match people visible in chamber with RFID open entries."
                                            FontSize="11"
                                            TextWrapping="Wrap"
                                            Foreground="{DynamicResource TextMutedBrush}"

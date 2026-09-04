@@ -929,6 +929,14 @@ namespace DashboardService.Views
             AppNavigation.Go(NavigationService, "Reports", _currentUser);
         }
 
+        private void CameraAccessReportMenu_Click(object sender, RoutedEventArgs e)
+        {
+            _countdownTimer.Stop();
+            _refreshTimer.Stop();
+            _sensorReadingTimer.Stop();
+            AppNavigation.Go(NavigationService, "CameraAccessReport", _currentUser);
+        }
+
         private void ChamberEmployeesReportMenu_Click(object sender, RoutedEventArgs e)
         {
             _countdownTimer.Stop();

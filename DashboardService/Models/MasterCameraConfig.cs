@@ -10,7 +10,7 @@ public sealed class MasterCameraConfig
 
     public string CameraName { get; set; } = string.Empty;
 
-    public string CameraPurpose { get; set; } = "DOOR";
+    public string CameraPurpose { get; set; } = "ENTRY";
 
     public string? IpAddress { get; set; }
 
@@ -38,8 +38,8 @@ public sealed class MasterCameraConfig
     {
         "ENTRY" => "Entry",
         "EXIT" => "Exit",
-        "DOOR" => "Door",
         "MONITORING" => "Monitoring",
+        "DOOR" => "Entry", // legacy
         _ => CameraPurpose
     };
 

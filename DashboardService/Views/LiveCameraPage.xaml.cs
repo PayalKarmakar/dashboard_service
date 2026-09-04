@@ -20,6 +20,7 @@ public partial class LiveCameraPage : Page
     private readonly CameraPythonLiveService _pythonStreamService = new();
     private readonly CameraDoorVerificationService _doorVerificationService = new();
     private readonly CameraOccupancyVerificationService _occupancyVerificationService = new();
+    private readonly CameraAccessEventService _cameraAccessEventService = new();
     private readonly VoiceAnnouncementService _voiceAnnouncementService = new();
     private readonly DispatcherTimer _rfidTimer = new();
     private readonly DispatcherTimer _verifyTimer = new();
@@ -28,6 +29,9 @@ public partial class LiveCameraPage : Page
     private long _selectedChamberId;
     private bool _verifyBusy;
     private int _latestDetectedCount;
+    private int _lastLoggedEntryCount = -1;
+    private int _lastLoggedExitCount = -1;
+    private int _unauthorizedSessionCount;
 
     public LiveCameraPage(User currentUser)
     {
@@ -77,6 +81,15 @@ public partial class LiveCameraPage : Page
     private async void LiveCameraPage_Loaded(object sender, RoutedEventArgs e)
     {
         ApplySciFiChrome(ThemeService.IsDarkMode);
+        try
+        {
+            await _cameraAccessEventService.EnsureSchemaAsync();
+        }
+        catch
+        {
+            // Persistence will retry on first save.
+        }
+
         await LoadCamerasAsync();
     }
 
@@ -146,19 +159,20 @@ public partial class LiveCameraPage : Page
             "MONITORING",
             StringComparison.OrdinalIgnoreCase);
 
-        ExitStatCard.Visibility = Visibility.Collapsed;
-        EntryStatCard.Visibility = Visibility.Collapsed;
-        RfidStatCard.Visibility = Visibility.Collapsed;
-        VerifyStatCard.Visibility = Visibility.Collapsed;
         DetectedStatCard.Visibility = monitoring ? Visibility.Visible : Visibility.Collapsed;
+        EntryStatCard.Visibility = monitoring ? Visibility.Collapsed : Visibility.Visible;
+        ExitStatCard.Visibility = monitoring ? Visibility.Collapsed : Visibility.Visible;
+        UnauthorizedStatCard.Visibility = monitoring ? Visibility.Collapsed : Visibility.Visible;
+        VerifyStatCard.Visibility = monitoring ? Visibility.Collapsed : Visibility.Visible;
+        RfidStatCard.Visibility = Visibility.Collapsed;
 
         DetectedTitleText.Text = "PERSONS INSIDE";
         DetectedHintText.Text = "People currently detected in the chamber";
         LiveCameraSubtitleText.Text = monitoring
             ? "Monitoring stream — accuracy, FPS, and persons inside"
-            : "Door stream — accuracy and FPS";
+            : "Entry/Exit stream — persons, unauthorized, accuracy, FPS";
 
-        VerifyStatusTitleText.Text = monitoring ? "OCCUPANCY MATCH" : "DOOR VERIFY STATUS";
+        VerifyStatusTitleText.Text = monitoring ? "OCCUPANCY MATCH" : "VERIFY STATUS";
         DoorVerifyStatusText.Text = monitoring
             ? $"Compare camera count vs RFID inside · stable {camera.MatchWindowSeconds}s"
             : camera.AlertOnNoRfid || camera.AlertOnTailgate
@@ -222,6 +236,10 @@ public partial class LiveCameraPage : Page
         DoorAlertBanner.Visibility = Visibility.Collapsed;
         _doorVerificationService.Reset();
         _occupancyVerificationService.Reset();
+        _lastLoggedEntryCount = -1;
+        _lastLoggedExitCount = -1;
+        _unauthorizedSessionCount = 0;
+        UnauthorizedCountText.Text = "0";
         await ConfigureDoorVerificationAsync(_selectedCamera);
         _rfidTimer.Start();
         _verifyTimer.Start();
@@ -313,6 +331,7 @@ public partial class LiveCameraPage : Page
 
             // InsideCount is mapped from camera service ENTRY (IN) cumulative count.
             _doorVerificationService.ObserveCameraEntryCount(stats.InsideCount);
+            PersistCrossingDeltas(stats.InsideCount, stats.OutsideCount);
 
             if (_selectedCamera != null
                 && string.Equals(
@@ -329,6 +348,50 @@ public partial class LiveCameraPage : Page
                 }
             }
         });
+    }
+
+    private void PersistCrossingDeltas(int entryCount, int exitCount)
+    {
+        if (_selectedCamera == null
+            || string.Equals(_selectedCamera.CameraPurpose, "MONITORING", StringComparison.OrdinalIgnoreCase))
+        {
+            return;
+        }
+
+        if (_lastLoggedEntryCount < 0)
+        {
+            _lastLoggedEntryCount = entryCount;
+            _lastLoggedExitCount = exitCount;
+            return;
+        }
+
+        int entryDelta = entryCount - _lastLoggedEntryCount;
+        int exitDelta = exitCount - _lastLoggedExitCount;
+        _lastLoggedEntryCount = entryCount;
+        _lastLoggedExitCount = exitCount;
+
+        MasterCameraConfig camera = _selectedCamera;
+        if (entryDelta > 0)
+        {
+            _ = PersistCrossingSafeAsync(camera, "ENTRY", entryDelta);
+        }
+
+        if (exitDelta > 0)
+        {
+            _ = PersistCrossingSafeAsync(camera, "EXIT", exitDelta);
+        }
+    }
+
+    private async Task PersistCrossingSafeAsync(MasterCameraConfig camera, string eventType, int delta)
+    {
+        try
+        {
+            await _cameraAccessEventService.LogCrossingAsync(camera, eventType, delta);
+        }
+        catch
+        {
+            // Keep live stream running if DB write fails.
+        }
     }
 
     private async void RfidTimer_Tick(object? sender, EventArgs e)
@@ -379,6 +442,19 @@ public partial class LiveCameraPage : Page
         {
             DoorVerifyStatusText.Text = $"{alert.TitleDisplay}: camera {alert.CameraPersonCount} / RFID {alert.RfidScanCount}";
 
+            if (alert.AlertType is "NO_RFID" or "TAILGATE")
+            {
+                _unauthorizedSessionCount += Math.Max(1, alert.CameraPersonCount);
+                UnauthorizedCountText.Text = _unauthorizedSessionCount.ToString();
+            }
+
+            if (_selectedCamera != null
+                && alert.AlertType is "NO_RFID" or "TAILGATE" or "MATCHED")
+            {
+                MasterCameraConfig camera = _selectedCamera;
+                _ = PersistAlertSafeAsync(camera, alert);
+            }
+
             if (alert.AlertType is "NO_RFID" or "TAILGATE" or "OCCUPANCY_NO_RFID" or "OCCUPANCY_MISMATCH")
             {
                 ShowDoorAlertBanner(alert);
@@ -389,6 +465,18 @@ public partial class LiveCameraPage : Page
                 DoorAlertBanner.Visibility = Visibility.Collapsed;
             }
         });
+    }
+
+    private async Task PersistAlertSafeAsync(MasterCameraConfig camera, CameraDoorAlert alert)
+    {
+        try
+        {
+            await _cameraAccessEventService.LogAlertAsync(camera, alert);
+        }
+        catch
+        {
+            // Keep live stream running if DB write fails.
+        }
     }
 
     private void ShowDoorAlertBanner(CameraDoorAlert alert)
@@ -444,6 +532,10 @@ public partial class LiveCameraPage : Page
         DetectedCountText.Text = "0";
         InsideCountText.Text = "0";
         OutsideCountText.Text = "0";
+        UnauthorizedCountText.Text = "0";
+        _unauthorizedSessionCount = 0;
+        _lastLoggedEntryCount = -1;
+        _lastLoggedExitCount = -1;
         AccuracyText.Text = "0%";
         FpsText.Text = "0.0 fps";
         RfidInsideText.Text = "0";
@@ -472,6 +564,9 @@ public partial class LiveCameraPage : Page
 
     private void EntryExitReportMenu_Click(object sender, RoutedEventArgs e) =>
         NavigateAway("Reports");
+
+    private void CameraAccessReportMenu_Click(object sender, RoutedEventArgs e) =>
+        NavigateAway("CameraAccessReport");
 
     private void ChamberEmployeesReportMenu_Click(object sender, RoutedEventArgs e) =>
         NavigateAway("ChamberEmployeesReport");

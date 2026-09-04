@@ -26,6 +26,7 @@ public static class AppNavigation
             "ProductionLossReport" => new ProductionLossReportPage(currentUser),
             "SensorReadingsReport" => new SensorReadingsReportPage(currentUser),
             "SystemLogsReport" => new SystemLogsReportPage(currentUser),
+            "CameraAccessReport" => new CameraAccessReportPage(currentUser),
             "SensorConfiguration" => new SensorConfigurationPage(currentUser),
             "CameraConfiguration" => new CameraConfigurationPage(currentUser),
             "LiveCamera" => new LiveCameraPage(currentUser),

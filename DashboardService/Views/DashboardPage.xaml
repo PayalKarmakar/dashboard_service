@@ -561,6 +561,24 @@
 
                         <Button Style="{StaticResource SidebarButtonStyle}"
                                 Height="40"
+                                Click="CameraAccessReportMenu_Click">
+
+                            <StackPanel Orientation="Horizontal">
+
+                                <TextBlock Text="&#x25B8;"
+                                           FontSize="14"
+                                           Width="24"
+                                           VerticalAlignment="Center"/>
+
+                                <TextBlock Text="Camera Access"
+                                           VerticalAlignment="Center"/>
+
+                            </StackPanel>
+
+                        </Button>
+
+                        <Button Style="{StaticResource SidebarButtonStyle}"
+                                Height="40"
                                 Click="ChamberEmployeesReportMenu_Click">
 
                             <StackPanel Orientation="Horizontal">

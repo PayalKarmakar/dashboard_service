@@ -58,7 +58,7 @@ public partial class AddCameraWindow : Window
             {
                 Title = "Edit Camera";
                 TitleText.Text = "Edit Camera";
-                SubtitleText.Text = "Update door camera and RFID verification settings";
+                SubtitleText.Text = "Update camera purpose and RFID verification settings";
                 SaveButton.Content = "Update";
 
                 NameTextBox.Text = _editingCamera.CameraName;
@@ -71,10 +71,17 @@ public partial class AddCameraWindow : Window
                 AlertTailgateCheckBox.IsChecked = _editingCamera.AlertOnTailgate;
                 ReaderComboBox.SelectedValue = _editingCamera.RfidReaderId ?? 0L;
 
+                string editPurpose = _editingCamera.CameraPurpose?.Trim() ?? "ENTRY";
+                // Legacy "DOOR" cameras map to Entry in the dropdown.
+                if (editPurpose.Equals("DOOR", StringComparison.OrdinalIgnoreCase))
+                {
+                    editPurpose = "ENTRY";
+                }
+
                 foreach (ComboBoxItem item in PurposeComboBox.Items)
                 {
                     if (item.Tag is string tag &&
-                        tag.Equals(_editingCamera.CameraPurpose, StringComparison.OrdinalIgnoreCase))
+                        tag.Equals(editPurpose, StringComparison.OrdinalIgnoreCase))
                     {
                         PurposeComboBox.SelectedItem = item;
                         break;
@@ -134,7 +141,7 @@ public partial class AddCameraWindow : Window
             return;
         }
 
-        string purpose = "DOOR";
+        string purpose = "ENTRY";
         if (PurposeComboBox.SelectedItem is ComboBoxItem selectedItem &&
             selectedItem.Tag is string tag &&
             !string.IsNullOrWhiteSpace(tag))

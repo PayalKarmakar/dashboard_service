@@ -178,9 +178,9 @@ public sealed class CameraConfigurationService
         }
 
         string purpose = camera.CameraPurpose.Trim().ToUpperInvariant();
-        if (purpose is not ("ENTRY" or "EXIT" or "DOOR" or "MONITORING"))
+        if (purpose is not ("ENTRY" or "EXIT" or "MONITORING"))
         {
-            throw new InvalidOperationException("Invalid camera purpose.");
+            throw new InvalidOperationException("Invalid camera purpose. Use Entry, Exit, or Monitoring.");
         }
 
         camera.CameraPurpose = purpose;

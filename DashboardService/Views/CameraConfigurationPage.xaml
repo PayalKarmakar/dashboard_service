@@ -202,11 +202,11 @@
                     CornerRadius="14"
                     Padding="16">
                 <StackPanel>
-                    <TextBlock Text="Door verification logic"
+                    <TextBlock Text="Entry / Exit verification"
                                FontSize="15"
                                FontWeight="SemiBold"
                                Foreground="{DynamicResource TextPrimaryBrush}"/>
-                    <TextBlock Text="Door cameras match each IN crossing with RFID scans in the match window. Monitoring cameras compare people visible in the chamber with open RFID entries and alert on mismatch."
+                    <TextBlock Text="Entry and Exit cameras match each IN crossing with RFID scans in the match window. Monitoring cameras compare people visible in the chamber with open RFID entries and alert on mismatch."
                                TextWrapping="Wrap"
                                FontSize="12"
                                Foreground="{DynamicResource TextMutedBrush}"
