@@ -22,6 +22,8 @@ public sealed class RfidTransactionService
     public async Task OpenManualAsync(
         EmployeeRecord employee,
         Chamber chamber,
+        long correctedByUserId,
+        string? remarks = null,
         DateTime? entryTime = null,
         CancellationToken cancellationToken = default)
     {
@@ -33,6 +35,11 @@ public sealed class RfidTransactionService
         if (chamber.ChamberId <= 0)
         {
             throw new InvalidOperationException("Select a chamber.");
+        }
+
+        if (correctedByUserId <= 0)
+        {
+            throw new InvalidOperationException("Invalid user for manual correction.");
         }
 
         await using var connection =
@@ -70,7 +77,11 @@ public sealed class RfidTransactionService
                 entry_reader_ip,
                 entry_reader_port,
                 status,
-                alert_triggered
+                alert_triggered,
+                remarks,
+                is_manually_corrected,
+                corrected_by,
+                corrected_at
             ) VALUES (
                 @employeeId,
                 @chamberId,
@@ -80,7 +91,11 @@ public sealed class RfidTransactionService
                 'MANUAL',
                 0,
                 'OPEN',
-                FALSE
+                FALSE,
+                @remarks,
+                TRUE,
+                @correctedBy,
+                NOW()
             );
         ";
 
@@ -90,17 +105,28 @@ public sealed class RfidTransactionService
         insertCommand.Parameters.AddWithValue("employeeName", employee.EmployeeName ?? string.Empty);
         insertCommand.Parameters.AddWithValue("cardUid", employee.CardUid ?? string.Empty);
         insertCommand.Parameters.AddWithValue("entryTime", entryTime ?? DateTime.Now);
+        insertCommand.Parameters.AddWithValue(
+            "remarks",
+            string.IsNullOrWhiteSpace(remarks) ? "Manual open" : remarks.Trim());
+        insertCommand.Parameters.AddWithValue("correctedBy", correctedByUserId);
         await insertCommand.ExecuteNonQueryAsync(cancellationToken);
     }
 
     public async Task CloseManualAsync(
         long transactionId,
+        long correctedByUserId,
+        string? remarks = null,
         DateTime? exitTime = null,
         CancellationToken cancellationToken = default)
     {
         if (transactionId <= 0)
         {
             throw new InvalidOperationException("Invalid transaction.");
+        }
+
+        if (correctedByUserId <= 0)
+        {
+            throw new InvalidOperationException("Invalid user for manual correction.");
         }
 
         await using var connection =
@@ -111,7 +137,11 @@ public sealed class RfidTransactionService
             UPDATE public.rfid_transactions
             SET exit_time = @exitTime,
                 status = 'CLOSED',
-                updated_at = NOW()
+                updated_at = NOW(),
+                remarks = @remarks,
+                is_manually_corrected = TRUE,
+                corrected_by = @correctedBy,
+                corrected_at = NOW()
             WHERE id = @id
               AND status = 'OPEN'
               AND exit_time IS NULL;
@@ -120,6 +150,10 @@ public sealed class RfidTransactionService
         await using var command = new NpgsqlCommand(sql, connection);
         command.Parameters.AddWithValue("id", transactionId);
         command.Parameters.AddWithValue("exitTime", exitTime ?? DateTime.Now);
+        command.Parameters.AddWithValue(
+            "remarks",
+            string.IsNullOrWhiteSpace(remarks) ? "Manual close" : remarks.Trim());
+        command.Parameters.AddWithValue("correctedBy", correctedByUserId);
 
         int updated = await command.ExecuteNonQueryAsync(cancellationToken);
         if (updated == 0)
@@ -151,7 +185,11 @@ public sealed class RfidTransactionService
                     COALESCE(c.chamber_name, ''),
                     t.entry_time,
                     t.exit_time,
-                    COALESCE(t.status, '')
+                    COALESCE(t.status, ''),
+                    COALESCE(t.remarks, ''),
+                    COALESCE(t.is_manually_corrected, FALSE),
+                    t.corrected_by,
+                    t.corrected_at
                 FROM public.rfid_transactions t
                 LEFT JOIN public.master_employees e ON e.emp_id = t.employee_id
                 LEFT JOIN public.master_chambers c ON c.chamber_id = t.chamber_id
@@ -170,7 +208,11 @@ public sealed class RfidTransactionService
                     COALESCE(c.chamber_name, ''),
                     t.entry_time,
                     t.exit_time,
-                    COALESCE(t.status, '')
+                    COALESCE(t.status, ''),
+                    COALESCE(t.remarks, ''),
+                    COALESCE(t.is_manually_corrected, FALSE),
+                    t.corrected_by,
+                    t.corrected_at
                 FROM public.rfid_transactions t
                 LEFT JOIN public.master_employees e ON e.emp_id = t.employee_id
                 LEFT JOIN public.master_chambers c ON c.chamber_id = t.chamber_id
@@ -198,7 +240,11 @@ public sealed class RfidTransactionService
                 ChamberName = reader.GetString(6),
                 EntryTime = reader.GetDateTime(7),
                 ExitTime = reader.IsDBNull(8) ? null : reader.GetDateTime(8),
-                Status = reader.GetString(9)
+                Status = reader.GetString(9),
+                Remarks = reader.GetString(10),
+                IsManuallyCorrected = reader.GetBoolean(11),
+                CorrectedBy = reader.IsDBNull(12) ? null : reader.GetInt64(12),
+                CorrectedAt = reader.IsDBNull(13) ? null : reader.GetDateTime(13)
             });
         }
 

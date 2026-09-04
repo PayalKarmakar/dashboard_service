@@ -22,12 +22,24 @@ public sealed class RfidTransactionRow
 
     public string Status { get; set; } = string.Empty;
 
+    public string Remarks { get; set; } = string.Empty;
+
+    public bool IsManuallyCorrected { get; set; }
+
+    public long? CorrectedBy { get; set; }
+
+    public DateTime? CorrectedAt { get; set; }
+
     public string EntryDisplay => EntryTime.ToString("dd-MMM-yyyy HH:mm:ss");
 
     public string ExitDisplay => ExitTime?.ToString("dd-MMM-yyyy HH:mm:ss") ?? "—";
 
     public string StatusDisplay =>
         string.Equals(Status, "OPEN", StringComparison.OrdinalIgnoreCase) ? "Open (Inside)" : "Closed (Exited)";
+
+    public string ManualDisplay => IsManuallyCorrected ? "Yes" : "No";
+
+    public string CorrectedAtDisplay => CorrectedAt?.ToString("dd-MMM-yyyy HH:mm:ss") ?? "—";
 
     public bool CanClose =>
         string.Equals(Status, "OPEN", StringComparison.OrdinalIgnoreCase) && ExitTime == null;

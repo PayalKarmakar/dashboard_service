@@ -71,7 +71,7 @@ public partial class ManualRfidTransactionsPage : Page
             return;
         }
 
-        var window = new OpenManualRfidWindow
+        var window = new OpenManualRfidWindow(_currentUser.UserId)
         {
             Owner = Window.GetWindow(this)
         };
@@ -95,20 +95,22 @@ public partial class ManualRfidTransactionsPage : Page
             return;
         }
 
-        var confirm = MessageBox.Show(
-            $"Close RFID for {row.EmployeeName} in {row.ChamberName}?",
-            "Close RFID",
-            MessageBoxButton.YesNo,
-            MessageBoxImage.Question);
+        var window = new CloseManualRfidWindow(row)
+        {
+            Owner = Window.GetWindow(this)
+        };
 
-        if (confirm != MessageBoxResult.Yes)
+        if (window.ShowDialog() != true)
         {
             return;
         }
 
         try
         {
-            await _transactionService.CloseManualAsync(row.TransactionId);
+            await _transactionService.CloseManualAsync(
+                row.TransactionId,
+                _currentUser.UserId,
+                window.Remarks);
             await LoadAsync();
         }
         catch (Exception ex)

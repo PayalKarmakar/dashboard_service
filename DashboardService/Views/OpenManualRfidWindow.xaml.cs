@@ -6,13 +6,15 @@ namespace DashboardService.Views;
 
 public partial class OpenManualRfidWindow : Window
 {
+    private readonly long _correctedByUserId;
     private readonly EmployeeService _employeeService = new();
     private readonly ChamberService _chamberService = new();
     private readonly RfidTransactionService _transactionService = new();
 
-    public OpenManualRfidWindow()
+    public OpenManualRfidWindow(long correctedByUserId)
     {
         InitializeComponent();
+        _correctedByUserId = correctedByUserId;
         Loaded += OpenManualRfidWindow_Loaded;
     }
 
@@ -76,7 +78,12 @@ public partial class OpenManualRfidWindow : Window
 
         try
         {
-            await _transactionService.OpenManualAsync(employeeOption.Record, chamberOption.Record);
+            string? remarks = RemarksTextBox.Text?.Trim();
+            await _transactionService.OpenManualAsync(
+                employeeOption.Record,
+                chamberOption.Record,
+                _correctedByUserId,
+                remarks);
             DialogResult = true;
         }
         catch (Exception ex)

@@ -240,11 +240,13 @@
                               Background="Transparent"
                               RowBackground="Transparent">
                         <DataGrid.Columns>
-                            <DataGridTextColumn Header="EMPLOYEE" Binding="{Binding EmployeeName}" Width="1.2*"/>
-                            <DataGridTextColumn Header="CODE" Binding="{Binding EmployeeCode}" Width="0.8*"/>
-                            <DataGridTextColumn Header="CARD" Binding="{Binding CardUid}" Width="0.9*"/>
-                            <DataGridTextColumn Header="CHAMBER" Binding="{Binding ChamberName}" Width="*"/>
-                            <DataGridTextColumn Header="ENTRY TIME" Binding="{Binding EntryDisplay}" Width="1.3*"/>
+                            <DataGridTextColumn Header="EMPLOYEE" Binding="{Binding EmployeeName}" Width="1.1*"/>
+                            <DataGridTextColumn Header="CODE" Binding="{Binding EmployeeCode}" Width="0.7*"/>
+                            <DataGridTextColumn Header="CARD" Binding="{Binding CardUid}" Width="0.8*"/>
+                            <DataGridTextColumn Header="CHAMBER" Binding="{Binding ChamberName}" Width="0.9*"/>
+                            <DataGridTextColumn Header="ENTRY TIME" Binding="{Binding EntryDisplay}" Width="1.2*"/>
+                            <DataGridTextColumn Header="REMARKS" Binding="{Binding Remarks}" Width="1.1*"/>
+                            <DataGridTextColumn Header="MANUAL" Binding="{Binding ManualDisplay}" Width="0.55*"/>
                             <DataGridTemplateColumn Header="ACTION" Width="110">
                                 <DataGridTemplateColumn.CellTemplate>
                                     <DataTemplate>
@@ -289,11 +291,14 @@
                               Background="Transparent"
                               RowBackground="Transparent">
                         <DataGrid.Columns>
-                            <DataGridTextColumn Header="EMPLOYEE" Binding="{Binding EmployeeName}" Width="1.2*"/>
-                            <DataGridTextColumn Header="CHAMBER" Binding="{Binding ChamberName}" Width="*"/>
-                            <DataGridTextColumn Header="ENTRY" Binding="{Binding EntryDisplay}" Width="1.2*"/>
-                            <DataGridTextColumn Header="EXIT" Binding="{Binding ExitDisplay}" Width="1.2*"/>
-                            <DataGridTextColumn Header="STATUS" Binding="{Binding StatusDisplay}" Width="*"/>
+                            <DataGridTextColumn Header="EMPLOYEE" Binding="{Binding EmployeeName}" Width="1.1*"/>
+                            <DataGridTextColumn Header="CHAMBER" Binding="{Binding ChamberName}" Width="0.9*"/>
+                            <DataGridTextColumn Header="ENTRY" Binding="{Binding EntryDisplay}" Width="1.1*"/>
+                            <DataGridTextColumn Header="EXIT" Binding="{Binding ExitDisplay}" Width="1.1*"/>
+                            <DataGridTextColumn Header="STATUS" Binding="{Binding StatusDisplay}" Width="0.85*"/>
+                            <DataGridTextColumn Header="REMARKS" Binding="{Binding Remarks}" Width="1*"/>
+                            <DataGridTextColumn Header="MANUAL" Binding="{Binding ManualDisplay}" Width="0.5*"/>
+                            <DataGridTextColumn Header="CORRECTED AT" Binding="{Binding CorrectedAtDisplay}" Width="1.1*"/>
                         </DataGrid.Columns>
                     </DataGrid>
                 </DockPanel>
