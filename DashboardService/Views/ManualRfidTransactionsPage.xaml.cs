@@ -44,7 +44,6 @@ public partial class ManualRfidTransactionsPage : Page
     private async void ManualRfidTransactionsPage_Loaded(object sender, RoutedEventArgs e)
     {
         ApplySciFiChrome(ThemeService.IsDarkMode);
-        SidebarMenuHelper.OpenSubMenu(ConfigurationSubMenuPanel, ConfigurationArrowText);
         await LoadAsync();
     }
 

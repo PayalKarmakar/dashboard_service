@@ -110,6 +110,12 @@
                                 <TextBlock Text="Live Camera" VerticalAlignment="Center"/>
                             </StackPanel>
                         </Button>
+                        <Button Style="{StaticResource SidebarButtonStyle}" Click="ManualRfidMenu_Click">
+                            <StackPanel Orientation="Horizontal">
+                                <TextBlock Text="⇄" FontSize="18" Width="30" VerticalAlignment="Center"/>
+                                <TextBlock Text="RFID Manual" VerticalAlignment="Center"/>
+                            </StackPanel>
+                        </Button>
                         <Button Style="{StaticResource SidebarButtonStyle}"
                                 Background="{DynamicResource SidebarActiveBgBrush}"
                                 Foreground="{DynamicResource SidebarTextActiveBrush}"
@@ -290,7 +296,7 @@
                                   SelectionChanged="Filter_Changed">
                             <ComboBoxItem Content="All" Tag=""/>
                             <ComboBoxItem Content="Inside (OPEN)" Tag="OPEN"/>
-                            <ComboBoxItem Content="Exited (CLOSED)" Tag="CLOSED"/>
+                            <ComboBoxItem Content="Exited (COMPLETED)" Tag="COMPLETED"/>
                         </ComboBox>
                     </StackPanel>
 

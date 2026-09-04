@@ -96,6 +96,12 @@
                                     <TextBlock Text="Live Camera" FontWeight="SemiBold" VerticalAlignment="Center"/>
                                 </StackPanel>
                             </Button>
+                            <Button Style="{StaticResource SidebarButtonStyle}" Click="ManualRfidMenu_Click">
+                                <StackPanel Orientation="Horizontal">
+                                    <TextBlock Text="⇄" FontSize="18" Width="30" VerticalAlignment="Center"/>
+                                    <TextBlock Text="RFID Manual" VerticalAlignment="Center"/>
+                                </StackPanel>
+                            </Button>
                             <Button Style="{StaticResource SidebarButtonStyle}" Click="ReportsToggle_Click">
                                 <Grid>
                                     <StackPanel Orientation="Horizontal">
@@ -163,12 +169,6 @@
                                     <StackPanel Orientation="Horizontal">
                                         <TextBlock Text="▸" FontSize="14" Width="24" VerticalAlignment="Center"/>
                                         <TextBlock Text="Camera" VerticalAlignment="Center"/>
-                                    </StackPanel>
-                                </Button>
-                                <Button Style="{StaticResource SidebarButtonStyle}" Height="40" Click="ManualRfidMenu_Click">
-                                    <StackPanel Orientation="Horizontal">
-                                        <TextBlock Text="▸" FontSize="14" Width="24" VerticalAlignment="Center"/>
-                                        <TextBlock Text="RFID Manual" VerticalAlignment="Center"/>
                                     </StackPanel>
                                 </Button>
                             </StackPanel>

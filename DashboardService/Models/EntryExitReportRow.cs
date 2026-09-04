@@ -41,7 +41,8 @@ public class EntryExitReportRow
 
     public string StatusDisplay => string.Equals(Status, "OPEN", StringComparison.OrdinalIgnoreCase)
         ? "Inside"
-        : string.Equals(Status, "CLOSED", StringComparison.OrdinalIgnoreCase)
+        : string.Equals(Status, "COMPLETED", StringComparison.OrdinalIgnoreCase)
+            || string.Equals(Status, "CLOSED", StringComparison.OrdinalIgnoreCase)
             ? "Exited"
             : Status;
 }

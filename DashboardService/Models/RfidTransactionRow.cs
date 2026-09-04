@@ -35,7 +35,13 @@ public sealed class RfidTransactionRow
     public string ExitDisplay => ExitTime?.ToString("dd-MMM-yyyy HH:mm:ss") ?? "—";
 
     public string StatusDisplay =>
-        string.Equals(Status, "OPEN", StringComparison.OrdinalIgnoreCase) ? "Open (Inside)" : "Closed (Exited)";
+        string.Equals(Status, "OPEN", StringComparison.OrdinalIgnoreCase)
+            ? "Open (Inside)"
+            : string.Equals(Status, "COMPLETED", StringComparison.OrdinalIgnoreCase)
+                ? "Completed (Exited)"
+                : string.Equals(Status, "INCOMPLETE", StringComparison.OrdinalIgnoreCase)
+                    ? "Incomplete"
+                    : Status;
 
     public string ManualDisplay => IsManuallyCorrected ? "Yes" : "No";
 

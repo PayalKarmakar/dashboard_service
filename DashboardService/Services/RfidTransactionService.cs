@@ -133,10 +133,11 @@ public sealed class RfidTransactionService
             new NpgsqlConnection(_configurationService.GetConnectionString());
         await connection.OpenAsync(cancellationToken);
 
+        // DB check chk_rfid_transaction_status allows: OPEN, COMPLETED, INCOMPLETE (not CLOSED).
         const string sql = @"
             UPDATE public.rfid_transactions
             SET exit_time = @exitTime,
-                status = 'CLOSED',
+                status = 'COMPLETED',
                 updated_at = NOW(),
                 remarks = @remarks,
                 is_manually_corrected = TRUE,

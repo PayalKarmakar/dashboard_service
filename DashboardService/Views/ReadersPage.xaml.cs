@@ -201,6 +201,9 @@ public partial class ReadersPage : Page
     private void LiveCameraMenu_Click(object sender, RoutedEventArgs e) =>
         AppNavigation.Go(NavigationService, "LiveCamera", _currentUser);
 
+    private void ManualRfidMenu_Click(object sender, RoutedEventArgs e) =>
+        AppNavigation.Go(NavigationService, "ManualRfidTransactions", _currentUser);
+
     private void CameraConfigurationMenu_Click(object sender, RoutedEventArgs e) =>
         AppNavigation.Go(NavigationService, "CameraConfiguration", _currentUser);
 

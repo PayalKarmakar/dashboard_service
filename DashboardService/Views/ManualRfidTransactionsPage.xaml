@@ -85,6 +85,15 @@
                                     <TextBlock Text="Live Camera" VerticalAlignment="Center"/>
                                 </StackPanel>
                             </Button>
+                            <Button Style="{StaticResource SidebarButtonStyle}"
+                                    Background="{DynamicResource SidebarActiveBgBrush}"
+                                    Foreground="{DynamicResource SidebarTextActiveBrush}"
+                                    Click="ManualRfidMenu_Click">
+                                <StackPanel Orientation="Horizontal">
+                                    <TextBlock Text="⇄" FontSize="18" Width="30" VerticalAlignment="Center"/>
+                                    <TextBlock Text="RFID Manual" FontWeight="SemiBold" VerticalAlignment="Center"/>
+                                </StackPanel>
+                            </Button>
                             <Button Style="{StaticResource SidebarButtonStyle}" Click="ReportsToggle_Click">
                                 <Grid>
                                     <StackPanel Orientation="Horizontal">
@@ -132,19 +141,16 @@
                                     </StackPanel>
                                 </Button>
                             </StackPanel>
-                            <Button Style="{StaticResource SidebarButtonStyle}"
-                                    Background="{DynamicResource SidebarActiveBgBrush}"
-                                    Foreground="{DynamicResource SidebarTextActiveBrush}"
-                                    Click="ConfigurationToggle_Click">
+                            <Button Style="{StaticResource SidebarButtonStyle}" Click="ConfigurationToggle_Click">
                                 <Grid>
                                     <StackPanel Orientation="Horizontal">
                                         <TextBlock Text="⚙" FontSize="18" Width="30" VerticalAlignment="Center"/>
-                                        <TextBlock Text="Configuration" FontWeight="SemiBold" VerticalAlignment="Center"/>
+                                        <TextBlock Text="Configuration" VerticalAlignment="Center"/>
                                     </StackPanel>
-                                    <TextBlock x:Name="ConfigurationArrowText" Text="▲" FontSize="10" HorizontalAlignment="Right" VerticalAlignment="Center" Margin="0,0,4,0"/>
+                                    <TextBlock x:Name="ConfigurationArrowText" Text="▼" FontSize="10" HorizontalAlignment="Right" VerticalAlignment="Center" Margin="0,0,4,0"/>
                                 </Grid>
                             </Button>
-                            <StackPanel x:Name="ConfigurationSubMenuPanel" Margin="18,0,0,4">
+                            <StackPanel x:Name="ConfigurationSubMenuPanel" Margin="18,0,0,4" Visibility="Collapsed">
                                 <Button Style="{StaticResource SidebarButtonStyle}" Height="40" Click="SensorConfigurationMenu_Click">
                                     <StackPanel Orientation="Horizontal">
                                         <TextBlock Text="▸" FontSize="14" Width="24" VerticalAlignment="Center"/>
@@ -155,16 +161,6 @@
                                     <StackPanel Orientation="Horizontal">
                                         <TextBlock Text="▸" FontSize="14" Width="24" VerticalAlignment="Center"/>
                                         <TextBlock Text="Camera" VerticalAlignment="Center"/>
-                                    </StackPanel>
-                                </Button>
-                                <Button Style="{StaticResource SidebarButtonStyle}"
-                                        Height="40"
-                                        Background="{DynamicResource SidebarActiveBgBrush}"
-                                        Foreground="{DynamicResource SidebarTextActiveBrush}"
-                                        Click="ManualRfidMenu_Click">
-                                    <StackPanel Orientation="Horizontal">
-                                        <TextBlock Text="▸" FontSize="14" Width="24" VerticalAlignment="Center"/>
-                                        <TextBlock Text="RFID Manual" FontWeight="SemiBold" VerticalAlignment="Center"/>
                                     </StackPanel>
                                 </Button>
                             </StackPanel>

@@ -192,6 +192,9 @@ public partial class CameraConfigurationPage : Page
     private void LiveCameraMenu_Click(object sender, RoutedEventArgs e) =>
         AppNavigation.Go(NavigationService, "LiveCamera", _currentUser);
 
+    private void ManualRfidMenu_Click(object sender, RoutedEventArgs e) =>
+        AppNavigation.Go(NavigationService, "ManualRfidTransactions", _currentUser);
+
     private void CameraConfigurationMenu_Click(object sender, RoutedEventArgs e) { }
 
     private void CodeInqLink_RequestNavigate(object sender, RequestNavigateEventArgs e)

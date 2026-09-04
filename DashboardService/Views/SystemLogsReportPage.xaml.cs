@@ -178,6 +178,9 @@ public partial class SystemLogsReportPage : Page
     private void LiveCameraMenu_Click(object sender, RoutedEventArgs e) =>
         AppNavigation.Go(NavigationService, "LiveCamera", _currentUser);
 
+    private void ManualRfidMenu_Click(object sender, RoutedEventArgs e) =>
+        AppNavigation.Go(NavigationService, "ManualRfidTransactions", _currentUser);
+
     private void ReportsToggle_Click(object sender, RoutedEventArgs e) =>
         SidebarMenuHelper.ToggleSubMenu(ReportsSubMenuPanel, ReportsArrowText);
 
