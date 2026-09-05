@@ -1187,22 +1187,18 @@
 			<!-- SUMMARY CARD CODE-BEHIND REFERENCES AS upper part is commented for now-->
 			<!-- ===================================== -->
 
-					<StackPanel Grid.Row="1"
-            Visibility="Collapsed">
+			<StackPanel Grid.Row="1" Visibility="Collapsed">
 
-						<TextBlock x:Name="MembersInsideText"
-               Text="0"/>
+				<TextBlock x:Name="MembersInsideText" Text="0"/>
 
-						<TextBlock x:Name="ActiveChambersText"
-               Text="0"/>
+				<TextBlock x:Name="ActiveChambersText" Text="0"/>
 
-						<TextBlock x:Name="AlertsText"
-               Text="0"/>
+				<TextBlock x:Name="AlertsText" Text="0"/>
 
-						<TextBlock x:Name="ViolationsText"
-               Text="0"/>
+				<TextBlock x:Name="ViolationsText" Text="0"/>
 
-					</StackPanel>
+			</StackPanel>
+                
 			<!-- ============================================ -->
 			<!-- RFID READER ALERTS + SENSOR DEVICE ALERTS -->
 			<!-- ============================================ -->				
@@ -1221,22 +1217,13 @@
 						<!-- RFID SYSTEM ALERTS                                    -->
 						<!-- ===================================================== -->
 
-						<Border Grid.Column="0"
-            Background="#FFFFFF"
-            CornerRadius="14"
-            BorderBrush="#E5E7EB"
-            BorderThickness="1"
-            Padding="16">
-
+						<Border Grid.Column="0" Background="#FFFFFF" CornerRadius="14"  BorderBrush="#E5E7EB" BorderThickness="1" Padding="16">
 							<Grid>
-
 								<Grid.RowDefinitions>
 									<RowDefinition Height="Auto"/>
 									<RowDefinition Height="10"/>
 									<RowDefinition Height="*"/>
 								</Grid.RowDefinitions>
-
-
 								<!-- RFID HEADER -->
 								<Grid Grid.Row="0">
 
@@ -1252,8 +1239,7 @@
                                            FontWeight="SemiBold"
                                            Foreground="#172033"/>
 										
-										<TextBlock x:Name="RfidLastCheckedText"
-                                           Text="Last checked: --"
+										<TextBlock x:Name="RfidLastCheckedText" Text="Last checked: --"
                                            FontSize="12"
                                           Foreground="{DynamicResource TextPrimaryBrush}"
                                            Margin="0,2,0,0"/>

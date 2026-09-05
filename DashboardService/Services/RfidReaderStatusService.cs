@@ -21,8 +21,7 @@ public class RfidReaderStatusService
                 Timeout = TimeSpan.FromSeconds(5)
             };
 
-            using var response = await httpClient.GetAsync("/api/readers/status",
-                cancellationToken);
+            using var response = await httpClient.GetAsync("/api/readers/status",cancellationToken);
 
             var payload = await response.Content.ReadFromJsonAsync<StatusResponse>(cancellationToken: cancellationToken);
 
