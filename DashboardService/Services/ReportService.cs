@@ -7,11 +7,7 @@ public class ReportService
 {
     private readonly ConfigurationService _configurationService = new();
 
-    public async Task<List<EntryExitReportRow>> GetEntryExitReportAsync(
-        DateTime fromDate,
-        DateTime toDate,
-        string? employeeSearch = null,
-        string? statusFilter = null)
+    public async Task<List<EntryExitReportRow>> GetEntryExitReportAsync(DateTime fromDate, DateTime toDate,string? employeeSearch = null, string? statusFilter = null)
     {
         var rows = new List<EntryExitReportRow>();
 
@@ -80,10 +76,7 @@ public class ReportService
         return rows;
     }
 
-    public async Task<List<ChamberEmployeeReportRow>> GetChamberWiseEmployeesAsync(
-        long? chamberId = null,
-        string? employeeSearch = null,
-        string? activeFilter = null)
+    public async Task<List<ChamberEmployeeReportRow>> GetChamberWiseEmployeesAsync(long? chamberId = null,string? employeeSearch = null, string? activeFilter = null)
     {
         var rows = new List<ChamberEmployeeReportRow>();
 
@@ -155,19 +148,9 @@ public class ReportService
         return rows;
     }
 
-    public async Task<List<ChamberCriticalReportRow>> GetChamberCriticalReportAsync(
-        DateTime fromDate,
-        DateTime toDate,
-        long? chamberId = null,
-        string? parameterSearch = null,
-        string? severityFilter = null)
+    public async Task<List<ChamberCriticalReportRow>> GetChamberCriticalReportAsync(DateTime fromDate, DateTime toDate,long? chamberId = null,string? parameterSearch = null,string? severityFilter = null)
     {
-        var violations = await GetSensorViolationRecordsAsync(
-            fromDate,
-            toDate,
-            chamberId,
-            parameterSearch,
-            severityFilter);
+        var violations = await GetSensorViolationRecordsAsync(fromDate, toDate,chamberId, parameterSearch, severityFilter);
         DateTime rangeStart = fromDate.Date;
         DateTime rangeEnd = toDate.Date.AddDays(1).AddTicks(-1);
 
@@ -177,10 +160,7 @@ public class ReportService
             .ToList();
     }
 
-    public async Task<List<ProductionLossReportRow>> GetProductionLossReportAsync(
-        DateTime fromDate,
-        DateTime toDate,
-        long? chamberId = null)
+    public async Task<List<ProductionLossReportRow>> GetProductionLossReportAsync(DateTime fromDate, DateTime toDate, long? chamberId = null)
     {
         var violations = await GetSensorViolationRecordsAsync(
             fromDate,
