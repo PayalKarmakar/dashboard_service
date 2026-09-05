@@ -14,10 +14,10 @@
         <!-- ================================ -->
 
         <Style x:Key="SidebarButtonStyle"
-               TargetType="Button">
+       TargetType="Button">
 
             <Setter Property="Height" Value="48"/>
-            <Setter Property="Margin" Value="0,3,0,3"/>
+            <Setter Property="Margin" Value="0,3"/>
             <Setter Property="Background" Value="Transparent"/>
             <Setter Property="Foreground" Value="{DynamicResource SidebarTextBrush}"/>
             <Setter Property="BorderThickness" Value="0"/>
@@ -32,28 +32,27 @@
                     <ControlTemplate TargetType="Button">
 
                         <Border x:Name="ButtonBorder"
-                                Background="{TemplateBinding Background}"
-                                CornerRadius="12"
-                                BorderThickness="0">
+                        Background="{TemplateBinding Background}"
+                        CornerRadius="12"
+                        BorderThickness="0">
 
                             <ContentPresenter
-                                VerticalAlignment="Center"
-                                HorizontalAlignment="Stretch"
-                                Margin="16,0"/>
+                        VerticalAlignment="Center"
+                        HorizontalAlignment="Center"/>
 
                         </Border>
 
                         <ControlTemplate.Triggers>
 
                             <Trigger Property="IsMouseOver"
-                                     Value="True">
+                             Value="True">
 
                                 <Setter TargetName="ButtonBorder"
-                                        Property="Background"
-                                        Value="{DynamicResource SidebarHoverBgBrush}"/>
+                                Property="Background"
+                                Value="{DynamicResource SidebarHoverBgBrush}"/>
 
                                 <Setter Property="Foreground"
-                                        Value="{DynamicResource SidebarTextActiveBrush}"/>
+                                Value="{DynamicResource SidebarTextActiveBrush}"/>
 
                             </Trigger>
 
@@ -64,6 +63,28 @@
                 </Setter.Value>
 
             </Setter>
+
+        </Style>
+
+        <!-- SIDEBAR TEXT -->
+        <Style x:Key="SidebarExpandableTextStyle"
+       TargetType="TextBlock">
+
+            <Setter Property="Visibility"
+            Value="Collapsed"/>
+            <Setter Property="VerticalAlignment"
+            Value="Center"/>
+            <Style.Triggers>
+
+                <DataTrigger Binding="{Binding IsChecked, ElementName=SidebarToggleButton}"
+                     Value="True">
+
+                    <Setter Property="Visibility"
+                    Value="Visible"/>
+
+                </DataTrigger>
+
+            </Style.Triggers>
 
         </Style>
 
@@ -303,479 +324,30 @@
 
     <Grid>
 
-        <Grid.ColumnDefinitions>
+        <!--<Grid.ColumnDefinitions>
 
-            <ColumnDefinition Width="230"/>
+            <ColumnDefinition x:Name="SidebarColumn" Width="76"/>
 
             <ColumnDefinition Width="*"/>
 
-        </Grid.ColumnDefinitions>
+        </Grid.ColumnDefinitions>-->
 
+        <Grid.ColumnDefinitions>
+            <ColumnDefinition Width="*"/>
+        </Grid.ColumnDefinitions>
 
         <!-- ===================================== -->
         <!-- SIDEBAR -->
         <!-- ===================================== -->
 
-        <Border Grid.Column="0" ClipToBounds="True"
-                Background="{DynamicResource SidebarBgBrush}">
-
-            <Grid>
-
-                <Ellipse Width="220" Height="220"
-                         Fill="#14FFFFFF"
-                         HorizontalAlignment="Left"
-                         VerticalAlignment="Top"
-                         Margin="-90,-80,0,0"
-                         IsHitTestVisible="False"/>
-
-                <Ellipse Width="160" Height="160"
-                         Fill="#10FFFFFF"
-                         HorizontalAlignment="Right"
-                         VerticalAlignment="Bottom"
-                         Margin="0,0,-50,-40"
-                         IsHitTestVisible="False"/>
-
-                <!-- Sci-fi grid lines (visible in dark mode via overlay opacity) -->
-                <Border x:Name="SidebarSciFiOverlay"
-                        Opacity="0"
-                        IsHitTestVisible="False">
-                    <Border.Background>
-                        <DrawingBrush TileMode="Tile" Viewport="0,0,28,28" ViewportUnits="Absolute">
-                            <DrawingBrush.Drawing>
-                                <GeometryDrawing>
-                                    <GeometryDrawing.Pen>
-                                        <Pen Brush="#3322D3EE" Thickness="0.6"/>
-                                    </GeometryDrawing.Pen>
-                                    <GeometryDrawing.Geometry>
-                                        <GeometryGroup>
-                                            <LineGeometry StartPoint="0,0" EndPoint="28,0"/>
-                                            <LineGeometry StartPoint="0,0" EndPoint="0,28"/>
-                                        </GeometryGroup>
-                                    </GeometryDrawing.Geometry>
-                                </GeometryDrawing>
-                            </DrawingBrush.Drawing>
-                        </DrawingBrush>
-                    </Border.Background>
-                </Border>
-
-                <Grid>
-
-                <Grid.RowDefinitions>
-
-                    <RowDefinition Height="160"/>
-
-                    <RowDefinition Height="*"/>
-
-                    <RowDefinition Height="95"/>
-
-                </Grid.RowDefinitions>
-
-
-                <!-- BRAND -->
-
-                <StackPanel Grid.Row="0"
-                            Margin="24,32,20,0">
-
-                    <Border Width="48" Height="48"
-                            CornerRadius="14"
-                            Background="#22FFFFFF"
-                            HorizontalAlignment="Left"
-                            Margin="0,0,0,16"
-                            Padding="6">
-                        <Image Source="pack://application:,,,/Assets/logo.png"
-                               Stretch="Uniform"
-                               RenderOptions.BitmapScalingMode="HighQuality"/>
-                    </Border>
-
-                    <TextBlock Text="SRP INNOVATIONS"
-                               FontSize="11"
-                               FontWeight="Bold"
-                               Foreground="#9FC8F5"/>
-
-                    <TextBlock Text="Smart Chamber"
-                               FontSize="20"
-                               FontWeight="Bold"
-                               Foreground="White"
-                               Margin="0,6,0,0"/>
-
-                    <TextBlock Text="Monitoring"
-                               FontSize="20"
-                               FontWeight="Bold"
-                               Foreground="White"
-                               Margin="0,-2,0,0"/>
-
-                    <Border Height="1"
-                            Background="#33FFFFFF"
-                            Margin="0,18,20,0"/>
-
-                </StackPanel>
-
-
-                <!-- MENU -->
-
-                <ScrollViewer Grid.Row="1" VerticalScrollBarVisibility="Auto" HorizontalScrollBarVisibility="Disabled" Padding="0,0,4,0"><StackPanel Margin="14,10,14,0">
-
-
-                    <!-- DASHBOARD -->
-
-                    <Button Style="{StaticResource SidebarButtonStyle}"
-                            Background="{DynamicResource SidebarActiveBgBrush}"
-                            Foreground="{DynamicResource SidebarTextActiveBrush}"
-                            Click="DashboardMenu_Click">
-
-                        <StackPanel Orientation="Horizontal">
-
-                            <TextBlock Text="&#x25A6;"
-                                       FontSize="19"
-                                       Width="30"
-                                       VerticalAlignment="Center"/>
-
-                            <TextBlock Text="Dashboard"
-                                       FontWeight="SemiBold"
-                                       VerticalAlignment="Center"/>
-
-                        </StackPanel>
-
-                    </Button>
-
-
-                    <!-- CHAMBERS -->
-
-                    <Button Style="{StaticResource SidebarButtonStyle}"
-                            Click="ChambersMenu_Click">
-
-                        <StackPanel Orientation="Horizontal">
-
-                            <TextBlock Text="&#x25C8;"
-                                       FontSize="18"
-                                       Width="30"
-                                       VerticalAlignment="Center"/>
-
-                            <TextBlock Text="Chambers"
-                                       VerticalAlignment="Center"/>
-
-                        </StackPanel>
-
-                    </Button>
-
-
-                    <!-- EMPLOYEES -->
-
-                    <Button Style="{StaticResource SidebarButtonStyle}"
-                            Click="EmployeesMenu_Click">
-
-                        <StackPanel Orientation="Horizontal">
-
-                            <TextBlock Text="&#x2659;"
-                                       FontSize="18"
-                                       Width="30"
-                                       VerticalAlignment="Center"/>
-
-                            <TextBlock Text="Employees"
-                                       VerticalAlignment="Center"/>
-
-                        </StackPanel>
-
-                    </Button>
-
-                    <Button Style="{StaticResource SidebarButtonStyle}"
-                            Click="ReadersMenu_Click">
-
-                        <StackPanel Orientation="Horizontal">
-
-                            <TextBlock Text="&#x229B;"
-                                       FontSize="18"
-                                       Width="30"
-                                       VerticalAlignment="Center"/>
-
-                            <TextBlock Text="RFID Readers"
-                                       VerticalAlignment="Center"/>
-
-                        </StackPanel>
-
-                    </Button>
-
-                    <Button Style="{StaticResource SidebarButtonStyle}"
-                            Click="LiveCameraMenu_Click">
-
-                        <StackPanel Orientation="Horizontal">
-
-                            <TextBlock Text="◎"
-                                       FontSize="18"
-                                       Width="30"
-                                       VerticalAlignment="Center"/>
-
-                            <TextBlock Text="Live Camera"
-                                       VerticalAlignment="Center"/>
-
-                        </StackPanel>
-
-                    </Button>
-
-                    <Button Style="{StaticResource SidebarButtonStyle}"
-                            Click="ManualRfidMenu_Click">
-
-                        <StackPanel Orientation="Horizontal">
-
-                            <TextBlock Text="⇄"
-                                       FontSize="18"
-                                       Width="30"
-                                       VerticalAlignment="Center"/>
-
-                            <TextBlock Text="RFID Manual"
-                                       VerticalAlignment="Center"/>
-
-                        </StackPanel>
-
-                    </Button>
-
-                    <Button Style="{StaticResource SidebarButtonStyle}"
-                            Click="ReportsToggle_Click">
-
-                        <Grid>
-                            <StackPanel Orientation="Horizontal">
-
-                                <TextBlock Text="&#x25A4;"
-                                           FontSize="18"
-                                       Width="30"
-                                       VerticalAlignment="Center"/>
-
-                                <TextBlock Text="Reports"
-                                           VerticalAlignment="Center"/>
-
-                            </StackPanel>
-
-                            <TextBlock x:Name="ReportsArrowText"
-                                       Text="&#x25BC;"
-                                       FontSize="10"
-                                       HorizontalAlignment="Right"
-                                       VerticalAlignment="Center"
-                                       Margin="0,0,4,0"/>
-                        </Grid>
-
-                    </Button>
-
-                    <StackPanel x:Name="ReportsSubMenuPanel"
-                                Margin="18,0,0,4"
-                                Visibility="Collapsed">
-
-                        <Button Style="{StaticResource SidebarButtonStyle}"
-                                Height="40"
-                                Click="EntryExitReportMenu_Click">
-
-                            <StackPanel Orientation="Horizontal">
-
-                                <TextBlock Text="&#x25B8;"
-                                           FontSize="14"
-                                           Width="24"
-                                           VerticalAlignment="Center"/>
-
-                                <TextBlock Text="Entry / Exit"
-                                           VerticalAlignment="Center"/>
-
-                            </StackPanel>
-
-                        </Button>
-
-                        <Button Style="{StaticResource SidebarButtonStyle}"
-                                Height="40"
-                                Click="CameraAccessReportMenu_Click">
-
-                            <StackPanel Orientation="Horizontal">
-
-                                <TextBlock Text="&#x25B8;"
-                                           FontSize="14"
-                                           Width="24"
-                                           VerticalAlignment="Center"/>
-
-                                <TextBlock Text="Camera Access"
-                                           VerticalAlignment="Center"/>
-
-                            </StackPanel>
-
-                        </Button>
-
-                        <Button Style="{StaticResource SidebarButtonStyle}"
-                                Height="40"
-                                Click="ChamberEmployeesReportMenu_Click">
-
-                            <StackPanel Orientation="Horizontal">
-
-                                <TextBlock Text="&#x25B8;"
-                                           FontSize="14"
-                                           Width="24"
-                                           VerticalAlignment="Center"/>
-
-                                <TextBlock Text="Chamber Employees"
-                                           VerticalAlignment="Center"/>
-
-                            </StackPanel>
-
-                        </Button>
-
-                        <Button Style="{StaticResource SidebarButtonStyle}"
-                                Height="40"
-                                Click="ChamberCriticalReportMenu_Click">
-
-                            <StackPanel Orientation="Horizontal">
-
-                                <TextBlock Text="&#x25B8;"
-                                           FontSize="14"
-                                           Width="24"
-                                           VerticalAlignment="Center"/>
-
-                                <TextBlock Text="Chamber Critical"
-                                           VerticalAlignment="Center"/>
-
-                            </StackPanel>
-
-                        </Button>
-
-                        <Button Style="{StaticResource SidebarButtonStyle}"
-                                Height="40"
-                                Click="ProductionLossReportMenu_Click">
-
-                            <StackPanel Orientation="Horizontal">
-
-                                <TextBlock Text="&#x25B8;"
-                                           FontSize="14"
-                                           Width="24"
-                                           VerticalAlignment="Center"/>
-
-                                <TextBlock Text="Production Loss"
-                                           VerticalAlignment="Center"/>
-
-                            </StackPanel>
-
-                        </Button>
-                            <Button Style="{StaticResource SidebarButtonStyle}"
-                                    Height="40"
-                                    Click="SensorReadingsReportMenu_Click">
-                                <StackPanel Orientation="Horizontal">
-                                    <TextBlock Text="▸" FontSize="14" Width="24" VerticalAlignment="Center"/>
-                                    <TextBlock Text="Sensor Readings" VerticalAlignment="Center"/>
-                                </StackPanel>
-                            </Button>
-
-                    </StackPanel>
-
-                    <Button Style="{StaticResource SidebarButtonStyle}"
-                            Click="ConfigurationToggle_Click">
-
-                        <Grid>
-                            <StackPanel Orientation="Horizontal">
-
-                                <TextBlock Text="&#x2699;"
-                                           FontSize="18"
-                                       Width="30"
-                                       VerticalAlignment="Center"/>
-
-                                <TextBlock Text="Configuration"
-                                           VerticalAlignment="Center"/>
-
-                            </StackPanel>
-
-                            <TextBlock x:Name="ConfigurationArrowText"
-                                       Text="&#x25BC;"
-                                       FontSize="10"
-                                       HorizontalAlignment="Right"
-                                       VerticalAlignment="Center"
-                                       Margin="0,0,4,0"/>
-                        </Grid>
-
-                    </Button>
-
-                    <StackPanel x:Name="ConfigurationSubMenuPanel"
-                                Margin="18,0,0,4"
-                                Visibility="Collapsed">
-
-                        <Button Style="{StaticResource SidebarButtonStyle}"
-                                Height="40"
-                                Click="SensorConfigurationMenu_Click">
-
-                            <StackPanel Orientation="Horizontal">
-
-                                <TextBlock Text="&#x25B8;"
-                                           FontSize="14"
-                                           Width="24"
-                                           VerticalAlignment="Center"/>
-
-                                <TextBlock Text="Sensor"
-                                           VerticalAlignment="Center"/>
-
-                            </StackPanel>
-
-                        </Button>
-
-                        <Button Style="{StaticResource SidebarButtonStyle}"
-                                Height="40"
-                                Click="CameraConfigurationMenu_Click">
-
-                            <StackPanel Orientation="Horizontal">
-
-                                <TextBlock Text="&#x25B8;"
-                                           FontSize="14"
-                                           Width="24"
-                                           VerticalAlignment="Center"/>
-
-                                <TextBlock Text="Camera"
-                                           VerticalAlignment="Center"/>
-
-                            </StackPanel>
-
-                        </Button>
-
-                    </StackPanel>
-
-                </StackPanel>
-                </ScrollViewer>
-
-
-                <!-- FOOTER -->
-
-                <StackPanel Grid.Row="2"
-                            VerticalAlignment="Center"
-                            HorizontalAlignment="Center"
-                            Margin="12,0,12,10">
-
-                    <TextBlock Text="&#x00A9; 2026 SRP Innovations"
-                               Foreground="#9FC8F5"
-                               FontSize="10"
-                               TextAlignment="Center"
-                               HorizontalAlignment="Center"/>
-
-                    <TextBlock Margin="0,8,0,0"
-                               FontSize="10"
-                               TextAlignment="Center"
-                               HorizontalAlignment="Center"
-                               Foreground="#A8C8EC">
-                        <Run Text="Designed &amp; Developed by "/>
-                        <Hyperlink NavigateUri="https://codeinq.com/"
-                                   RequestNavigate="CodeInqLink_RequestNavigate"
-                                   Foreground="#FFFFFF"
-                                   FontWeight="SemiBold"
-                                   TextDecorations="Underline"
-                                   Cursor="Hand">
-                            <Run Text="CodeInQ"/>
-                        </Hyperlink>
-                    </TextBlock>
-
-                </StackPanel>
-
-            </Grid>
-
-            </Grid>
-
-        </Border>
-
+     
 
         <!-- ===================================== -->
         <!-- CONTENT -->
         <!-- ===================================== -->
 
-        <Grid Grid.Column="1"
-              Margin="28,22,28,22"
-              Background="{DynamicResource ContentAreaBgBrush}">
+        <Grid Margin="18,16,18,16"
+                Background="{DynamicResource ContentAreaBgBrush}">
 
             <!-- Sci-fi atmosphere overlay -->
             <Border x:Name="ContentSciFiOverlay"
@@ -848,54 +420,14 @@
                             HorizontalAlignment="Right"
                             VerticalAlignment="Top">
 
-                    <!-- DARK MODE TOGGLE -->
-                    <Border x:Name="ThemeToggleButton"
-                            Background="{DynamicResource ProfileBgBrush}"
-                            BorderBrush="{DynamicResource CardBorderBrush}"
-                            BorderThickness="1"
-                            CornerRadius="12"
-                            Padding="12,8"
-                            Margin="0,0,12,0"
-                            Cursor="Hand"
-                            VerticalAlignment="Center"
-                            MouseLeftButtonUp="ThemeToggle_MouseLeftButtonUp">
-                        <StackPanel Orientation="Horizontal">
-                            <Border x:Name="ThemeToggleTrack"
-                                    Width="42"
-                                    Height="22"
-                                    CornerRadius="11"
-                                    Background="{DynamicResource ThemeToggleTrackBrush}"
-                                    VerticalAlignment="Center"
-                                    Margin="0,0,10,0">
-                                <Border x:Name="ThemeToggleKnob"
-                                        Width="16"
-                                        Height="16"
-                                        CornerRadius="8"
-                                        Background="{DynamicResource ThemeToggleKnobBrush}"
-                                        HorizontalAlignment="Left"
-                                        Margin="3,0,0,0"
-                                        VerticalAlignment="Center"/>
-                            </Border>
-                            <StackPanel VerticalAlignment="Center">
-                                <TextBlock x:Name="ThemeToggleLabel"
-                                           Text="DARK MODE"
-                                           FontSize="10"
-                                           FontWeight="Bold"
-                                           Foreground="{DynamicResource TextPrimaryBrush}"/>
-                                <TextBlock x:Name="ThemeToggleStateText"
-                                           Text="OFF"
-                                           FontSize="9"
-                                           Foreground="{DynamicResource TextMutedBrush}"/>
-                            </StackPanel>
-                        </StackPanel>
-                    </Border>
+                  
 
-            <!-- Profile container: relative positioning equivalent (Grid + Popup overlay) -->
-            <Grid HorizontalAlignment="Right"
-                  VerticalAlignment="Top"
-                  Panel.ZIndex="1000">
+                <!-- Profile container: relative positioning equivalent (Grid + Popup overlay) -->
+                            <Grid HorizontalAlignment="Right"
+                      VerticalAlignment="Top"
+                      Panel.ZIndex="1000">
 
-                <!-- ADMINISTRATOR BUTTON -->
+                                <!-- ADMINISTRATOR BUTTON -->
 
                 <Border x:Name="AdminMenuButton"
                         Background="{DynamicResource ProfileBgBrush}"

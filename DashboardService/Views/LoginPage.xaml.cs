@@ -4,6 +4,7 @@ using System.Windows;
 using System.Windows.Controls;
 using System.Windows.Input;
 using System.Windows.Navigation;
+using DashboardService;
 
 namespace DashboardService.Views
 {
@@ -146,6 +147,11 @@ namespace DashboardService.Views
                         PasswordTextBox.Focus();
                     }
                     return;
+                }
+
+                if (Window.GetWindow(this) is MainWindow mainWindow)
+                {
+                    mainWindow.ShowSidebar(user);
                 }
 
                 NavigationService?.Navigate(new DashboardPage(user));

@@ -4,6 +4,7 @@
         xmlns:d="http://schemas.microsoft.com/expression/blend/2008"
         xmlns:mc="http://schemas.openxmlformats.org/markup-compatibility/2006"
         xmlns:local="clr-namespace:DashboardService"
+        xmlns:controls="clr-namespace:DashboardService.Controls"
         mc:Ignorable="d"
         Title="SRP Innovations — Smart Chamber Monitoring"
         WindowState="Maximized"
@@ -11,11 +12,79 @@
         Background="{DynamicResource AppBgBrush}"
         Icon="pack://application:,,,/Assets/app.ico">
 
-	<Grid>
+    <Grid>
 
-		<Frame x:Name="MainFrame"
-               NavigationUIVisibility="Hidden"/>
+        <Grid.ColumnDefinitions>
+            <ColumnDefinition Width="Auto"/>
+            <ColumnDefinition Width="*"/>
+        </Grid.ColumnDefinitions>
 
-	</Grid>
 
+        <!-- GLOBAL SIDEBAR -->
+        <controls:SidebarControl x:Name="GlobalSidebar"
+                             Grid.Column="0"
+                             Panel.ZIndex="100"
+                             Visibility="Collapsed"/>
+
+
+        <!-- PAGE CONTENT -->
+        <Frame x:Name="MainFrame"
+           Grid.Column="1"
+           NavigationUIVisibility="Hidden"
+           Focusable="False"/>
+
+
+        <!-- COLLAPSE / EXPAND HANDLE -->
+        <ToggleButton x:Name="SidebarToggleButton"
+                  Grid.ColumnSpan="2"
+                  Width="24"
+                  Height="44"
+                  HorizontalAlignment="Left"
+                  VerticalAlignment="Top"
+                  Margin="218,14,0,0"
+                  Panel.ZIndex="1000"
+                  Background="#163A63"
+                  Foreground="White"
+                  BorderThickness="0"
+                  BorderBrush="Transparent"
+                  Focusable="False"
+                  IsTabStop="False"
+                  Cursor="Hand"
+                  Click="SidebarToggleButton_Click">
+
+            <ToggleButton.Template>
+                <ControlTemplate TargetType="ToggleButton">
+
+                    <Border Background="{TemplateBinding Background}"
+                        CornerRadius="0,9,9,0">
+
+                        <TextBlock x:Name="CollapseIcon"
+                               Text="‹"
+                               FontSize="18"
+                               FontWeight="SemiBold"
+                               Foreground="White"
+                               HorizontalAlignment="Center"
+                               VerticalAlignment="Center"/>
+
+                    </Border>
+
+                    <ControlTemplate.Triggers>
+
+                        <Trigger Property="IsChecked"
+                             Value="True">
+
+                            <Setter TargetName="CollapseIcon"
+                                Property="Text"
+                                Value="›"/>
+
+                        </Trigger>
+
+                    </ControlTemplate.Triggers>
+
+                </ControlTemplate>
+            </ToggleButton.Template>
+
+        </ToggleButton>
+
+    </Grid>
 </Window>

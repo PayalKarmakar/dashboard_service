@@ -146,22 +146,35 @@ namespace DashboardService.Views
             });
         }
 
-        private async void ThemeToggle_MouseLeftButtonUp(object sender, MouseButtonEventArgs e)
-        {
-            e.Handled = true;
-            bool enabling = !ThemeService.IsDarkMode;
+        //private void SidebarToggleButton_Click(object sender, RoutedEventArgs e)
+        //{
+        //    bool isExpanded = SidebarToggleButton.IsChecked == true;
 
-            if (enabling)
-            {
-                await PlaySciFiBootSequenceAsync();
-                ThemeService.SetDarkMode(true);
-            }
-            else
-            {
-                ThemeService.SetDarkMode(false);
-                DashboardTitleText.Text = "Live Dashboard";
-            }
-        }
+        //    SidebarColumn.Width = isExpanded
+        //        ? new GridLength(230)
+        //        : new GridLength(76);
+
+        //    SidebarToggleButton.ToolTip = isExpanded
+        //        ? "Collapse sidebar"
+        //        : "Expand sidebar";
+        //}
+
+        //private async void ThemeToggle_MouseLeftButtonUp(object sender, MouseButtonEventArgs e)
+        //{
+        //    e.Handled = true;
+        //    bool enabling = !ThemeService.IsDarkMode;
+
+        //    if (enabling)
+        //    {
+        //        await PlaySciFiBootSequenceAsync();
+        //        ThemeService.SetDarkMode(true);
+        //    }
+        //    else
+        //    {
+        //        ThemeService.SetDarkMode(false);
+        //        DashboardTitleText.Text = "Live Dashboard";
+        //    }
+        //}
 
         private async Task PlaySciFiBootSequenceAsync()
         {
@@ -197,23 +210,28 @@ namespace DashboardService.Views
             DashboardTitleText.Text = "Live Dashboard";
         }
 
+        //private void SyncThemeToggleUi(bool isDark)
+        //{
+        //    ThemeToggleStateText.Text = isDark ? "ON" : "OFF";
+        //    ThemeToggleKnob.HorizontalAlignment = isDark
+        //        ? HorizontalAlignment.Right
+        //        : HorizontalAlignment.Left;
+        //    ThemeToggleKnob.Margin = isDark
+        //        ? new Thickness(0, 0, 3, 0)
+        //        : new Thickness(3, 0, 0, 0);
+
+        //    DashboardTitleText.Text = "Live Dashboard";
+        //}
+
         private void SyncThemeToggleUi(bool isDark)
         {
-            ThemeToggleStateText.Text = isDark ? "ON" : "OFF";
-            ThemeToggleKnob.HorizontalAlignment = isDark
-                ? HorizontalAlignment.Right
-                : HorizontalAlignment.Left;
-            ThemeToggleKnob.Margin = isDark
-                ? new Thickness(0, 0, 3, 0)
-                : new Thickness(3, 0, 0, 0);
-
             DashboardTitleText.Text = "Live Dashboard";
         }
 
         private void ApplySciFiChrome(bool isDark)
         {
             double overlayOpacity = isDark ? 1 : 0;
-            SidebarSciFiOverlay.Opacity = overlayOpacity;
+            //SidebarSciFiOverlay.Opacity = overlayOpacity;
             ContentSciFiOverlay.Opacity = overlayOpacity;
 
             var cardBg = (Brush)FindResource("CardBgBrush");
@@ -1088,12 +1106,12 @@ namespace DashboardService.Views
             AppNavigation.Go(NavigationService, "Readers", _currentUser);
         }
 
-        private void ReportsToggle_Click(object sender, RoutedEventArgs e)
-        {
-            bool open = ReportsSubMenuPanel.Visibility != Visibility.Visible;
-            ReportsSubMenuPanel.Visibility = open ? Visibility.Visible : Visibility.Collapsed;
-            ReportsArrowText.Text = open ? "▲" : "▼";
-        }
+        //private void ReportsToggle_Click(object sender, RoutedEventArgs e)
+        //{
+        //    bool open = ReportsSubMenuPanel.Visibility != Visibility.Visible;
+        //    ReportsSubMenuPanel.Visibility = open ? Visibility.Visible : Visibility.Collapsed;
+        //    ReportsArrowText.Text = open ? "▲" : "▼";
+        //}
 
         private void EntryExitReportMenu_Click(object sender, RoutedEventArgs e)
         {
@@ -1142,8 +1160,8 @@ namespace DashboardService.Views
             AppNavigation.Go(NavigationService, "SensorReadingsReport", _currentUser);
         }
 
-        private void ConfigurationToggle_Click(object sender, RoutedEventArgs e) =>
-            SidebarMenuHelper.ToggleSubMenu(ConfigurationSubMenuPanel, ConfigurationArrowText);
+        //private void ConfigurationToggle_Click(object sender, RoutedEventArgs e) =>
+        //    SidebarMenuHelper.ToggleSubMenu(ConfigurationSubMenuPanel, ConfigurationArrowText);
 
         private void SensorConfigurationMenu_Click(object sender, RoutedEventArgs e)
         {

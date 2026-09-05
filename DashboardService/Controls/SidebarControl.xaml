@@ -1,0 +1,539 @@
+﻿<UserControl x:Class="DashboardService.Controls.SidebarControl"
+             xmlns="http://schemas.microsoft.com/winfx/2006/xaml/presentation"
+             xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
+             xmlns:d="http://schemas.microsoft.com/expression/blend/2008"
+             xmlns:mc="http://schemas.openxmlformats.org/markup-compatibility/2006"
+             x:Name="Root"
+             Width="230"
+             HorizontalAlignment="Left"
+             VerticalAlignment="Stretch"
+             Background="{DynamicResource SidebarBgBrush}"
+             mc:Ignorable="d">
+    <UserControl.Resources>       
+
+        <!-- SIDEBAR BUTTON -->
+        <Style x:Key="SidebarButtonStyle"
+               TargetType="Button">
+
+            <Setter Property="Height" Value="48"/>
+            <Setter Property="Margin" Value="8,3"/>
+            <Setter Property="Background" Value="Transparent"/>
+            <Setter Property="Foreground"  Value="{DynamicResource SidebarTextBrush}"/>
+            <Setter Property="BorderThickness" Value="0"/>
+            <Setter Property="Cursor" Value="Hand"/>
+            <Setter Property="FontSize" Value="14"/>
+            <Setter Property="HorizontalContentAlignment"
+                    Value="Stretch"/>
+
+            <Setter Property="Template">
+
+                <Setter.Value>
+
+                    <ControlTemplate TargetType="Button">
+
+                        <Border x:Name="ButtonBorder"
+                                Background="{TemplateBinding Background}"
+                                CornerRadius="10">
+
+                            <ContentPresenter
+                                VerticalAlignment="Center"
+                                HorizontalAlignment="Stretch"/>
+
+                        </Border>
+
+                        <ControlTemplate.Triggers>
+
+                            <Trigger Property="IsMouseOver"
+                                     Value="True">
+
+                                <Setter TargetName="ButtonBorder"
+                                        Property="Background"
+                                       Value="{DynamicResource SidebarHoverBgBrush}"/>
+
+                                <Setter Property="Foreground"
+                                        Value="{DynamicResource SidebarTextActiveBrush}"/>
+
+                            </Trigger>
+
+                        </ControlTemplate.Triggers>
+
+                    </ControlTemplate>
+
+                </Setter.Value>
+
+            </Setter>
+
+        </Style>
+
+
+        <!-- SIDEBAR TEXT -->
+        <Style x:Key="SidebarTextStyle"
+               TargetType="TextBlock">
+
+            <Setter Property="Visibility"
+                    Value="Collapsed"/>
+
+            <Setter Property="VerticalAlignment"
+                    Value="Center"/>
+
+            <Style.Triggers>
+
+                <DataTrigger Binding="{Binding IsExpanded,
+                                               ElementName=Root}"
+                             Value="True">
+
+                    <Setter Property="Visibility"
+                            Value="Visible"/>
+
+                </DataTrigger>
+
+            </Style.Triggers>
+
+        </Style>
+
+    </UserControl.Resources>
+
+    <Grid>
+
+        <!-- SIDEBAR BODY -->
+        <Grid x:Name="SidebarContent">
+
+            <Grid.RowDefinitions>
+                <RowDefinition Height="90"/>
+                <RowDefinition Height="*"/>
+                <RowDefinition Height="110"/>
+            </Grid.RowDefinitions>
+
+
+            <!-- ========================= -->
+        <!-- LOGO -->
+        <!-- ========================= -->
+
+        <Grid Grid.Row="0">
+
+            <StackPanel HorizontalAlignment="Center"
+                        VerticalAlignment="Center">
+
+                <Border Width="46"
+                            Height="46"
+                            CornerRadius="14"
+                            Background="#22FFFFFF"
+                            HorizontalAlignment="Center"
+                            Padding="6">    
+
+                    <Image Source="pack://application:,,,/Assets/logo.png"
+                           Stretch="Uniform"
+                           Margin="7"/>
+                </Border>
+
+                <TextBlock Text="SRP Monitor"
+                           Style="{StaticResource SidebarTextStyle}"
+                           Foreground="White"
+                           FontSize="17"
+                           FontWeight="Bold"
+                           HorizontalAlignment="Center"
+                           Margin="0,8,0,0"/>
+
+            </StackPanel>
+
+        </Grid>
+
+
+        <!-- ========================= -->
+        <!-- MENU -->
+        <!-- ========================= -->
+
+        <ScrollViewer Grid.Row="1"
+                      VerticalScrollBarVisibility="Auto"
+                      HorizontalScrollBarVisibility="Disabled">
+
+            <StackPanel Margin="6,10,6,0">
+
+
+                <!-- DASHBOARD -->
+
+                <Button Style="{StaticResource SidebarButtonStyle}"
+                        Click="Dashboard_Click">
+
+                    <Grid>
+
+                        <Grid.ColumnDefinitions>
+                            <ColumnDefinition Width="52"/>
+                            <ColumnDefinition Width="*"/>
+                        </Grid.ColumnDefinitions>
+
+                        <TextBlock Grid.Column="0"
+                                   Text="▦"
+                                   FontSize="19"
+                                   Foreground="White"
+                                   HorizontalAlignment="Center"
+                                   VerticalAlignment="Center"/>
+
+                        <TextBlock Grid.Column="1"
+                                   Text="Dashboard"
+                                   Style="{StaticResource SidebarTextStyle}"/>
+
+                    </Grid>
+
+                </Button>
+
+
+                <!-- CHAMBERS -->
+
+                <Button Style="{StaticResource SidebarButtonStyle}"
+                        Click="Chambers_Click">
+
+                    <Grid>
+
+                        <Grid.ColumnDefinitions>
+                            <ColumnDefinition Width="52"/>
+                            <ColumnDefinition Width="*"/>
+                        </Grid.ColumnDefinitions>
+
+                        <TextBlock Grid.Column="0"
+                                   Text="◈"
+                                   FontSize="18"
+                                   Foreground="#A8B5C7"
+                                   HorizontalAlignment="Center"/>
+
+                        <TextBlock Grid.Column="1"
+                                   Text="Chambers"
+                                   Style="{StaticResource SidebarTextStyle}"/>
+
+                    </Grid>
+
+                </Button>
+
+
+                <!-- EMPLOYEES -->
+
+                <Button Style="{StaticResource SidebarButtonStyle}"
+                        Click="Employees_Click">
+
+                    <Grid>
+
+                        <Grid.ColumnDefinitions>
+                            <ColumnDefinition Width="52"/>
+                            <ColumnDefinition Width="*"/>
+                        </Grid.ColumnDefinitions>
+
+                        <TextBlock Grid.Column="0"
+                                   Text="♙"
+                                   FontSize="18"
+                                   Foreground="#A8B5C7"
+                                   HorizontalAlignment="Center"/>
+
+                        <TextBlock Grid.Column="1"
+                                   Text="Employees"
+                                   Style="{StaticResource SidebarTextStyle}"/>
+
+                    </Grid>
+
+                </Button>
+
+
+                <!-- RFID -->
+
+                <Button Style="{StaticResource SidebarButtonStyle}"
+                        Click="Readers_Click">
+
+                    <Grid>
+
+                        <Grid.ColumnDefinitions>
+                            <ColumnDefinition Width="52"/>
+                            <ColumnDefinition Width="*"/>
+                        </Grid.ColumnDefinitions>
+
+                        <TextBlock Grid.Column="0"
+                                   Text="→"
+                                   FontSize="19"
+                                   Foreground="#A8B5C7"
+                                   HorizontalAlignment="Center"/>
+
+                        <TextBlock Grid.Column="1"
+                                   Text="RFID Readers"
+                                   Style="{StaticResource SidebarTextStyle}"/>
+
+                    </Grid>
+
+                </Button>
+
+
+                <!-- LIVE CAMERA -->
+
+                <Button Style="{StaticResource SidebarButtonStyle}"
+                        Click="LiveCamera_Click">
+
+                    <Grid>
+
+                        <Grid.ColumnDefinitions>
+                            <ColumnDefinition Width="52"/>
+                            <ColumnDefinition Width="*"/>
+                        </Grid.ColumnDefinitions>
+
+                        <TextBlock Grid.Column="0"
+                                   Text="▣"
+                                   FontSize="18"
+                                   Foreground="#A8B5C7"
+                                   HorizontalAlignment="Center"/>
+
+                        <TextBlock Grid.Column="1"
+                                   Text="Live Camera"
+                                   Style="{StaticResource SidebarTextStyle}"/>
+
+                    </Grid>
+
+                </Button>
+
+
+                <!-- RFID MANUAL -->
+
+                <Button Style="{StaticResource SidebarButtonStyle}"
+                        Click="ManualRfid_Click">
+
+                    <Grid>
+
+                        <Grid.ColumnDefinitions>
+                            <ColumnDefinition Width="52"/>
+                            <ColumnDefinition Width="*"/>
+                        </Grid.ColumnDefinitions>
+
+                        <TextBlock Grid.Column="0"
+                                   Text="⇄"
+                                   FontSize="18"
+                                   Foreground="#A8B5C7"
+                                   HorizontalAlignment="Center"/>
+
+                        <TextBlock Grid.Column="1"
+                                   Text="RFID Manual"
+                                   Style="{StaticResource SidebarTextStyle}"/>
+
+                    </Grid>
+
+                </Button>
+
+
+                <!-- REPORTS -->
+
+                <Button Style="{StaticResource SidebarButtonStyle}"
+                        Click="Reports_Click">
+
+                    <Grid>
+
+                        <Grid.ColumnDefinitions>
+                            <ColumnDefinition Width="52"/>
+                            <ColumnDefinition Width="*"/>
+                            <ColumnDefinition Width="25"/>
+                        </Grid.ColumnDefinitions>
+
+                        <TextBlock Grid.Column="0"
+                                   Text="▤"
+                                   FontSize="18"
+                                   Foreground="#A8B5C7"
+                                   HorizontalAlignment="Center"/>
+
+                        <TextBlock Grid.Column="1"
+                                   Text="Reports"
+                                   Style="{StaticResource SidebarTextStyle}"/>
+
+                        <TextBlock Grid.Column="2"
+                                   Text="›"
+                                   x:Name="ReportsArrow"
+                                   Style="{StaticResource SidebarTextStyle}"
+                                   HorizontalAlignment="Center"/>
+
+                    </Grid>
+
+                </Button>
+
+
+                <!-- REPORT SUBMENU -->
+
+                <StackPanel x:Name="ReportsSubMenu"
+                            Visibility="Collapsed"
+                            Margin="28,0,0,4">
+
+                    <Button Content="Entry / Exit"
+                            Style="{StaticResource SidebarButtonStyle}"
+                            Height="40"
+                            Click="EntryExit_Click"/>
+
+                    <Button Content="Camera Access"
+                            Style="{StaticResource SidebarButtonStyle}"
+                            Height="40"
+                            Click="CameraAccess_Click"/>
+
+                    <Button Content="Chamber Employees"
+                            Style="{StaticResource SidebarButtonStyle}"
+                            Height="40"
+                            Click="ChamberEmployees_Click"/>
+
+                    <Button Content="Chamber Critical"
+                            Style="{StaticResource SidebarButtonStyle}"
+                            Height="40"
+                            Click="ChamberCritical_Click"/>
+
+                    <Button Content="Production Loss"
+                            Style="{StaticResource SidebarButtonStyle}"
+                            Height="40"
+                            Click="ProductionLoss_Click"/>
+
+                    <Button Content="Sensor Readings"
+                            Style="{StaticResource SidebarButtonStyle}"
+                            Height="40"
+                            Click="SensorReadings_Click"/>
+
+                </StackPanel>
+
+
+                <!-- CONFIGURATION -->
+
+                <Button Style="{StaticResource SidebarButtonStyle}"
+                        Click="Configuration_Click">
+
+                    <Grid>
+
+                        <Grid.ColumnDefinitions>
+                            <ColumnDefinition Width="52"/>
+                            <ColumnDefinition Width="*"/>
+                            <ColumnDefinition Width="25"/>
+                        </Grid.ColumnDefinitions>
+
+                        <TextBlock Grid.Column="0"
+                                   Text="⚙"
+                                   FontSize="18"
+                                   Foreground="#A8B5C7"
+                                   HorizontalAlignment="Center"/>
+
+                        <TextBlock Grid.Column="1"
+                                   Text="Configuration"
+                                   Style="{StaticResource SidebarTextStyle}"/>
+
+                        <TextBlock Grid.Column="2"
+                                   Text="›"
+                                   x:Name="ConfigurationArrow"
+                                   Style="{StaticResource SidebarTextStyle}"
+                                   HorizontalAlignment="Center"/>
+
+                    </Grid>
+
+                </Button>
+
+
+                <!-- CONFIGURATION SUBMENU -->
+
+                <StackPanel x:Name="ConfigurationSubMenu"
+                            Visibility="Collapsed"
+                            Margin="28,0,0,4">
+
+                    <Button Content="Sensor"
+                            Style="{StaticResource SidebarButtonStyle}"
+                            Height="40"
+                            Click="SensorConfiguration_Click"/>
+
+                    <Button Content="Camera"
+                            Style="{StaticResource SidebarButtonStyle}"
+                            Height="40"
+                            Click="CameraConfiguration_Click"/>
+
+                </StackPanel>
+
+            </StackPanel>
+
+        </ScrollViewer>
+
+
+        <!-- ========================= -->
+        <!-- BOTTOM -->
+        <!-- ========================= -->
+
+        <StackPanel Grid.Row="2"
+                    HorizontalAlignment="Center"
+                    VerticalAlignment="Bottom"
+                    Margin="0,0,0,15">
+
+            <Border x:Name="ThemeToggleButton"
+                    Width="48"
+                    Height="32"
+                    Background="#183451"
+                    CornerRadius="10"
+                    Cursor="Hand"
+                    MouseLeftButtonUp="ThemeToggle_Click">
+
+                <TextBlock Text="☾"
+                           Foreground="White"
+                           FontSize="16"
+                           HorizontalAlignment="Center"
+                           VerticalAlignment="Center"/>
+
+            </Border>
+
+            <TextBlock Text="© 2026 SRP Innovations"
+                       Foreground="#7187A2"
+                       FontSize="8"
+                       HorizontalAlignment="Center"
+                       Margin="0,8,0,0"
+                       Style="{StaticResource SidebarTextStyle}"/>
+
+        </StackPanel>
+        </Grid>
+        <!-- END SIDEBAR BODY -->
+
+
+        <!-- ========================= -->
+        <!-- COLLAPSE BUTTON -->
+        <!-- ========================= -->
+
+        <!--<ToggleButton x:Name="CollapseButton"
+              Width="16"
+              Height="42"
+              HorizontalAlignment="Right"
+              VerticalAlignment="Top"
+              Margin="0,14,0,0"
+              Panel.ZIndex="1000"
+              Click="CollapseButton_Click"
+              Background="#163A63"
+              Foreground="White"
+              BorderThickness="0"
+              BorderBrush="Transparent"
+              Focusable="False"
+              IsTabStop="False"
+              Cursor="Hand">
+
+            <ToggleButton.Template>
+
+                <ControlTemplate TargetType="ToggleButton">
+                    <Border Background="{TemplateBinding Background}"
+        CornerRadius="0,8,8,0"
+        BorderThickness="0">
+
+                        <TextBlock x:Name="CollapseIcon"
+               Text="‹"
+               FontSize="17"
+               FontWeight="SemiBold"
+               HorizontalAlignment="Center"
+               VerticalAlignment="Center"/>
+
+                    </Border>
+                    <ControlTemplate.Triggers>
+
+                        <Trigger Property="IsChecked"
+                             Value="True">
+
+                            <Setter TargetName="CollapseIcon"
+                                Property="Text"
+                                Value="›"/>
+
+                        </Trigger>
+
+                    </ControlTemplate.Triggers>
+
+                </ControlTemplate>
+
+            </ToggleButton.Template>
+
+        </ToggleButton>-->
+
+    </Grid>
+
+</UserControl>
