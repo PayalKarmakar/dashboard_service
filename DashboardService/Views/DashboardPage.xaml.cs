@@ -448,143 +448,347 @@ namespace DashboardService.Views
         {
             try
             {
-            var statuses = await _systemLogStatusService.GetLatestRfidStatusesAsync();
+                var statuses = await _systemLogStatusService.GetLatestRfidStatusesAsync();
 
-            ConnectedRfidReaders.Clear();
-            DisconnectedRfidReaders.Clear();
+                ConnectedRfidReaders.Clear();
+                DisconnectedRfidReaders.Clear();
 
-            var connected = statuses.Where(x => x.IsConnected).ToList();
-            var disconnected = statuses.Where(x => !x.IsConnected).ToList();
+                var connected = statuses.Where(x => x.IsConnected).ToList();
+                var disconnected = statuses.Where(x => !x.IsConnected).ToList();
 
-            foreach (var row in connected)
-            {
-                ConnectedRfidReaders.Add(MapRfidLog(row));
-            }
+                foreach (var row in connected)
+                {
+                    ConnectedRfidReaders.Add(MapRfidLog(row));
+                }
 
-            foreach (var row in disconnected)
-            {
-                DisconnectedRfidReaders.Add(MapRfidLog(row));
-            }
+                foreach (var row in disconnected)
+                {
+                    DisconnectedRfidReaders.Add(MapRfidLog(row));
+                }
 
-            DateTime? lastAt = statuses.Count > 0 ? statuses.Max(x => x.CreatedAt) : null;
-            RfidLastCheckedText.Text = lastAt.HasValue
-                ? $"Last log: {lastAt:dd-MM-yyyy HH:mm:ss}"
-                : "Last log: --";
+                DateTime? lastAt = statuses.Count > 0 ? statuses.Max(x => x.CreatedAt) : null;
 
-            RfidServiceStatusText.Text =
-                statuses.Count == 0
-                    ? "No RFID connection logs in system_logs."
+                RfidLastCheckedText.Text = lastAt.HasValue
+                    ? $"Last checked: {lastAt:dd-MM-yyyy HH:mm:ss}"
+                    : "Last checked: --";
+
+                RfidServiceStatusText.Text = statuses.Count == 0
+                    ? "No RFID reader status available."
                     : $"{connected.Count} connected · {disconnected.Count} disconnected";
 
-            ConnectedReadersCountText.Text = $"({connected.Count})";
-            DisconnectedReadersCountText.Text = $"({disconnected.Count})";
+                ConnectedReadersCountText.Text = $"({connected.Count})";
+                DisconnectedReadersCountText.Text = $"({disconnected.Count})";
 
-            NoConnectedReadersText.Text = statuses.Count == 0
-                ? "No RFID connection events in system_logs."
-                : "No RFID readers connected.";
-            NoDisconnectedReadersText.Text = statuses.Count == 0
-                ? "No RFID disconnect events in system_logs."
-                : "All RFID readers are connected.";
+                NoConnectedReadersText.Text = statuses.Count == 0
+                    ? "No RFID reader status available."
+                    : "No RFID readers connected.";
 
-            NoConnectedReadersText.Visibility =
-                connected.Count == 0 ? Visibility.Visible : Visibility.Collapsed;
-            NoDisconnectedReadersText.Visibility =
-                disconnected.Count == 0 ? Visibility.Visible : Visibility.Collapsed;
+                NoDisconnectedReadersText.Text = statuses.Count == 0
+                    ? "No RFID reader status available."
+                    : "All RFID readers are connected.";
+
+                NoConnectedReadersText.Visibility =
+                    connected.Count == 0 ? Visibility.Visible : Visibility.Collapsed;
+
+                NoDisconnectedReadersText.Visibility =
+                    disconnected.Count == 0 ? Visibility.Visible : Visibility.Collapsed;
             }
             catch (Exception ex)
             {
-                NoConnectedReadersText.Text = $"Could not load system_logs: {ex.Message}";
-                NoDisconnectedReadersText.Text = "RFID connection history unavailable.";
+                ConnectedRfidReaders.Clear();
+                DisconnectedRfidReaders.Clear();
+
+                ConnectedReadersCountText.Text = "(0)";
+                DisconnectedReadersCountText.Text = "(0)";
+
+                NoConnectedReadersText.Text = $"Could not load RFID status: {ex.Message}";
+                NoDisconnectedReadersText.Text = "RFID connection status unavailable.";
+
                 NoConnectedReadersText.Visibility = Visibility.Visible;
                 NoDisconnectedReadersText.Visibility = Visibility.Visible;
             }
         }
 
+        //private async Task RefreshRfidReaderStatusAsync()
+        //{
+        //    try
+        //    {
+        //    var statuses = await _systemLogStatusService.GetLatestRfidStatusesAsync();
+
+        //    ConnectedRfidReaders.Clear();
+        //    DisconnectedRfidReaders.Clear();
+
+        //    var connected = statuses.Where(x => x.IsConnected).ToList();
+        //    var disconnected = statuses.Where(x => !x.IsConnected).ToList();
+
+        //    foreach (var row in connected)
+        //    {
+        //        ConnectedRfidReaders.Add(MapRfidLog(row));
+        //    }
+
+        //    foreach (var row in disconnected)
+        //    {
+        //        DisconnectedRfidReaders.Add(MapRfidLog(row));
+        //    }
+
+        //    DateTime? lastAt = statuses.Count > 0 ? statuses.Max(x => x.CreatedAt) : null;
+        //    RfidLastCheckedText.Text = lastAt.HasValue
+        //        ? $"Last log: {lastAt:dd-MM-yyyy HH:mm:ss}"
+        //        : "Last log: --";
+
+        //    RfidServiceStatusText.Text =
+        //        statuses.Count == 0
+        //            ? "No RFID connection logs in system_logs."
+        //            : $"{connected.Count} connected · {disconnected.Count} disconnected";
+
+        //    ConnectedReadersCountText.Text = $"({connected.Count})";
+        //    DisconnectedReadersCountText.Text = $"({disconnected.Count})";
+
+        //    NoConnectedReadersText.Text = statuses.Count == 0
+        //        ? "No RFID connection events in system_logs."
+        //        : "No RFID readers connected.";
+        //    NoDisconnectedReadersText.Text = statuses.Count == 0
+        //        ? "No RFID disconnect events in system_logs."
+        //        : "All RFID readers are connected.";
+
+        //    NoConnectedReadersText.Visibility =
+        //        connected.Count == 0 ? Visibility.Visible : Visibility.Collapsed;
+        //    NoDisconnectedReadersText.Visibility =
+        //        disconnected.Count == 0 ? Visibility.Visible : Visibility.Collapsed;
+        //    }
+        //    catch (Exception ex)
+        //    {
+        //        NoConnectedReadersText.Text = $"Could not load system_logs: {ex.Message}";
+        //        NoDisconnectedReadersText.Text = "RFID connection history unavailable.";
+        //        NoConnectedReadersText.Visibility = Visibility.Visible;
+        //        NoDisconnectedReadersText.Visibility = Visibility.Visible;
+        //    }
+        //}
+
         private async Task RefreshSensorConnectionStatusAsync()
         {
             try
             {
-            var statuses = await _systemLogStatusService.GetLatestSensorStatusesAsync();
+                var statuses =
+                    await _systemLogStatusService.GetLatestSensorStatusesAsync();
 
-            ConnectedSensors.Clear();
-            DisconnectedSensors.Clear();
+                ConnectedSensors.Clear();
+                DisconnectedSensors.Clear();
 
-            var connected = statuses.Where(x => x.IsConnected).ToList();
-            var disconnected = statuses.Where(x => !x.IsConnected).ToList();
+                var connected =
+                    statuses.Where(x => x.IsConnected).ToList();
 
-            foreach (var row in connected)
-            {
-                ConnectedSensors.Add(MapSensorLog(row));
-            }
+                var disconnected =
+                    statuses.Where(x => !x.IsConnected).ToList();
 
-            foreach (var row in disconnected)
-            {
-                DisconnectedSensors.Add(MapSensorLog(row));
-            }
+                foreach (var row in connected)
+                {
+                    ConnectedSensors.Add(MapSensorLog(row));
+                }
 
-            int connectedCount = ConnectedSensors.Count;
-            int disconnectedCount = DisconnectedSensors.Count;
-            _configuredSensorCount = Math.Max(1, connectedCount + disconnectedCount);
+                foreach (var row in disconnected)
+                {
+                    DisconnectedSensors.Add(MapSensorLog(row));
+                }
 
-            DateTime? lastAt = statuses.Count > 0 ? statuses.Max(x => x.CreatedAt) : null;
-            if (SensorLastCheckedText != null)
-            {
-                SensorLastCheckedText.Text = lastAt.HasValue
-                    ? $"Last log: {lastAt:dd-MM-yyyy HH:mm:ss}"
-                    : "Last log: --";
-            }
+                int connectedCount = connected.Count;
+                int disconnectedCount = disconnected.Count;
 
-            if (SensorServiceStatusText != null)
-            {
-                SensorServiceStatusText.Text =
-                    statuses.Count == 0
-                        ? "No sensor connection logs in system_logs."
-                        : $"{connectedCount} connected · {disconnectedCount} disconnected";
-            }
+                _configuredSensorCount =
+                    Math.Max(1, connectedCount + disconnectedCount);
 
-            if (ConnectedSensorsCountText != null)
-            {
-                ConnectedSensorsCountText.Text = $"({connectedCount})";
-            }
+                DateTime? lastAt =
+                    statuses.Count > 0
+                        ? statuses.Max(x => x.CreatedAt)
+                        : null;
 
-            if (DisconnectedSensorsCountText != null)
-            {
-                DisconnectedSensorsCountText.Text = $"({disconnectedCount})";
-            }
+                if (SensorLastCheckedText != null)
+                {
+                    SensorLastCheckedText.Text =
+                        lastAt.HasValue
+                            ? $"Last checked: {lastAt:dd-MM-yyyy HH:mm:ss}"
+                            : "Last checked: --";
+                }
 
-            if (NoConnectedSensorsText != null)
-            {
-                NoConnectedSensorsText.Visibility =
-                    connectedCount == 0 ? Visibility.Visible : Visibility.Collapsed;
-                NoConnectedSensorsText.Text = statuses.Count == 0
-                    ? "No sensor connection events in system_logs."
-                    : "No sensors connected.";
-            }
+                if (SensorServiceStatusText != null)
+                {
+                    SensorServiceStatusText.Text =
+                        statuses.Count == 0
+                            ? "No sensor status available."
+                            : $"{connectedCount} connected · {disconnectedCount} disconnected";
+                }
 
-            if (NoDisconnectedSensorsText != null)
-            {
-                NoDisconnectedSensorsText.Visibility =
-                    disconnectedCount == 0 ? Visibility.Visible : Visibility.Collapsed;
-                NoDisconnectedSensorsText.Text = statuses.Count == 0
-                    ? "No sensor disconnect events in system_logs."
-                    : "All sensors are connected.";
-            }
-            }
-            catch (Exception ex)
-            {
+                if (ConnectedSensorsCountText != null)
+                {
+                    ConnectedSensorsCountText.Text =
+                        $"({connectedCount})";
+                }
+
+                if (DisconnectedSensorsCountText != null)
+                {
+                    DisconnectedSensorsCountText.Text =
+                        $"({disconnectedCount})";
+                }
+
                 if (NoConnectedSensorsText != null)
                 {
-                    NoConnectedSensorsText.Text = $"Could not load system_logs: {ex.Message}";
-                    NoConnectedSensorsText.Visibility = Visibility.Visible;
+                    NoConnectedSensorsText.Text =
+                        statuses.Count == 0
+                            ? "No sensor status available."
+                            : "No sensors connected.";
+
+                    NoConnectedSensorsText.Visibility =
+                        connectedCount == 0
+                            ? Visibility.Visible
+                            : Visibility.Collapsed;
                 }
 
                 if (NoDisconnectedSensorsText != null)
                 {
-                    NoDisconnectedSensorsText.Text = "Sensor connection history unavailable.";
-                    NoDisconnectedSensorsText.Visibility = Visibility.Visible;
+                    NoDisconnectedSensorsText.Text =
+                        statuses.Count == 0
+                            ? "No sensor status available."
+                            : "All sensors are connected.";
+
+                    NoDisconnectedSensorsText.Visibility =
+                        disconnectedCount == 0
+                            ? Visibility.Visible
+                            : Visibility.Collapsed;
+                }
+            }
+            catch (Exception ex)
+            {
+                ConnectedSensors.Clear();
+                DisconnectedSensors.Clear();
+
+                if (ConnectedSensorsCountText != null)
+                {
+                    ConnectedSensorsCountText.Text = "(0)";
+                }
+
+                if (DisconnectedSensorsCountText != null)
+                {
+                    DisconnectedSensorsCountText.Text = "(0)";
+                }
+
+                if (SensorLastCheckedText != null)
+                {
+                    SensorLastCheckedText.Text = "Last checked: --";
+                }
+
+                if (SensorServiceStatusText != null)
+                {
+                    SensorServiceStatusText.Text =
+                        "Sensor connection status unavailable.";
+                }
+
+                if (NoConnectedSensorsText != null)
+                {
+                    NoConnectedSensorsText.Text =
+                        $"Could not load sensor status: {ex.Message}";
+
+                    NoConnectedSensorsText.Visibility =
+                        Visibility.Visible;
+                }
+
+                if (NoDisconnectedSensorsText != null)
+                {
+                    NoDisconnectedSensorsText.Text =
+                        "Sensor connection status unavailable.";
+
+                    NoDisconnectedSensorsText.Visibility =
+                        Visibility.Visible;
                 }
             }
         }
+
+
+
+        //private async Task RefreshSensorConnectionStatusAsync()
+        //{
+        //    try
+        //    {
+        //    var statuses = await _systemLogStatusService.GetLatestSensorStatusesAsync();
+
+        //    ConnectedSensors.Clear();
+        //    DisconnectedSensors.Clear();
+
+        //    var connected = statuses.Where(x => x.IsConnected).ToList();
+        //    var disconnected = statuses.Where(x => !x.IsConnected).ToList();
+
+        //    foreach (var row in connected)
+        //    {
+        //        ConnectedSensors.Add(MapSensorLog(row));
+        //    }
+
+        //    foreach (var row in disconnected)
+        //    {
+        //        DisconnectedSensors.Add(MapSensorLog(row));
+        //    }
+
+        //    int connectedCount = ConnectedSensors.Count;
+        //    int disconnectedCount = DisconnectedSensors.Count;
+        //    _configuredSensorCount = Math.Max(1, connectedCount + disconnectedCount);
+
+        //    DateTime? lastAt = statuses.Count > 0 ? statuses.Max(x => x.CreatedAt) : null;
+        //    if (SensorLastCheckedText != null)
+        //    {
+        //        SensorLastCheckedText.Text = lastAt.HasValue
+        //            ? $"Last log: {lastAt:dd-MM-yyyy HH:mm:ss}"
+        //            : "Last log: --";
+        //    }
+
+        //    if (SensorServiceStatusText != null)
+        //    {
+        //        SensorServiceStatusText.Text =
+        //            statuses.Count == 0
+        //                ? "No sensor connection logs in system_logs."
+        //                : $"{connectedCount} connected · {disconnectedCount} disconnected";
+        //    }
+
+        //    if (ConnectedSensorsCountText != null)
+        //    {
+        //        ConnectedSensorsCountText.Text = $"({connectedCount})";
+        //    }
+
+        //    if (DisconnectedSensorsCountText != null)
+        //    {
+        //        DisconnectedSensorsCountText.Text = $"({disconnectedCount})";
+        //    }
+
+        //    if (NoConnectedSensorsText != null)
+        //    {
+        //        NoConnectedSensorsText.Visibility =
+        //            connectedCount == 0 ? Visibility.Visible : Visibility.Collapsed;
+        //        NoConnectedSensorsText.Text = statuses.Count == 0
+        //            ? "No sensor connection events in system_logs."
+        //            : "No sensors connected.";
+        //    }
+
+        //    if (NoDisconnectedSensorsText != null)
+        //    {
+        //        NoDisconnectedSensorsText.Visibility =
+        //            disconnectedCount == 0 ? Visibility.Visible : Visibility.Collapsed;
+        //        NoDisconnectedSensorsText.Text = statuses.Count == 0
+        //            ? "No sensor disconnect events in system_logs."
+        //            : "All sensors are connected.";
+        //    }
+        //    }
+        //    catch (Exception ex)
+        //    {
+        //        if (NoConnectedSensorsText != null)
+        //        {
+        //            NoConnectedSensorsText.Text = $"Could not load system_logs: {ex.Message}";
+        //            NoConnectedSensorsText.Visibility = Visibility.Visible;
+        //        }
+
+        //        if (NoDisconnectedSensorsText != null)
+        //        {
+        //            NoDisconnectedSensorsText.Text = "Sensor connection history unavailable.";
+        //            NoDisconnectedSensorsText.Visibility = Visibility.Visible;
+        //        }
+        //    }
+        //}
 
         private static RfidReaderLiveStatus MapRfidLog(SystemLogConnectionStatus row)
         {

@@ -1,5 +1,6 @@
 using DashboardService.Models;
 using Npgsql;
+using System.Windows;
 
 namespace DashboardService.Services;
 
@@ -162,12 +163,7 @@ public class ReportService
 
     public async Task<List<ProductionLossReportRow>> GetProductionLossReportAsync(DateTime fromDate, DateTime toDate, long? chamberId = null)
     {
-        var violations = await GetSensorViolationRecordsAsync(
-            fromDate,
-            toDate,
-            chamberId,
-            parameterSearch: null,
-            severityFilter: null);
+        var violations = await GetSensorViolationRecordsAsync(fromDate, toDate,chamberId,parameterSearch: null,severityFilter: null);
         DateTime rangeStart = fromDate.Date;
         DateTime rangeEnd = toDate.Date.AddDays(1).AddTicks(-1);
 
@@ -216,10 +212,7 @@ public class ReportService
         return ReportDurationFormatter.Format(total);
     }
 
-    public async Task<List<SensorReadingReportRow>> GetSensorReadingsReportAsync(
-        DateTime fromDate,
-        DateTime toDate,
-        long? chamberId = null)
+    public async Task<List<SensorReadingReportRow>> GetSensorReadingsReportAsync(DateTime fromDate, DateTime toDate, long? chamberId = null)
     {
         var rows = new List<SensorReadingReportRow>();
 
@@ -275,7 +268,7 @@ public class ReportService
         }
 
         return rows;
-    }
+    }  
 
     public async Task<List<SystemLogReportRow>> GetSystemLogsAsync(
         DateTime fromDate,

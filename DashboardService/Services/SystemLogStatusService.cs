@@ -10,36 +10,53 @@ public sealed class SystemLogStatusService
     public async Task<List<SystemLogConnectionStatus>> GetLatestSensorStatusesAsync()
     {
         const string sql = @"
-            WITH ranked AS (
-                SELECT
-                    event_type,
-                    message,
-                    source_port,
-                    created_at,
-                    CASE
-                        WHEN message ILIKE '%temperature%' OR message ILIKE '%humidity%' THEN 'TRH'
-                        WHEN message ILIKE '%gas%' THEN 'GAS'
-                        ELSE COALESCE(source_port, message)
-                    END AS device_key,
-                    ROW_NUMBER() OVER (
-                        PARTITION BY
-                            COALESCE(source_port, ''),
-                            CASE
-                                WHEN message ILIKE '%temperature%' OR message ILIKE '%humidity%' THEN 'TRH'
-                                WHEN message ILIKE '%gas%' THEN 'GAS'
-                                ELSE COALESCE(source_port, message)
-                            END
-                        ORDER BY created_at DESC, id DESC
-                    ) AS rn
-                FROM public.system_logs
-                WHERE service_name = 'SENSOR_SERVICE'
-                  AND event_type IN ('SENSOR_CONNECTED', 'SENSOR_DISCONNECTED', 'SENSOR_RECONNECTED')
-            )
-            SELECT event_type, message, source_port, created_at, device_key
-            FROM ranked
-            WHERE rn = 1
-            ORDER BY created_at DESC;
-        ";
+        WITH ranked AS
+        (
+            SELECT
+                event_type,
+                message,
+                source_port,
+                created_at,
+                id,
+
+                split_part(message, ' ', 1) AS device_key,
+
+                ROW_NUMBER() OVER
+                (
+                    PARTITION BY
+                        split_part(message, ' ', 1)
+
+                    ORDER BY
+                        created_at DESC,
+                        id DESC
+                ) AS rn
+
+            FROM public.system_logs
+
+            WHERE service_name = 'SENSOR_SERVICE'
+              AND event_type IN
+              (
+                    'SENSOR_CONNECTED',
+                    'SENSOR_DISCONNECTED',
+                    'SENSOR_RECONNECTED'
+              )
+        )
+
+        SELECT
+            event_type,
+            message,
+            source_port,
+            created_at,
+            device_key
+
+        FROM ranked
+
+        WHERE rn = 1
+
+        ORDER BY
+            created_at DESC,
+            id DESC;
+    ";
 
         return await QueryAsync(sql, MapSensor);
     }
