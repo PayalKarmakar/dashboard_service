@@ -15,12 +15,15 @@ public partial class ReportsPage : Page
 {
     private readonly User _currentUser;
     private readonly ReportService _reportService = new();
+    private readonly ListPager<EntryExitReportRow> _reportPager = new();
     private List<EntryExitReportRow> _rows = new();
     private bool _suppressFilterReload;
 
     public ReportsPage(User currentUser)
     {
         InitializeComponent();
+        ReportPagerBar.Bind(_reportPager);
+        ReportGrid.ItemsSource = _reportPager.PageItems;
         _currentUser = currentUser;
         Loaded += ReportsPage_Loaded;
         Unloaded += ReportsPage_Unloaded;
@@ -108,7 +111,7 @@ public partial class ReportsPage : Page
                 SearchTextBox.Text,
                 status);
 
-            ReportGrid.ItemsSource = _rows;
+            _reportPager.SetItems(_rows);
             ResultCountText.Text = $"{_rows.Count} record(s)";
         }
         catch (Exception ex)

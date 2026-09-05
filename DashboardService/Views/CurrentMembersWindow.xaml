@@ -1,6 +1,7 @@
 <Window x:Class="DashboardService.Views.CurrentMembersWindow"
         xmlns="http://schemas.microsoft.com/winfx/2006/xaml/presentation"
         xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
+        xmlns:controls="clr-namespace:DashboardService.Controls"
         Title="Current Members"
         Width="980"
         Height="620"
@@ -18,8 +19,6 @@
             <RowDefinition Height="Auto"/>
             <RowDefinition Height="16"/>
             <RowDefinition Height="*"/>
-            <RowDefinition Height="16"/>
-            <RowDefinition Height="Auto"/>
         </Grid.RowDefinitions>
 
         <Grid>
@@ -65,6 +64,8 @@
                 BorderThickness="1"
                 Padding="8">
 
+            <DockPanel>
+            <controls:PaginationBar x:Name="MembersPagerBar" DockPanel.Dock="Bottom"/>
             <DataGrid x:Name="MembersGrid"
                       AutoGenerateColumns="False"
                       IsReadOnly="True"
@@ -211,33 +212,7 @@
                     </DataGridTemplateColumn>
                 </DataGrid.Columns>
             </DataGrid>
+            </DockPanel>
         </Border>
-
-        <Grid Grid.Row="4">
-            <TextBlock x:Name="PageInfoText"
-                       VerticalAlignment="Center"
-                       Foreground="{DynamicResource TextMutedBrush}"
-                       FontSize="13"/>
-
-            <StackPanel Orientation="Horizontal" HorizontalAlignment="Right">
-                <Button x:Name="PrevButton"
-                        Content="Previous"
-                        Width="100"
-                        Height="36"
-                        Margin="0,0,10,0"
-                        Background="{DynamicResource ButtonSecondaryBgBrush}"
-                        Foreground="{DynamicResource ButtonSecondaryFgBrush}"
-                        BorderBrush="{DynamicResource CardBorderBrush}"
-                        Click="Prev_Click"/>
-                <Button x:Name="NextButton"
-                        Content="Next"
-                        Width="100"
-                        Height="36"
-                        Background="{DynamicResource AccentBrush}"
-                        Foreground="White"
-                        BorderThickness="0"
-                        Click="Next_Click"/>
-            </StackPanel>
-        </Grid>
     </Grid>
 </Window>

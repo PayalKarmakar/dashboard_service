@@ -11,10 +11,13 @@ public partial class CameraConfigurationPage : Page
 {
     private readonly User _currentUser;
     private readonly CameraConfigurationService _cameraService = new();
+    private readonly ListPager<MasterCameraConfig> _camerasPager = new();
 
     public CameraConfigurationPage(User currentUser)
     {
         InitializeComponent();
+        CamerasPagerBar.Bind(_camerasPager);
+        CamerasGrid.ItemsSource = _camerasPager.PageItems;
         _currentUser = currentUser;
         Loaded += CameraConfigurationPage_Loaded;
         Unloaded += CameraConfigurationPage_Unloaded;
@@ -52,7 +55,7 @@ public partial class CameraConfigurationPage : Page
     {
         try
         {
-            CamerasGrid.ItemsSource = await _cameraService.GetAllAsync();
+            _camerasPager.SetItems(await _cameraService.GetAllAsync());
         }
         catch (Exception ex)
         {

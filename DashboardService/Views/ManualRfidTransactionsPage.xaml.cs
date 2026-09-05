@@ -11,10 +11,16 @@ public partial class ManualRfidTransactionsPage : Page
 {
     private readonly User _currentUser;
     private readonly RfidTransactionService _transactionService = new();
+    private readonly ListPager<RfidTransactionRow> _openPager = new();
+    private readonly ListPager<RfidTransactionRow> _recentPager = new();
 
     public ManualRfidTransactionsPage(User currentUser)
     {
         InitializeComponent();
+        OpenPagerBar.Bind(_openPager);
+        OpenGrid.ItemsSource = _openPager.PageItems;
+        RecentPagerBar.Bind(_recentPager);
+        RecentGrid.ItemsSource = _recentPager.PageItems;
         _currentUser = currentUser;
         Loaded += ManualRfidTransactionsPage_Loaded;
         Unloaded += ManualRfidTransactionsPage_Unloaded;
@@ -51,8 +57,8 @@ public partial class ManualRfidTransactionsPage : Page
     {
         try
         {
-            OpenGrid.ItemsSource = await _transactionService.GetOpenAsync();
-            RecentGrid.ItemsSource = await _transactionService.GetRecentAsync();
+            _openPager.SetItems(await _transactionService.GetOpenAsync());
+            _recentPager.SetItems(await _transactionService.GetRecentAsync());
         }
         catch (Exception ex)
         {

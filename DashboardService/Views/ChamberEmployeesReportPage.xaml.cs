@@ -16,12 +16,15 @@ public partial class ChamberEmployeesReportPage : Page
     private readonly User _currentUser;
     private readonly ReportService _reportService = new();
     private readonly ChamberService _chamberService = new();
+    private readonly ListPager<ChamberEmployeeReportRow> _reportPager = new();
     private List<ChamberEmployeeReportRow> _rows = new();
     private bool _suppressFilterReload;
 
     public ChamberEmployeesReportPage(User currentUser)
     {
         InitializeComponent();
+        ReportPagerBar.Bind(_reportPager);
+        ReportGrid.ItemsSource = _reportPager.PageItems;
         _currentUser = currentUser;
         Loaded += ChamberEmployeesReportPage_Loaded;
         Unloaded += ChamberEmployeesReportPage_Unloaded;
@@ -125,7 +128,7 @@ public partial class ChamberEmployeesReportPage : Page
                 SearchTextBox.Text,
                 active);
 
-            ReportGrid.ItemsSource = _rows;
+            _reportPager.SetItems(_rows);
             ResultCountText.Text = $"{_rows.Count} employee(s)";
         }
         catch (Exception ex)

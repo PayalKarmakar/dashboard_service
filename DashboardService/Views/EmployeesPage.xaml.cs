@@ -11,10 +11,13 @@ public partial class EmployeesPage : Page
 {
     private readonly User _currentUser;
     private readonly EmployeeService _employeeService = new();
+    private readonly ListPager<EmployeeRecord> _employeesPager = new();
 
     public EmployeesPage(User currentUser)
     {
         InitializeComponent();
+        EmployeesPagerBar.Bind(_employeesPager);
+        EmployeesGrid.ItemsSource = _employeesPager.PageItems;
         _currentUser = currentUser;
         Loaded += EmployeesPage_Loaded;
         Unloaded += EmployeesPage_Unloaded;
@@ -51,7 +54,7 @@ public partial class EmployeesPage : Page
     {
         try
         {
-            EmployeesGrid.ItemsSource = await _employeeService.GetAllAsync();
+            _employeesPager.SetItems(await _employeeService.GetAllAsync());
         }
         catch (Exception ex)
         {

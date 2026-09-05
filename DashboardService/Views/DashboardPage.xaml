@@ -1,6 +1,7 @@
 <Page x:Class="DashboardService.Views.DashboardPage"
       xmlns="http://schemas.microsoft.com/winfx/2006/xaml/presentation"
       xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
+      xmlns:controls="clr-namespace:DashboardService.Controls"
       FontFamily="Bahnschrift, Segoe UI"
       Background="{DynamicResource AppBgBrush}">
 
@@ -2664,9 +2665,12 @@ Foreground="#15803D"/>
 
                     <!-- DATA GRID -->
 
-                    <DataGrid Grid.Row="1"
-                  x:Name="MembersDataGrid"
-                  Margin="12,0,12,12"
+                    <DockPanel Grid.Row="1">
+                    <controls:PaginationBar x:Name="MembersPagerBar"
+                                            DockPanel.Dock="Bottom"
+                                            Margin="12,0,12,8"/>
+                    <DataGrid x:Name="MembersDataGrid"
+                  Margin="12,0,12,0"
                   MinHeight="280"
                   MaxHeight="440"
                   ItemsSource="{Binding CurrentMembers}"
@@ -3049,6 +3053,7 @@ Foreground="#15803D"/>
                         </DataGrid.Columns>
 
                     </DataGrid>
+                    </DockPanel>
 
                 </Grid>
 

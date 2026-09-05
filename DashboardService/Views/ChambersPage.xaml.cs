@@ -11,10 +11,13 @@ public partial class ChambersPage : Page
 {
     private readonly User _currentUser;
     private readonly ChamberService _chamberService = new();
+    private readonly ListPager<Chamber> _chambersPager = new();
 
     public ChambersPage(User currentUser)
     {
         InitializeComponent();
+        ChambersPagerBar.Bind(_chambersPager);
+        ChambersGrid.ItemsSource = _chambersPager.PageItems;
         _currentUser = currentUser;
         Loaded += ChambersPage_Loaded;
         Unloaded += ChambersPage_Unloaded;
@@ -51,7 +54,7 @@ public partial class ChambersPage : Page
     {
         try
         {
-            ChambersGrid.ItemsSource = await _chamberService.GetAllAsync();
+            _chambersPager.SetItems(await _chamberService.GetAllAsync());
         }
         catch (Exception ex)
         {
