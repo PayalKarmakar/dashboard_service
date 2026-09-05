@@ -1,6 +1,7 @@
 <Page x:Class="DashboardService.Views.EmployeesPage"
       xmlns="http://schemas.microsoft.com/winfx/2006/xaml/presentation"
       xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
+      xmlns:controls="clr-namespace:DashboardService.Controls"
       Background="{DynamicResource AppBgBrush}">
 
     <Page.Resources>
@@ -289,6 +290,8 @@
             </Grid>
 
             <Border Grid.Row="2" Background="{DynamicResource CardBgBrush}" CornerRadius="16" BorderBrush="{DynamicResource CardBorderBrush}" BorderThickness="1" Padding="8">
+                <DockPanel>
+                <controls:PaginationBar x:Name="EmployeesPagerBar" DockPanel.Dock="Bottom"/>
                 <DataGrid x:Name="EmployeesGrid"
                           AutoGenerateColumns="False"
                           IsReadOnly="True"
@@ -382,6 +385,7 @@
                         </DataGridTemplateColumn>
                     </DataGrid.Columns>
                 </DataGrid>
+                </DockPanel>
             </Border>
         </Grid>
     </Grid>

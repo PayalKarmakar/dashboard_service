@@ -46,6 +46,13 @@ public class ConfigurationService
             : value.Trim().TrimEnd('/');
     }
 
+    /// <summary>Rows per page for DataGrid pagination (UiSettings:ListPageSize).</summary>
+    public int GetListPageSize()
+    {
+        int value = ReadPositiveInt("UiSettings:ListPageSize", 20);
+        return Math.Clamp(value, 5, 200);
+    }
+
     public CameraLiveSettings GetCameraLiveSettings()
     {
         double confidence = 0.40;

@@ -14,12 +14,15 @@ public partial class CameraAccessReportPage : Page
 {
     private readonly User _currentUser;
     private readonly CameraAccessEventService _eventService = new();
+    private readonly ListPager<CameraAccessEventRow> _eventsPager = new();
     private List<CameraAccessEventRow> _rows = [];
     private bool _suppressFilterReload;
 
     public CameraAccessReportPage(User currentUser)
     {
         InitializeComponent();
+        EventsPagerBar.Bind(_eventsPager);
+        EventsGrid.ItemsSource = _eventsPager.PageItems;
         _currentUser = currentUser;
         Loaded += CameraAccessReportPage_Loaded;
         Unloaded += CameraAccessReportPage_Unloaded;
@@ -83,7 +86,7 @@ public partial class CameraAccessReportPage : Page
 
             // Camera Access Report shows only No-RFID violations.
             _rows = await _eventService.GetReportAsync(from, to, "NO_RFID");
-            EventsGrid.ItemsSource = _rows;
+            _eventsPager.SetItems(_rows);
 
             SummaryEntryText.Text = _rows.Where(r => r.EventType == "NO_RFID").Sum(r => r.PersonCount).ToString();
             SummaryExitText.Text = _rows.Where(r => r.EventType == "NO_RFID_EXIT").Sum(r => r.PersonCount).ToString();

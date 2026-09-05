@@ -16,12 +16,15 @@ public partial class ProductionLossReportPage : Page
     private readonly User _currentUser;
     private readonly ReportService _reportService = new();
     private readonly ChamberService _chamberService = new();
+    private readonly ListPager<ProductionLossReportRow> _reportPager = new();
     private List<ProductionLossReportRow> _rows = new();
     private bool _suppressFilterReload;
 
     public ProductionLossReportPage(User currentUser)
     {
         InitializeComponent();
+        ReportPagerBar.Bind(_reportPager);
+        ReportGrid.ItemsSource = _reportPager.PageItems;
         _currentUser = currentUser;
         Loaded += ProductionLossReportPage_Loaded;
         Unloaded += ProductionLossReportPage_Unloaded;
@@ -119,7 +122,7 @@ public partial class ProductionLossReportPage : Page
             }
 
             _rows = await _reportService.GetProductionLossReportAsync(from, to, chamberId);
-            ReportGrid.ItemsSource = _rows;
+            _reportPager.SetItems(_rows);
 
             string totalDuration = ReportService.FormatTotalDuration(_rows);
             int ongoingCount = _rows.Count(r => r.IsOngoing);

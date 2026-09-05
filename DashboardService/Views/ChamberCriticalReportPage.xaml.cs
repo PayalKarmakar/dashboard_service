@@ -16,12 +16,15 @@ public partial class ChamberCriticalReportPage : Page
     private readonly User _currentUser;
     private readonly ReportService _reportService = new();
     private readonly ChamberService _chamberService = new();
+    private readonly ListPager<ChamberCriticalReportRow> _reportPager = new();
     private List<ChamberCriticalReportRow> _rows = new();
     private bool _suppressFilterReload;
 
     public ChamberCriticalReportPage(User currentUser)
     {
         InitializeComponent();
+        ReportPagerBar.Bind(_reportPager);
+        ReportGrid.ItemsSource = _reportPager.PageItems;
         _currentUser = currentUser;
         Loaded += ChamberCriticalReportPage_Loaded;
         Unloaded += ChamberCriticalReportPage_Unloaded;
@@ -133,7 +136,7 @@ public partial class ChamberCriticalReportPage : Page
                 ParameterTextBox.Text,
                 GetSelectedSeverity());
 
-            ReportGrid.ItemsSource = _rows;
+            _reportPager.SetItems(_rows);
 
             var totalDuration = TimeSpan.FromSeconds(
                 _rows.Sum(r => Math.Max(0, r.Duration.TotalSeconds)));

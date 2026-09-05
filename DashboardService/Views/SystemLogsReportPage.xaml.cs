@@ -14,12 +14,15 @@ public partial class SystemLogsReportPage : Page
 {
     private readonly User _currentUser;
     private readonly ReportService _reportService = new();
+    private readonly ListPager<SystemLogReportRow> _reportPager = new();
     private List<SystemLogReportRow> _rows = [];
     private bool _suppressFilterReload;
 
     public SystemLogsReportPage(User currentUser)
     {
         InitializeComponent();
+        ReportPagerBar.Bind(_reportPager);
+        ReportGrid.ItemsSource = _reportPager.PageItems;
         _currentUser = currentUser;
         Loaded += SystemLogsReportPage_Loaded;
         Unloaded += SystemLogsReportPage_Unloaded;
@@ -98,7 +101,7 @@ public partial class SystemLogsReportPage : Page
             }
 
             _rows = await _reportService.GetSystemLogsAsync(from, to, filter);
-            ReportGrid.ItemsSource = _rows;
+            _reportPager.SetItems(_rows);
             ResultCountText.Text = $"{_rows.Count} log(s)";
         }
         catch (Exception ex)

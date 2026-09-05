@@ -1,24 +1,21 @@
-using System.Collections.ObjectModel;
 using System.Windows;
 using System.Windows.Controls;
 using System.Windows.Threading;
+using DashboardService.Helpers;
 using DashboardService.Models;
 
 namespace DashboardService.Views;
 
 public partial class CurrentMembersWindow : Window
 {
-    private const int PageSize = 5;
-
     private readonly List<Employee> _allMembers;
-    private readonly ObservableCollection<Employee> _pageMembers = new();
+    private readonly ListPager<Employee> _membersPager = new();
     private readonly DispatcherTimer _countdownTimer;
     private readonly Action<long>? _stopMemberVoice;
     private readonly Action? _stopAllVoice;
     private readonly Func<long, bool>? _isVoicePlaying;
     private readonly Func<bool>? _hasAnyVoicePlaying;
     private readonly Action<long, bool> _voicePlayingChangedHandler;
-    private int _currentPage = 1;
 
     public CurrentMembersWindow(
         IEnumerable<Employee> members,
@@ -37,7 +34,10 @@ public partial class CurrentMembersWindow : Window
         _isVoicePlaying = isVoicePlaying;
         _hasAnyVoicePlaying = hasAnyVoicePlaying;
         _voicePlayingChangedHandler = OnVoicePlayingChanged;
-        MembersGrid.ItemsSource = _pageMembers;
+
+        MembersPagerBar.Bind(_membersPager);
+        MembersGrid.ItemsSource = _membersPager.PageItems;
+        _membersPager.SetItems(_allMembers);
 
         subscribeVoicePlayingChanged?.Invoke(_voicePlayingChangedHandler);
 
@@ -60,41 +60,7 @@ public partial class CurrentMembersWindow : Window
         };
 
         SyncVoicePlayingFlags();
-        RenderPage();
-        UpdateStopAllVisibility();
-    }
-
-    private int TotalPages =>
-        Math.Max(1, (int)Math.Ceiling(_allMembers.Count / (double)PageSize));
-
-    private void RenderPage()
-    {
-        if (_currentPage > TotalPages)
-        {
-            _currentPage = TotalPages;
-        }
-
-        if (_currentPage < 1)
-        {
-            _currentPage = 1;
-        }
-
-        _pageMembers.Clear();
-
-        foreach (var member in _allMembers
-                     .Skip((_currentPage - 1) * PageSize)
-                     .Take(PageSize))
-        {
-            _pageMembers.Add(member);
-        }
-
-        UpdateCountdowns();
-        SyncVoicePlayingFlags();
-
         SubtitleText.Text = $"{_allMembers.Count} employee(s) currently inside monitored chambers";
-        PageInfoText.Text = $"Page {_currentPage} of {TotalPages}";
-        PrevButton.IsEnabled = _currentPage > 1;
-        NextButton.IsEnabled = _currentPage < TotalPages;
         UpdateStopAllVisibility();
     }
 
@@ -171,24 +137,6 @@ public partial class CurrentMembersWindow : Window
         }
 
         UpdateStopAllVisibility();
-    }
-
-    private void Prev_Click(object sender, RoutedEventArgs e)
-    {
-        if (_currentPage > 1)
-        {
-            _currentPage--;
-            RenderPage();
-        }
-    }
-
-    private void Next_Click(object sender, RoutedEventArgs e)
-    {
-        if (_currentPage < TotalPages)
-        {
-            _currentPage++;
-            RenderPage();
-        }
     }
 
     private void Close_Click(object sender, RoutedEventArgs e)

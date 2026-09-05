@@ -15,12 +15,15 @@ public partial class SensorReadingsReportPage : Page
     private readonly User _currentUser;
     private readonly ReportService _reportService = new();
     private readonly ChamberService _chamberService = new();
+    private readonly ListPager<SensorReadingReportRow> _reportPager = new();
     private List<SensorReadingReportRow> _rows = new();
     private bool _suppressFilterReload;
 
     public SensorReadingsReportPage(User currentUser)
     {
         InitializeComponent();
+        ReportPagerBar.Bind(_reportPager);
+        ReportGrid.ItemsSource = _reportPager.PageItems;
         _currentUser = currentUser;
         Loaded += SensorReadingsReportPage_Loaded;
         Unloaded += SensorReadingsReportPage_Unloaded;
@@ -118,7 +121,7 @@ public partial class SensorReadingsReportPage : Page
             }
 
             _rows = await _reportService.GetSensorReadingsReportAsync(from, to, chamberId);
-            ReportGrid.ItemsSource = _rows;
+            _reportPager.SetItems(_rows);
             ResultCountText.Text = $"{_rows.Count} reading(s)";
         }
         catch (Exception ex)

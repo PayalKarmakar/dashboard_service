@@ -14,13 +14,11 @@ namespace DashboardService.Views
 {
     public partial class DashboardPage : Page
     {
-        private const int PreviewMemberCount = 5;
+        private readonly ListPager<Employee> _membersPager = new();
 
         public ObservableCollection<ChamberDashboard> Chambers { get; set; }
 
         public ObservableCollection<Employee> Employees { get; set; }
-
-        public ObservableCollection<Employee> PreviewEmployees { get; set; }
 
         public ObservableCollection<RfidReaderLiveStatus> ConnectedRfidReaders { get; set; }
 
@@ -77,7 +75,6 @@ namespace DashboardService.Views
 
             Chambers = new ObservableCollection<ChamberDashboard>();
             Employees = new ObservableCollection<Employee>();
-            PreviewEmployees = new ObservableCollection<Employee>();
             ConnectedRfidReaders = new ObservableCollection<RfidReaderLiveStatus>();
             DisconnectedRfidReaders = new ObservableCollection<RfidReaderLiveStatus>();
             ConnectedSensors = new ObservableCollection<SensorLiveStatus>();
@@ -85,7 +82,8 @@ namespace DashboardService.Views
             ActiveSensorViolations = new ObservableCollection<SensorViolation>(); //Payal
 
             ChambersItemsControl.ItemsSource = Chambers;
-            MembersDataGrid.ItemsSource = PreviewEmployees;
+            MembersPagerBar.Bind(_membersPager);
+            MembersDataGrid.ItemsSource = _membersPager.PageItems;
             ConnectedReadersItemsControl.ItemsSource = ConnectedRfidReaders;
             DisconnectedReadersItemsControl.ItemsSource = DisconnectedRfidReaders;
             ConnectedSensorsItemsControl.ItemsSource = ConnectedSensors;
@@ -820,9 +818,7 @@ namespace DashboardService.Views
 
         private void RefreshPreviewMembers()
         {
-            PreviewEmployees.Clear();
-
-            // Mix statuses in the preview so the first page is not only violations.
+            // Mix statuses so the first page is not only violations.
             var ordered = Employees
                 .OrderBy(x => x.Status switch
                 {
@@ -834,33 +830,7 @@ namespace DashboardService.Views
                 .ThenBy(x => x.RemainingTime)
                 .ToList();
 
-            var picked = new List<Employee>();
-            foreach (var status in new[] { "Inside", "Attention", "Warning", "Violation" })
-            {
-                var match = ordered.FirstOrDefault(x => x.Status == status && picked.All(p => p.TransactionId != x.TransactionId));
-                if (match != null)
-                {
-                    picked.Add(match);
-                }
-            }
-
-            foreach (var member in ordered)
-            {
-                if (picked.Count >= PreviewMemberCount)
-                {
-                    break;
-                }
-
-                if (picked.All(p => p.TransactionId != member.TransactionId))
-                {
-                    picked.Add(member);
-                }
-            }
-
-            foreach (var member in picked.Take(PreviewMemberCount))
-            {
-                PreviewEmployees.Add(member);
-            }
+            _membersPager.SetItems(ordered);
 
             ViewMoreMembersButton.Visibility =
                 Employees.Count > 0 ? Visibility.Visible : Visibility.Collapsed;

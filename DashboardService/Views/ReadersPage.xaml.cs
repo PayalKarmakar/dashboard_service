@@ -11,10 +11,13 @@ public partial class ReadersPage : Page
 {
     private readonly User _currentUser;
     private readonly RfidReaderService _readerService = new();
+    private readonly ListPager<RfidReader> _readersPager = new();
 
     public ReadersPage(User currentUser)
     {
         InitializeComponent();
+        ReadersPagerBar.Bind(_readersPager);
+        ReadersGrid.ItemsSource = _readersPager.PageItems;
         _currentUser = currentUser;
         Loaded += ReadersPage_Loaded;
         Unloaded += ReadersPage_Unloaded;
@@ -51,7 +54,7 @@ public partial class ReadersPage : Page
     {
         try
         {
-            ReadersGrid.ItemsSource = await _readerService.GetAllAsync();
+            _readersPager.SetItems(await _readerService.GetAllAsync());
         }
         catch (Exception ex)
         {

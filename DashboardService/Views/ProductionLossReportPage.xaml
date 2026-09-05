@@ -1,6 +1,7 @@
 <Page x:Class="DashboardService.Views.ProductionLossReportPage"
       xmlns="http://schemas.microsoft.com/winfx/2006/xaml/presentation"
       xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
+      xmlns:controls="clr-namespace:DashboardService.Controls"
       Background="{DynamicResource AppBgBrush}">
 
     <Page.Resources>
@@ -324,8 +325,9 @@
                                    TextWrapping="Wrap"/>
                     </StackPanel>
 
-                    <DataGrid Grid.Row="1"
-                              x:Name="ReportGrid"
+                    <DockPanel Grid.Row="1">
+                    <controls:PaginationBar x:Name="ReportPagerBar" DockPanel.Dock="Bottom"/>
+                    <DataGrid x:Name="ReportGrid"
                               MinHeight="320"
                               MaxHeight="520"
                               AutoGenerateColumns="False"
@@ -363,6 +365,7 @@
                             <DataGridTextColumn Header="STATUS" Binding="{Binding StatusDisplay}" Width="1*"/>
                         </DataGrid.Columns>
                     </DataGrid>
+                    </DockPanel>
                 </Grid>
             </Border>
         </Grid>

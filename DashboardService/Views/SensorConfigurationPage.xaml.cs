@@ -5,7 +5,6 @@ using DashboardService.Services;
 using System.Collections.ObjectModel;
 using System.Windows;
 using System.Windows.Controls;
-using System.Windows.Media;
 using System.Windows.Navigation;
 
 namespace DashboardService.Views;
@@ -19,13 +18,18 @@ public partial class SensorConfigurationPage : Page
     public ObservableCollection<SensorThresholdConfig> MasterThresholds { get; } = new();
     //public ObservableCollection<SensorViolationThresholdEdit> GasThresholds { get; } = new();
     //public ObservableCollection<SensorViolationThresholdEdit> OtherViolations { get; } = new();
+    private readonly ListPager<MasterSensorConfig> _sensorsPager = new();
+    private readonly ListPager<SensorThresholdConfig> _thresholdsPager = new();
+
     public SensorConfigurationPage(User currentUser)
     {
         InitializeComponent();
         _currentUser = currentUser;
 
-        SensorsGrid.ItemsSource = Sensors;
-        MasterThresholdsGrid.ItemsSource = MasterThresholds;
+        SensorsPagerBar.Bind(_sensorsPager);
+        SensorsGrid.ItemsSource = _sensorsPager.PageItems;
+        MasterThresholdsPagerBar.Bind(_thresholdsPager);
+        MasterThresholdsGrid.ItemsSource = _thresholdsPager.PageItems;
         //GasThresholdsGrid.ItemsSource = GasThresholds;
         //OtherViolationsGrid.ItemsSource = OtherViolations;
 
@@ -73,6 +77,9 @@ public partial class SensorConfigurationPage : Page
             {
                 MasterThresholds.Add(threshold);
             }
+
+            _sensorsPager.SetItems(Sensors);
+            _thresholdsPager.SetItems(MasterThresholds);
 
             //GasThresholds.Clear();
             //OtherViolations.Clear();
