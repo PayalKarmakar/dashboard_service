@@ -57,23 +57,13 @@ public partial class SidebarControl : UserControl
     // COLLAPSE / EXPAND
     // =========================================================
 
-    //private void CollapseButton_Click(object sender, RoutedEventArgs e)
-    //{
-    //    IsExpanded = !IsExpanded;
-
-    //    Width = IsExpanded ? 230 : 76;
-    //} 
-
+  
     public void SetExpanded(bool expanded)
     {
-        IsExpanded = expanded;
+        IsExpanded = expanded;        
+        SidebarContent.Visibility = Visibility.Visible;
 
-        SidebarContent.Visibility =
-            expanded
-                ? Visibility.Visible
-                : Visibility.Collapsed;
-
-        Width = expanded ? 230 : 0;
+        Width = expanded ? 230 : 76;
     }
 
     // =========================================================

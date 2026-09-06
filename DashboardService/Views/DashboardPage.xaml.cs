@@ -159,22 +159,22 @@ namespace DashboardService.Views
         //        : "Expand sidebar";
         //}
 
-        //private async void ThemeToggle_MouseLeftButtonUp(object sender, MouseButtonEventArgs e)
-        //{
-        //    e.Handled = true;
-        //    bool enabling = !ThemeService.IsDarkMode;
+        private async void ThemeToggle_MouseLeftButtonUp(object sender, MouseButtonEventArgs e)
+        {
+            e.Handled = true;
+            bool enabling = !ThemeService.IsDarkMode;
 
-        //    if (enabling)
-        //    {
-        //        await PlaySciFiBootSequenceAsync();
-        //        ThemeService.SetDarkMode(true);
-        //    }
-        //    else
-        //    {
-        //        ThemeService.SetDarkMode(false);
-        //        DashboardTitleText.Text = "Live Dashboard";
-        //    }
-        //}
+            if (enabling)
+            {
+                await PlaySciFiBootSequenceAsync();
+                ThemeService.SetDarkMode(true);
+            }
+            else
+            {
+                ThemeService.SetDarkMode(false);
+                DashboardTitleText.Text = "Live Dashboard";
+            }
+        }
 
         private async Task PlaySciFiBootSequenceAsync()
         {
@@ -937,6 +937,8 @@ namespace DashboardService.Views
 
         private void UpdateDashboardSummary()
         {
+            int currentMembers = Employees.Count;
+
             MembersInsideText.Text = Employees.Count.ToString();
             ActiveChambersText.Text = Chambers.Count.ToString();
 
@@ -945,6 +947,11 @@ namespace DashboardService.Views
 
             ViolationsText.Text = Employees.Count(x =>
                 x.Status == "Violation").ToString();
+
+            int totalCapacity = Chambers.Sum(x => x.MemberThreshold);
+
+            CurrentMembersCountText.Text =
+                $"{currentMembers} / {totalCapacity}";
         }
 
         private void ViewMoreMembers_Click(object sender, RoutedEventArgs e)

@@ -27,8 +27,10 @@ namespace DashboardService
         {
             InitializeComponent();
 
-            GlobalSidebar.SetExpanded(true);
-            SidebarToggleButton.IsChecked = false;
+            // Login page should use the complete window
+            GlobalSidebar.Visibility = Visibility.Collapsed;
+            SidebarToggleButton.Visibility = Visibility.Collapsed;
+            SidebarColumn.Width = new GridLength(0);
 
             MainFrame.Navigate(new LoginPage());
         }
@@ -38,7 +40,16 @@ namespace DashboardService
         public void ShowSidebar(User currentUser)
         {
             GlobalSidebar.CurrentUser = currentUser;
+
+            // Restore sidebar
+            SidebarColumn.Width = new GridLength(230);
             GlobalSidebar.Visibility = Visibility.Visible;
+
+            // Restore toggle
+            SidebarToggleButton.Visibility = Visibility.Visible;
+            SidebarToggleButton.IsChecked = true;
+
+            GlobalSidebar.SetExpanded(true);
         }
 
         private void SidebarToggleButton_Click(object sender, RoutedEventArgs e)
@@ -47,9 +58,9 @@ namespace DashboardService
 
             GlobalSidebar.SetExpanded(expanded);
 
-            SidebarToggleButton.Margin = expanded
-                ? new Thickness(218, 14, 0, 0)
-                : new Thickness(0, 14, 0, 0);
+            SidebarColumn.Width = expanded
+                ? new GridLength(230)
+                : new GridLength(76);
         }
     }
 }

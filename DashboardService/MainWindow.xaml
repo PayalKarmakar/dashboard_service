@@ -15,76 +15,117 @@
     <Grid>
 
         <Grid.ColumnDefinitions>
-            <ColumnDefinition Width="Auto"/>
+
+            <!-- GLOBAL SIDEBAR -->
+            <ColumnDefinition x:Name="SidebarColumn"
+                          Width="230"/>
+
+            <!-- PAGE CONTENT -->
             <ColumnDefinition Width="*"/>
+
         </Grid.ColumnDefinitions>
 
 
+        <!-- ============================= -->
         <!-- GLOBAL SIDEBAR -->
+        <!-- ============================= -->
+
         <controls:SidebarControl x:Name="GlobalSidebar"
                              Grid.Column="0"
-                             Panel.ZIndex="100"
-                             Visibility="Collapsed"/>
+                             HorizontalAlignment="Stretch"
+                             VerticalAlignment="Stretch"
+                             Panel.ZIndex="100"/>
 
 
+        <!-- ============================= -->
         <!-- PAGE CONTENT -->
+        <!-- ============================= -->
+
         <Frame x:Name="MainFrame"
-           Grid.Column="1"
-           NavigationUIVisibility="Hidden"
-           Focusable="False"/>
+       Grid.Column="1"
+       NavigationUIVisibility="Hidden"
+       Focusable="False"
+       HorizontalAlignment="Stretch"
+       VerticalAlignment="Stretch"
+       HorizontalContentAlignment="Stretch"
+       VerticalContentAlignment="Stretch"/>
 
 
-        <!-- COLLAPSE / EXPAND HANDLE -->
+        <!-- ============================= -->
+        <!-- SIDEBAR TOGGLE -->
+        <!-- ============================= -->
+
+        <!-- ============================= -->
+        <!-- SIDEBAR TOGGLE - OUTSIDE EDGE -->
+        <!-- ============================= -->
+
         <ToggleButton x:Name="SidebarToggleButton"
-                  Grid.ColumnSpan="2"
-                  Width="24"
-                  Height="44"
-                  HorizontalAlignment="Left"
-                  VerticalAlignment="Top"
-                  Margin="218,14,0,0"
-                  Panel.ZIndex="1000"
-                  Background="#163A63"
-                  Foreground="White"
-                  BorderThickness="0"
-                  BorderBrush="Transparent"
-                  Focusable="False"
-                  IsTabStop="False"
-                  Cursor="Hand"
-                  Click="SidebarToggleButton_Click">
+              Grid.Column="0"
+              Width="28"
+              Height="56"
+              HorizontalAlignment="Right"
+              VerticalAlignment="Center"
+              Margin="0"
+              RenderTransformOrigin="0.5,0.5"
+              Panel.ZIndex="1000"
+              Background="#163A63"
+              Foreground="White"
+              BorderThickness="0"
+              BorderBrush="Transparent"
+              Focusable="False"
+              IsTabStop="False"
+              Cursor="Hand"
+              Click="SidebarToggleButton_Click">
+
+            <!-- Push the button completely outside the sidebar -->
+            <ToggleButton.RenderTransform>
+                <TranslateTransform X="28"/>
+            </ToggleButton.RenderTransform>
 
             <ToggleButton.Template>
+
                 <ControlTemplate TargetType="ToggleButton">
 
-                    <Border Background="{TemplateBinding Background}"
-                        CornerRadius="0,9,9,0">
+                    <Border x:Name="ToggleBorder"
+                    Background="{TemplateBinding Background}"
+                    CornerRadius="0,10,10,0">
 
                         <TextBlock x:Name="CollapseIcon"
-                               Text="‹"
-                               FontSize="18"
-                               FontWeight="SemiBold"
-                               Foreground="White"
-                               HorizontalAlignment="Center"
-                               VerticalAlignment="Center"/>
+                           Text="‹"
+                           FontSize="20"
+                           FontWeight="SemiBold"
+                           Foreground="White"
+                           HorizontalAlignment="Center"
+                           VerticalAlignment="Center"/>
 
                     </Border>
 
                     <ControlTemplate.Triggers>
 
+                        <Trigger Property="IsMouseOver"
+                         Value="True">
+
+                            <Setter TargetName="ToggleBorder"
+                            Property="Background"
+                            Value="#214C7D"/>
+
+                        </Trigger>
+
                         <Trigger Property="IsChecked"
-                             Value="True">
+                         Value="True">
 
                             <Setter TargetName="CollapseIcon"
-                                Property="Text"
-                                Value="›"/>
+                            Property="Text"
+                            Value="›"/>
 
                         </Trigger>
 
                     </ControlTemplate.Triggers>
 
                 </ControlTemplate>
+
             </ToggleButton.Template>
 
         </ToggleButton>
-
     </Grid>
 </Window>

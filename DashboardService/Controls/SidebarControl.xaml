@@ -4,8 +4,7 @@
              xmlns:d="http://schemas.microsoft.com/expression/blend/2008"
              xmlns:mc="http://schemas.openxmlformats.org/markup-compatibility/2006"
              x:Name="Root"
-             Width="230"
-             HorizontalAlignment="Left"
+             HorizontalAlignment="Stretch"
              VerticalAlignment="Stretch"
              Background="{DynamicResource SidebarBgBrush}"
              mc:Ignorable="d">
@@ -99,7 +98,7 @@
         <Grid x:Name="SidebarContent">
 
             <Grid.RowDefinitions>
-                <RowDefinition Height="90"/>
+                <RowDefinition Height="175"/>
                 <RowDefinition Height="*"/>
                 <RowDefinition Height="110"/>
             </Grid.RowDefinitions>
@@ -109,37 +108,70 @@
         <!-- LOGO -->
         <!-- ========================= -->
 
-        <Grid Grid.Row="0">
+            <Grid Grid.Row="0">
 
-            <StackPanel HorizontalAlignment="Center"
-                        VerticalAlignment="Center">
+                <StackPanel HorizontalAlignment="Center"
+                VerticalAlignment="Top"
+                Margin="0,28,0,0">
 
-                <Border Width="46"
-                            Height="46"
-                            CornerRadius="14"
-                            Background="#22FFFFFF"
-                            HorizontalAlignment="Center"
-                            Padding="6">    
+                    <!-- LOGO -->
+                    <Border Width="48"
+                Height="48"
+                CornerRadius="14"
+                Background="#22FFFFFF"
+                HorizontalAlignment="Center"
+                Padding="6"
+                Margin="0,0,0,10">
 
-                    <Image Source="pack://application:,,,/Assets/logo.png"
-                           Stretch="Uniform"
-                           Margin="7"/>
-                </Border>
+                        <Image Source="pack://application:,,,/Assets/logo.png"
+                   Stretch="Uniform"/>
+                    </Border>
 
-                <TextBlock Text="SRP Monitor"
-                           Style="{StaticResource SidebarTextStyle}"
-                           Foreground="White"
-                           FontSize="17"
-                           FontWeight="Bold"
-                           HorizontalAlignment="Center"
-                           Margin="0,8,0,0"/>
+                    <!-- COMPANY NAME -->
+                    <TextBlock Text="SRP INNOVATIONS"
+                   Visibility="Visible"
+                   FontFamily="Segoe UI"
+                   FontSize="11"
+                   FontWeight="Bold"
+                   Foreground="#9FC8F5"
+                   HorizontalAlignment="Center"
+                   TextAlignment="Center"
+                   Width="190"/>
 
-            </StackPanel>
+                    <!-- TITLE -->
+                    <TextBlock Text="Smart Chamber"
+                   Visibility="Visible"
+                   FontFamily="Segoe UI"
+                   FontSize="18"
+                   FontWeight="Bold"
+                   Foreground="White"
+                   HorizontalAlignment="Center"
+                   TextAlignment="Center"
+                   Width="190"
+                   Margin="0,7,0,0"/>
 
-        </Grid>
+                    <TextBlock Text="Monitoring"
+                   Visibility="Visible"
+                   FontFamily="Segoe UI"
+                   FontSize="18"
+                   FontWeight="Bold"
+                   Foreground="White"
+                   HorizontalAlignment="Center"
+                   TextAlignment="Center"
+                   Width="190"/>
 
+                    <!-- DIVIDER -->
+                    <Border Width="185"
+                Height="1"
+                Background="#33FFFFFF"
+                HorizontalAlignment="Center"
+                Margin="0,16,0,0"/>
 
-        <!-- ========================= -->
+                </StackPanel>
+
+            </Grid>
+
+            <!-- ========================= -->
         <!-- MENU -->
         <!-- ========================= -->
 
@@ -152,7 +184,7 @@
 
                 <!-- DASHBOARD -->
 
-                <Button Style="{StaticResource SidebarButtonStyle}"
+                <Button Style="{StaticResource SidebarButtonStyle}"                        
                         Click="Dashboard_Click">
 
                     <Grid>
@@ -447,92 +479,44 @@
         <!-- BOTTOM -->
         <!-- ========================= -->
 
-        <StackPanel Grid.Row="2"
-                    HorizontalAlignment="Center"
-                    VerticalAlignment="Bottom"
-                    Margin="0,0,0,15">
+            <StackPanel Grid.Row="2"
+            HorizontalAlignment="Center"
+            VerticalAlignment="Bottom"
+            Margin="0,0,0,15">
 
-            <Border x:Name="ThemeToggleButton"
-                    Width="48"
-                    Height="32"
-                    Background="#183451"
-                    CornerRadius="10"
-                    Cursor="Hand"
-                    MouseLeftButtonUp="ThemeToggle_Click">
+                <Border x:Name="ThemeToggleButton"
+            Width="48"
+            Height="32"
+            Background="{DynamicResource SidebarBgBrush}"
+            CornerRadius="10"
+            Cursor="Hand"
+            MouseLeftButtonUp="ThemeToggle_Click">
 
-                <TextBlock Text="☾"
-                           Foreground="White"
-                           FontSize="16"
-                           HorizontalAlignment="Center"
-                           VerticalAlignment="Center"/>
+                    <TextBlock Text="☾"
+                   Foreground="White"
+                   FontSize="16"
+                   HorizontalAlignment="Center"
+                   VerticalAlignment="Center"/>
+                </Border>
 
-            </Border>
+                <TextBlock Text="Designed &amp; Developed by"
+               Foreground="White"
+               FontSize="13"
+               HorizontalAlignment="Center"
+               Margin="0,9,0,0"
+               Style="{StaticResource SidebarTextStyle}"/>
 
-            <TextBlock Text="© 2026 SRP Innovations"
-                       Foreground="#7187A2"
-                       FontSize="8"
-                       HorizontalAlignment="Center"
-                       Margin="0,8,0,0"
-                       Style="{StaticResource SidebarTextStyle}"/>
-
-        </StackPanel>
-        </Grid>
-        <!-- END SIDEBAR BODY -->
-
-
-        <!-- ========================= -->
-        <!-- COLLAPSE BUTTON -->
-        <!-- ========================= -->
-
-        <!--<ToggleButton x:Name="CollapseButton"
-              Width="16"
-              Height="42"
-              HorizontalAlignment="Right"
-              VerticalAlignment="Top"
-              Margin="0,14,0,0"
-              Panel.ZIndex="1000"
-              Click="CollapseButton_Click"
-              Background="#163A63"
-              Foreground="White"
-              BorderThickness="0"
-              BorderBrush="Transparent"
-              Focusable="False"
-              IsTabStop="False"
-              Cursor="Hand">
-
-            <ToggleButton.Template>
-
-                <ControlTemplate TargetType="ToggleButton">
-                    <Border Background="{TemplateBinding Background}"
-        CornerRadius="0,8,8,0"
-        BorderThickness="0">
-
-                        <TextBlock x:Name="CollapseIcon"
-               Text="‹"
-               FontSize="17"
+                <TextBlock Text="CodeInQ"
+               Foreground="White"
+               FontSize="15"
                FontWeight="SemiBold"
                HorizontalAlignment="Center"
-               VerticalAlignment="Center"/>
+               Margin="0,2,0,0"
+               Style="{StaticResource SidebarTextStyle}"/>
 
-                    </Border>
-                    <ControlTemplate.Triggers>
-
-                        <Trigger Property="IsChecked"
-                             Value="True">
-
-                            <Setter TargetName="CollapseIcon"
-                                Property="Text"
-                                Value="›"/>
-
-                        </Trigger>
-
-                    </ControlTemplate.Triggers>
-
-                </ControlTemplate>
-
-            </ToggleButton.Template>
-
-        </ToggleButton>-->
+            </StackPanel>
+        </Grid>
+        <!-- END SIDEBAR BODY -->
 
     </Grid>
 
