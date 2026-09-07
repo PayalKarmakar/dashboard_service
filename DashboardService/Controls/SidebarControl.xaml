@@ -327,6 +327,7 @@
 
                 <Button x:Name="ManualRfidButton"
                         Style="{StaticResource SidebarButtonStyle}"
+                        Visibility="Collapsed"
                         Click="ManualRfid_Click">
 
                     <Grid>

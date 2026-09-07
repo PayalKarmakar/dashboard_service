@@ -1315,21 +1315,15 @@ namespace DashboardService.Views
             if (!parameterViolations.Any())
             {
                 statusText.Text = "NORMAL";
-
-                statusBorder.Background =
-                    new SolidColorBrush(Color.FromRgb(220, 252, 231));
-
-                statusBorder.BorderBrush =
-                    new SolidColorBrush(Color.FromRgb(74, 222, 128));
-
-                statusBorder.BorderThickness = new Thickness(1);
-
-                statusText.Foreground =
-                    new SolidColorBrush(Color.FromRgb(22, 101, 52));
-
+                ApplySensorCardTheme(
+                    cardBorder,
+                    statusBorder,
+                    statusText,
+                    fill: Color.FromRgb(34, 197, 94),
+                    border: Color.FromRgb(21, 128, 61),
+                    foreground: Color.FromRgb(20, 83, 45));
                 cardBorder.Opacity = 1.0;
                 statusBorder.Opacity = 1.0;
-
                 return;
             }
 
@@ -1344,18 +1338,13 @@ namespace DashboardService.Views
                     StringComparison.OrdinalIgnoreCase)))
             {
                 statusText.Text = "CRITICAL";
-
-                statusBorder.Background =
-                    new SolidColorBrush(Color.FromRgb(254, 226, 226));
-
-                statusBorder.BorderBrush =
-                    new SolidColorBrush(Color.FromRgb(239, 68, 68));
-
-                statusBorder.BorderThickness = new Thickness(1);
-
-                statusText.Foreground =
-                    new SolidColorBrush(Color.FromRgb(185, 28, 28));
-
+                ApplySensorCardTheme(
+                    cardBorder,
+                    statusBorder,
+                    statusText,
+                    fill: Color.FromRgb(239, 68, 68),
+                    border: Color.FromRgb(185, 28, 28),
+                    foreground: Color.FromRgb(255, 255, 255));
                 return;
             }
 
@@ -1370,18 +1359,13 @@ namespace DashboardService.Views
                     StringComparison.OrdinalIgnoreCase)))
             {
                 statusText.Text = "WARNING";
-
-                statusBorder.Background =
-                    new SolidColorBrush(Color.FromRgb(254, 243, 199));
-
-                statusBorder.BorderBrush =
-                    new SolidColorBrush(Color.FromRgb(250, 204, 21));
-
-                statusBorder.BorderThickness = new Thickness(1);
-
-                statusText.Foreground =
-                    new SolidColorBrush(Color.FromRgb(161, 98, 7));
-
+                ApplySensorCardTheme(
+                    cardBorder,
+                    statusBorder,
+                    statusText,
+                    fill: Color.FromRgb(250, 204, 21),
+                    border: Color.FromRgb(202, 138, 4),
+                    foreground: Color.FromRgb(113, 63, 18));
                 return;
             }
 
@@ -1390,20 +1374,50 @@ namespace DashboardService.Views
             // =========================
 
             statusText.Text = "NORMAL";
-
-            statusBorder.Background =
-                new SolidColorBrush(Color.FromRgb(220, 252, 231));
-
-            statusBorder.BorderBrush =
-                new SolidColorBrush(Color.FromRgb(74, 222, 128));
-
-            statusBorder.BorderThickness = new Thickness(1);
-
-            statusText.Foreground =
-                new SolidColorBrush(Color.FromRgb(22, 101, 52));
-
+            ApplySensorCardTheme(
+                cardBorder,
+                statusBorder,
+                statusText,
+                fill: Color.FromRgb(34, 197, 94),
+                border: Color.FromRgb(21, 128, 61),
+                foreground: Color.FromRgb(20, 83, 45));
             cardBorder.Opacity = 1.0;
             statusBorder.Opacity = 1.0;
+        }
+
+        private static void ApplySensorCardTheme(
+            Border cardBorder,
+            Border statusBorder,
+            TextBlock statusText,
+            Color fill,
+            Color border,
+            Color foreground)
+        {
+            var fillBrush = new SolidColorBrush(fill);
+            var borderBrush = new SolidColorBrush(border);
+            var fgBrush = new SolidColorBrush(foreground);
+
+            cardBorder.Background = fillBrush;
+            cardBorder.BorderBrush = borderBrush;
+            cardBorder.BorderThickness = new Thickness(1);
+
+            statusBorder.Background = new SolidColorBrush(Color.FromArgb(70, 255, 255, 255));
+            statusBorder.BorderBrush = borderBrush;
+            statusBorder.BorderThickness = new Thickness(1);
+            statusText.Foreground = fgBrush;
+
+            if (cardBorder.Child is not Grid grid)
+            {
+                return;
+            }
+
+            foreach (var child in grid.Children)
+            {
+                if (child is TextBlock titleOrValue)
+                {
+                    titleOrValue.Foreground = fgBrush;
+                }
+            }
         }
 
         private void SensorBlinkTimer_Tick(object? sender,EventArgs e)
