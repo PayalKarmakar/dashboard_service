@@ -466,12 +466,14 @@
 
                                         <StackPanel Orientation="Horizontal">
 
-                                            <TextBlock Text="0"
+                                            <TextBlock x:Name="MonitoringCameraCountText"
+                                                    Text="—"
                                                     FontSize="19"
                                                     FontWeight="Bold"
-                                                    Foreground="White"/>
+                                                    Foreground="{DynamicResource TextPrimaryBrush}"/>
 
-                                            <TextBlock Text="/5"
+                                            <TextBlock x:Name="MonitoringCameraCapacityText"
+                                                    Text="/0"
                                                     FontSize="12"
                                                     FontWeight="SemiBold"
                                                     Foreground="#8FA9C8"
@@ -2244,7 +2246,7 @@
                                            FontSize="18"
                                            FontWeight="Bold"
                                            Foreground="{DynamicResource TextPrimaryBrush}"/>
-                                            <TextBlock Text="Recent camera events"
+                                            <TextBlock Text="Entry / exit without RFID or tailgate"
                                            FontSize="11"
                                            Foreground="{DynamicResource TextMutedBrush}"
                                            Margin="0,3,0,0"/>
@@ -2267,36 +2269,98 @@
                                 BorderBrush="#E2E8F0"
                                 BorderThickness="1"
                                 CornerRadius="10"
-                                Padding="16">
+                                Padding="8">
 
-                                        <StackPanel VerticalAlignment="Center">
-                                            <Border Width="42"
-                                        Height="42"
-                                        Background="#FEF2F2"
-                                        CornerRadius="21"
-                                        HorizontalAlignment="Center">
-                                                <TextBlock Text="CAM"
-                                               FontSize="9"
-                                               FontWeight="Bold"
-                                               Foreground="#DC2626"
-                                               HorizontalAlignment="Center"
-                                               VerticalAlignment="Center"/>
-                                            </Border>
+                                        <Grid>
+                                            <ScrollViewer x:Name="CameraViolationsScroll"
+                                                          VerticalScrollBarVisibility="Auto"
+                                                          HorizontalScrollBarVisibility="Disabled"
+                                                          Visibility="Collapsed">
+                                                <ItemsControl x:Name="CameraViolationsItemsControl">
+                                                    <ItemsControl.ItemTemplate>
+                                                        <DataTemplate>
+                                                            <Border Padding="10,8"
+                                                                    Margin="0,0,0,6"
+                                                                    Background="White"
+                                                                    BorderBrush="#E2E8F0"
+                                                                    BorderThickness="1"
+                                                                    CornerRadius="8">
+                                                                <Grid>
+                                                                    <Grid.ColumnDefinitions>
+                                                                        <ColumnDefinition Width="*"/>
+                                                                        <ColumnDefinition Width="Auto"/>
+                                                                    </Grid.ColumnDefinitions>
 
-                                            <TextBlock Text="No camera violations"
-                                           FontSize="13"
-                                           FontWeight="SemiBold"
-                                           Foreground="#334155"
-                                           HorizontalAlignment="Center"
-                                           Margin="0,12,0,0"/>
+                                                                    <StackPanel Grid.Column="0" VerticalAlignment="Center">
+                                                                        <TextBlock Text="{Binding EventDisplay}"
+                                                                                   FontSize="12"
+                                                                                   FontWeight="SemiBold"
+                                                                                   Foreground="#0B2248"/>
+                                                                        <TextBlock Text="{Binding ChamberName}"
+                                                                                   FontSize="10"
+                                                                                   Foreground="#64748B"
+                                                                                   Margin="0,3,0,0"/>
+                                                                        <TextBlock Text="{Binding CameraName}"
+                                                                                   FontSize="10"
+                                                                                   Foreground="#64748B"/>
+                                                                        <TextBlock Text="{Binding OccurredDisplay}"
+                                                                                   FontSize="9"
+                                                                                   Foreground="#94A3B8"
+                                                                                   Margin="0,2,0,0"/>
+                                                                    </StackPanel>
 
-                                            <TextBlock Text="Camera violation data will appear here"
-                                           FontSize="10"
-                                           Foreground="#94A3B8"
-                                           HorizontalAlignment="Center"
-                                           TextAlignment="Center"
-                                           Margin="0,5,0,0"/>
-                                        </StackPanel>
+                                                                    <Border Grid.Column="1"
+                                                                            VerticalAlignment="Center"
+                                                                            Background="#FEF2F2"
+                                                                            BorderBrush="#FECACA"
+                                                                            BorderThickness="1"
+                                                                            CornerRadius="8"
+                                                                            Padding="8,4"
+                                                                            Margin="8,0,0,0">
+                                                                        <TextBlock Text="{Binding PersonCount}"
+                                                                                   FontSize="9"
+                                                                                   FontWeight="Bold"
+                                                                                   Foreground="#DC2626"/>
+                                                                    </Border>
+                                                                </Grid>
+                                                            </Border>
+                                                        </DataTemplate>
+                                                    </ItemsControl.ItemTemplate>
+                                                </ItemsControl>
+                                            </ScrollViewer>
+
+                                            <StackPanel x:Name="NoCameraViolationsPanel"
+                                                        VerticalAlignment="Center"
+                                                        HorizontalAlignment="Center">
+                                                <Border Width="42"
+                                                        Height="42"
+                                                        Background="#FEF2F2"
+                                                        CornerRadius="21"
+                                                        HorizontalAlignment="Center">
+                                                    <TextBlock Text="CAM"
+                                                               FontSize="9"
+                                                               FontWeight="Bold"
+                                                               Foreground="#DC2626"
+                                                               HorizontalAlignment="Center"
+                                                               VerticalAlignment="Center"/>
+                                                </Border>
+
+                                                <TextBlock x:Name="NoCameraViolationsText"
+                                                           Text="No camera violations"
+                                                           FontSize="13"
+                                                           FontWeight="SemiBold"
+                                                           Foreground="#334155"
+                                                           HorizontalAlignment="Center"
+                                                           Margin="0,12,0,0"/>
+
+                                                <TextBlock Text="Entry/exit violations will appear here"
+                                                           FontSize="10"
+                                                           Foreground="#94A3B8"
+                                                           HorizontalAlignment="Center"
+                                                           TextAlignment="Center"
+                                                           Margin="0,5,0,0"/>
+                                            </StackPanel>
+                                        </Grid>
                                     </Border>
                                 </Grid>
                             </Border>

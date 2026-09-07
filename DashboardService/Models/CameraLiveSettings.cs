@@ -20,4 +20,14 @@ public sealed class CameraLiveSettings
     /// When true, Entry/Exit/Unauthorized stat cards show for ENTRY/EXIT cameras.
     /// </summary>
     public bool ShowEntryExitStats { get; set; } = true;
+
+    /// <summary>
+    /// When true, all active cameras are monitored automatically after login.
+    /// </summary>
+    public bool BackgroundMonitoringEnabled { get; set; } = true;
+
+    /// <summary>
+    /// When true, speak voice alerts for camera entry/exit violations.
+    /// </summary>
+    public bool VoiceEnabled { get; set; } = true;
 }

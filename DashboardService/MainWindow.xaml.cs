@@ -15,6 +15,7 @@
 //}
 
 using DashboardService.Models;
+using DashboardService.Services;
 using DashboardService.Views;
 using System.Windows;
 using System.Windows.Controls;
@@ -26,6 +27,7 @@ namespace DashboardService
         public MainWindow()
         {
             InitializeComponent();
+            ToastNotificationService.Register(ToastHost);
 
             // Login page should use the complete window
             GlobalSidebar.Visibility = Visibility.Collapsed;
@@ -50,6 +52,15 @@ namespace DashboardService
             SidebarToggleButton.IsChecked = true;
 
             GlobalSidebar.SetExpanded(true);
+            GlobalSidebar.SetActivePage("Dashboard");
+
+            CameraBackgroundMonitoringService.Instance.SessionAlertRaised -= OnCameraSessionAlert;
+            CameraBackgroundMonitoringService.Instance.SessionAlertRaised += OnCameraSessionAlert;
+        }
+
+        private void OnCameraSessionAlert(long cameraId, CameraDoorAlert alert)
+        {
+            ToastNotificationService.ShowCameraViolation(alert);
         }
 
         private void SidebarToggleButton_Click(object sender, RoutedEventArgs e)

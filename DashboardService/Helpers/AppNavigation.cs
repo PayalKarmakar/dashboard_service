@@ -1,3 +1,4 @@
+using System.Windows;
 using System.Windows.Controls;
 using System.Windows.Navigation;
 using DashboardService.Models;
@@ -39,6 +40,12 @@ public static class AppNavigation
         while (navigation.CanGoBack)
         {
             navigation.RemoveBackEntry();
+        }
+
+        if (navigation.Content is FrameworkElement content
+            && Window.GetWindow(content) is MainWindow mainWindow)
+        {
+            mainWindow.GlobalSidebar.SetActivePage(menu);
         }
     }
 }

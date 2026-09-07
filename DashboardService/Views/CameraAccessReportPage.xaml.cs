@@ -25,31 +25,11 @@ public partial class CameraAccessReportPage : Page
         EventsGrid.ItemsSource = _eventsPager.PageItems;
         _currentUser = currentUser;
         Loaded += CameraAccessReportPage_Loaded;
-        Unloaded += CameraAccessReportPage_Unloaded;
 
-        ApplySciFiChrome(ThemeService.IsDarkMode);
-        ThemeService.ThemeChanged += ThemeService_ThemeChanged;
-    }
-
-    private void CameraAccessReportPage_Unloaded(object sender, RoutedEventArgs e)
-    {
-        ThemeService.ThemeChanged -= ThemeService_ThemeChanged;
-    }
-
-    private void ThemeService_ThemeChanged(bool isDark)
-    {
-        Dispatcher.Invoke(() => ApplySciFiChrome(isDark));
-    }
-
-    private void ApplySciFiChrome(bool isDark)
-    {
-        SidebarSciFiOverlay.Opacity = isDark ? 1 : 0;
     }
 
     private async void CameraAccessReportPage_Loaded(object sender, RoutedEventArgs e)
     {
-        ApplySciFiChrome(ThemeService.IsDarkMode);
-        SidebarMenuHelper.OpenSubMenu(ReportsSubMenuPanel, ReportsArrowText);
 
         try
         {
@@ -141,50 +121,4 @@ public partial class CameraAccessReportPage : Page
         return $"\"{v}\"";
     }
 
-    private void DashboardMenu_Click(object sender, RoutedEventArgs e) =>
-        AppNavigation.Go(NavigationService, "Dashboard", _currentUser);
-
-    private void ChambersMenu_Click(object sender, RoutedEventArgs e) =>
-        AppNavigation.Go(NavigationService, "Chambers", _currentUser);
-
-    private void EmployeesMenu_Click(object sender, RoutedEventArgs e) =>
-        AppNavigation.Go(NavigationService, "Employees", _currentUser);
-
-    private void ReadersMenu_Click(object sender, RoutedEventArgs e) =>
-        AppNavigation.Go(NavigationService, "Readers", _currentUser);
-
-    private void LiveCameraMenu_Click(object sender, RoutedEventArgs e) =>
-        AppNavigation.Go(NavigationService, "LiveCamera", _currentUser);
-
-    private void ReportsToggle_Click(object sender, RoutedEventArgs e) =>
-        SidebarMenuHelper.ToggleSubMenu(ReportsSubMenuPanel, ReportsArrowText);
-
-    private void EntryExitReportMenu_Click(object sender, RoutedEventArgs e) =>
-        AppNavigation.Go(NavigationService, "Reports", _currentUser);
-
-    private void CameraAccessReportMenu_Click(object sender, RoutedEventArgs e) { }
-
-    private void ChamberEmployeesReportMenu_Click(object sender, RoutedEventArgs e) =>
-        AppNavigation.Go(NavigationService, "ChamberEmployeesReport", _currentUser);
-
-    private void ChamberCriticalReportMenu_Click(object sender, RoutedEventArgs e) =>
-        AppNavigation.Go(NavigationService, "ChamberCriticalReport", _currentUser);
-
-    private void ProductionLossReportMenu_Click(object sender, RoutedEventArgs e) =>
-        AppNavigation.Go(NavigationService, "ProductionLossReport", _currentUser);
-
-    private void SensorReadingsReportMenu_Click(object sender, RoutedEventArgs e) =>
-        AppNavigation.Go(NavigationService, "SensorReadingsReport", _currentUser);
-
-    private void ConfigurationToggle_Click(object sender, RoutedEventArgs e) =>
-        SidebarMenuHelper.ToggleSubMenu(ConfigurationSubMenuPanel, ConfigurationArrowText);
-
-    private void SensorConfigurationMenu_Click(object sender, RoutedEventArgs e) =>
-        AppNavigation.Go(NavigationService, "SensorConfiguration", _currentUser);
-
-    private void CameraConfigurationMenu_Click(object sender, RoutedEventArgs e) =>
-        AppNavigation.Go(NavigationService, "CameraConfiguration", _currentUser);
-
-    private void ManualRfidMenu_Click(object sender, RoutedEventArgs e) =>
-        AppNavigation.Go(NavigationService, "ManualRfidTransactions", _currentUser);
 }

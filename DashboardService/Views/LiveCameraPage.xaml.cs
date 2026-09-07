@@ -3,7 +3,6 @@ using System.Windows.Controls;
 using System.Windows.Media;
 using System.Windows.Media.Imaging;
 using System.Windows.Threading;
-using DashboardService.Helpers;
 using DashboardService.Models;
 using DashboardService.Services;
 
@@ -13,7 +12,6 @@ public partial class LiveCameraPage : Page
 {
     private readonly User _currentUser;
     private readonly CameraConfigurationService _cameraService = new();
-    private readonly RfidReaderService _readerService = new();
     private readonly MonitoringService _monitoringService = new();
     private readonly ConfigurationService _configurationService = new();
     private readonly CameraLiveStreamService _opencvStreamService = new();
@@ -24,9 +22,12 @@ public partial class LiveCameraPage : Page
     private readonly VoiceAnnouncementService _voiceAnnouncementService = new();
     private readonly DispatcherTimer _rfidTimer = new();
     private readonly DispatcherTimer _verifyTimer = new();
+    private readonly bool _backgroundMode;
+
     private List<MasterCameraConfig> _cameras = [];
     private MasterCameraConfig? _selectedCamera;
     private long _selectedChamberId;
+    private CameraMonitorSession? _attachedSession;
     private bool _verifyBusy;
     private int _latestDetectedCount;
     private int _lastLoggedEntryCount = -1;
@@ -37,13 +38,15 @@ public partial class LiveCameraPage : Page
     {
         InitializeComponent();
         _currentUser = currentUser;
+        _backgroundMode = _configurationService.GetCameraLiveSettings().BackgroundMonitoringEnabled;
+
         Loaded += LiveCameraPage_Loaded;
         Unloaded += LiveCameraPage_Unloaded;
 
-        _opencvStreamService.FrameReady += StreamService_FrameReady;
-        _pythonStreamService.FrameReady += StreamService_FrameReady;
-        _doorVerificationService.AlertRaised += DoorVerificationService_AlertRaised;
-        _occupancyVerificationService.AlertRaised += DoorVerificationService_AlertRaised;
+        _opencvStreamService.FrameReady += LocalStreamService_FrameReady;
+        _pythonStreamService.FrameReady += LocalStreamService_FrameReady;
+        _doorVerificationService.AlertRaised += LocalDoorVerificationService_AlertRaised;
+        _occupancyVerificationService.AlertRaised += LocalDoorVerificationService_AlertRaised;
 
         var settings = _configurationService.GetCameraLiveSettings();
         _rfidTimer.Interval = TimeSpan.FromSeconds(settings.RfidRefreshIntervalSeconds);
@@ -52,45 +55,46 @@ public partial class LiveCameraPage : Page
         _verifyTimer.Interval = TimeSpan.FromSeconds(1);
         _verifyTimer.Tick += VerifyTimer_Tick;
 
-        ApplySciFiChrome(ThemeService.IsDarkMode);
-        ThemeService.ThemeChanged += ThemeService_ThemeChanged;
+        ApplyBackgroundModeUi();
     }
 
-    private void LiveCameraPage_Unloaded(object sender, RoutedEventArgs e)
+    private void ApplyBackgroundModeUi()
     {
-        ThemeService.ThemeChanged -= ThemeService_ThemeChanged;
-        _doorVerificationService.AlertRaised -= DoorVerificationService_AlertRaised;
-        _occupancyVerificationService.AlertRaised -= DoorVerificationService_AlertRaised;
-        _rfidTimer.Stop();
-        _verifyTimer.Stop();
-        _opencvStreamService.Stop();
-        _ = _pythonStreamService.StopAsync();
-        _voiceAnnouncementService.Dispose();
-    }
+        if (!_backgroundMode)
+        {
+            return;
+        }
 
-    private void ThemeService_ThemeChanged(bool isDark)
-    {
-        Dispatcher.Invoke(() => ApplySciFiChrome(isDark));
-    }
-
-    private void ApplySciFiChrome(bool isDark)
-    {
-        SidebarSciFiOverlay.Opacity = isDark ? 1 : 0;
+        StartButton.Content = "Refresh View";
+        StopButton.Content = "Stop Preview";
+        LiveCameraSubtitleText.Text =
+            "Background monitoring is active — select a camera for live preview";
     }
 
     private async void LiveCameraPage_Loaded(object sender, RoutedEventArgs e)
     {
-        ApplySciFiChrome(ThemeService.IsDarkMode);
-        try
+        if (!_backgroundMode)
         {
-            await _cameraAccessEventService.EnsureSchemaAsync();
-        }
-        catch
-        {
-            // Persistence will retry on first save.
+            try
+            {
+                await _cameraAccessEventService.EnsureSchemaAsync();
+            }
+            catch
+            {
+                // Persistence will retry on first save.
+            }
         }
 
         await LoadCamerasAsync();
+    }
+
+    private void LiveCameraPage_Unloaded(object sender, RoutedEventArgs e)
+    {
+        DetachFromBackgroundSession();
+        if (!_backgroundMode)
+        {
+            StopLocalStream();
+        }
     }
 
     private async Task LoadCamerasAsync()
@@ -127,26 +131,112 @@ public partial class LiveCameraPage : Page
 
     private async void CameraComboBox_SelectionChanged(object sender, SelectionChangedEventArgs e)
     {
-        if (CameraComboBox.SelectedItem is CameraOption option)
+        if (CameraComboBox.SelectedItem is not CameraOption option)
         {
-            _selectedCamera = option.Camera;
-            _selectedChamberId = option.Camera.ChamberId;
-            RfidChamberText.Text = $"Chamber: {option.Camera.ChamberName}";
+            return;
+        }
 
-            ApplyCameraModeUi(option.Camera);
-            await ConfigureDoorVerificationAsync(option.Camera);
+        if (_backgroundMode)
+        {
+            DetachFromBackgroundSession();
+        }
+        else
+        {
+            StopLocalStream();
+        }
+
+        _selectedCamera = option.Camera;
+        _selectedChamberId = option.Camera.ChamberId;
+        RfidChamberText.Text = $"Chamber: {option.Camera.ChamberName}";
+
+        ApplyCameraModeUi(option.Camera);
+
+        if (_backgroundMode)
+        {
+            AttachToBackgroundSession(option.Camera.CameraId);
+            await RefreshRfidInsideAsync();
+            return;
+        }
+
+        await ConfigureLocalDoorVerificationAsync(option.Camera);
+    }
+
+    private void AttachToBackgroundSession(long cameraId)
+    {
+        CameraMonitorSession? session =
+            CameraBackgroundMonitoringService.Instance.GetSession(cameraId);
+
+        if (session == null)
+        {
+            StreamStatusText.Text =
+                "Background monitoring not running for this camera. Check camera_service and RTSP URL.";
+            StartButton.IsEnabled = true;
+            StopButton.IsEnabled = false;
+            return;
+        }
+
+        _attachedSession = session;
+        _attachedSession.FrameReady += BackgroundSession_FrameReady;
+        _attachedSession.AlertRaised += BackgroundSession_AlertRaised;
+        _attachedSession.AddFrameSubscriber();
+
+        StartButton.IsEnabled = false;
+        StopButton.IsEnabled = true;
+        CameraComboBox.IsEnabled = true;
+        StreamStatusText.Text = session.StatusMessage;
+        UpdateStatsFromBackground(session.LastStats);
+
+        if (_selectedCamera != null)
+        {
+            var status = string.Equals(
+                _selectedCamera.CameraPurpose,
+                "MONITORING",
+                StringComparison.OrdinalIgnoreCase)
+                ? session.LastStats.StatusMessage
+                : session.StatusMessage;
+            DoorVerifyStatusText.Text = status;
         }
     }
 
-    private bool _sidebarExpanded = true;
-
-    private void SidebarToggle_Click(object sender, RoutedEventArgs e)
+    private void DetachFromBackgroundSession()
     {
-        _sidebarExpanded = !_sidebarExpanded;
-        SidebarColumn.Width = new GridLength(_sidebarExpanded ? 230 : 0);
-        SidebarHost.Visibility = _sidebarExpanded ? Visibility.Visible : Visibility.Collapsed;
-        SidebarToggleButton.Content = _sidebarExpanded ? "«" : "☰";
-        SidebarToggleButton.ToolTip = _sidebarExpanded ? "Minimize sidebar" : "Show sidebar";
+        if (_attachedSession == null)
+        {
+            return;
+        }
+
+        _attachedSession.FrameReady -= BackgroundSession_FrameReady;
+        _attachedSession.AlertRaised -= BackgroundSession_AlertRaised;
+        _attachedSession.RemoveFrameSubscriber();
+        _attachedSession = null;
+
+        _rfidTimer.Stop();
+        StreamImage.Source = null;
+        ResetStats();
+    }
+
+    private void BackgroundSession_FrameReady(BitmapSource frame, CameraDetectionStats stats)
+    {
+        Dispatcher.Invoke(() =>
+        {
+            StreamImage.Source = frame;
+            StreamStatusText.Text = stats.StatusMessage;
+            UpdateStatsFromBackground(stats);
+        });
+    }
+
+    private void BackgroundSession_AlertRaised(CameraDoorAlert alert)
+    {
+        Dispatcher.Invoke(() => HandleAlertUi(alert));
+    }
+
+    private void UpdateStatsFromBackground(CameraDetectionStats stats)
+    {
+        DetectedCountText.Text = stats.TotalDetected.ToString();
+        InsideCountText.Text = stats.InsideCount.ToString();
+        OutsideCountText.Text = stats.OutsideCount.ToString();
+        AccuracyText.Text = stats.AccuracyDisplay;
+        FpsText.Text = stats.FpsDisplay;
     }
 
     private void ApplyCameraModeUi(MasterCameraConfig camera)
@@ -168,11 +258,21 @@ public partial class LiveCameraPage : Page
 
         DetectedTitleText.Text = "PERSONS INSIDE";
         DetectedHintText.Text = "People currently detected in the chamber";
-        LiveCameraSubtitleText.Text = monitoring
-            ? "Monitoring stream — accuracy, FPS, and persons inside"
-            : showEntryExitStats
-                ? "Entry/Exit stream — persons, unauthorized, accuracy, FPS"
-                : "Entry/Exit stream — accuracy and FPS";
+
+        if (_backgroundMode)
+        {
+            LiveCameraSubtitleText.Text = monitoring
+                ? "Background monitoring — occupancy preview"
+                : "Background monitoring — entry/exit preview";
+        }
+        else
+        {
+            LiveCameraSubtitleText.Text = monitoring
+                ? "Monitoring stream — accuracy, FPS, and persons inside"
+                : showEntryExitStats
+                    ? "Entry/Exit stream — persons, unauthorized, accuracy, FPS"
+                    : "Entry/Exit stream — accuracy and FPS";
+        }
 
         VerifyStatusTitleText.Text = monitoring ? "OCCUPANCY MATCH" : "VERIFY STATUS";
         DoorVerifyStatusText.Text = monitoring
@@ -182,12 +282,12 @@ public partial class LiveCameraPage : Page
                 : "Alerts disabled for this camera";
     }
 
-    private async Task ConfigureDoorVerificationAsync(MasterCameraConfig camera)
+    private async Task ConfigureLocalDoorVerificationAsync(MasterCameraConfig camera)
     {
         RfidReader? linkedReader = null;
         if (camera.RfidReaderId is > 0)
         {
-            var readers = await _readerService.GetAllAsync();
+            var readers = await new RfidReaderService().GetAllAsync();
             linkedReader = readers.FirstOrDefault(r => r.ReaderId == camera.RfidReaderId.Value);
         }
 
@@ -220,6 +320,21 @@ public partial class LiveCameraPage : Page
 
     private async void StartButton_Click(object sender, RoutedEventArgs e)
     {
+        if (_backgroundMode)
+        {
+            if (_selectedCamera != null)
+            {
+                AttachToBackgroundSession(_selectedCamera.CameraId);
+            }
+
+            return;
+        }
+
+        await StartLocalStreamAsync();
+    }
+
+    private async Task StartLocalStreamAsync()
+    {
         if (_selectedCamera == null)
         {
             MessageBox.Show(
@@ -242,7 +357,7 @@ public partial class LiveCameraPage : Page
         _lastLoggedExitCount = -1;
         _unauthorizedSessionCount = 0;
         UnauthorizedCountText.Text = "0";
-        await ConfigureDoorVerificationAsync(_selectedCamera);
+        await ConfigureLocalDoorVerificationAsync(_selectedCamera);
         _rfidTimer.Start();
         _verifyTimer.Start();
         _ = RefreshRfidInsideAsync();
@@ -266,6 +381,7 @@ public partial class LiveCameraPage : Page
 
             if (pythonUp)
             {
+                _pythonStreamService.CameraId = "live-preview";
                 await _pythonStreamService.StartAsync(
                     _selectedCamera.RtspUrl,
                     _selectedCamera.PersonDetectionEnabled,
@@ -289,16 +405,24 @@ public partial class LiveCameraPage : Page
         catch (Exception ex)
         {
             MessageBox.Show(ex.Message, "Live Camera", MessageBoxButton.OK, MessageBoxImage.Error);
-            StopStream();
+            StopLocalStream();
         }
     }
 
     private void StopButton_Click(object sender, RoutedEventArgs e)
     {
-        StopStream();
+        if (_backgroundMode)
+        {
+            DetachFromBackgroundSession();
+            StopButton.IsEnabled = false;
+            StreamStatusText.Text = "Preview stopped (background monitoring continues)";
+            return;
+        }
+
+        StopLocalStream();
     }
 
-    private void StopStream()
+    private void StopLocalStream()
     {
         _opencvStreamService.Stop();
         _ = _pythonStreamService.StopAsync();
@@ -314,7 +438,7 @@ public partial class LiveCameraPage : Page
         ResetStats();
     }
 
-    private void StreamService_FrameReady(BitmapSource frame, CameraDetectionStats stats)
+    private void LocalStreamService_FrameReady(BitmapSource frame, CameraDetectionStats stats)
     {
         Dispatcher.Invoke(() =>
         {
@@ -327,7 +451,6 @@ public partial class LiveCameraPage : Page
             FpsText.Text = stats.FpsDisplay;
             _latestDetectedCount = stats.TotalDetected;
 
-            // InsideCount / OutsideCount = cumulative ENTRY / EXIT crossings.
             _doorVerificationService.ObserveCameraEntryCount(stats.InsideCount);
             _doorVerificationService.ObserveCameraExitCount(stats.OutsideCount);
             PersistCrossingDeltas(stats.InsideCount, stats.OutsideCount);
@@ -435,11 +558,12 @@ public partial class LiveCameraPage : Page
         }
     }
 
-    private void DoorVerificationService_AlertRaised(CameraDoorAlert alert)
+    private void LocalDoorVerificationService_AlertRaised(CameraDoorAlert alert)
     {
         Dispatcher.Invoke(() =>
         {
-            DoorVerifyStatusText.Text = $"{alert.TitleDisplay}: camera {alert.CameraPersonCount} / RFID {alert.RfidScanCount}";
+            DoorVerifyStatusText.Text =
+                $"{alert.TitleDisplay}: camera {alert.CameraPersonCount} / RFID {alert.RfidScanCount}";
 
             if (alert.AlertType is "NO_RFID" or "NO_RFID_EXIT" or "TAILGATE" or "EXIT_TAILGATE")
             {
@@ -451,21 +575,52 @@ public partial class LiveCameraPage : Page
                 && alert.AlertType is "NO_RFID" or "NO_RFID_EXIT" or "TAILGATE" or "EXIT_TAILGATE"
                     or "MATCHED" or "EXIT_MATCHED")
             {
-                MasterCameraConfig camera = _selectedCamera;
-                _ = PersistAlertSafeAsync(camera, alert);
+                _ = PersistAlertSafeAsync(_selectedCamera, alert);
             }
 
-            if (alert.AlertType is "NO_RFID" or "NO_RFID_EXIT" or "TAILGATE" or "EXIT_TAILGATE"
-                or "OCCUPANCY_NO_RFID" or "OCCUPANCY_MISMATCH")
-            {
-                ShowDoorAlertBanner(alert);
-                _voiceAnnouncementService.AnnounceOnce(alert.Message, "en-IN");
-            }
-            else
-            {
-                DoorAlertBanner.Visibility = Visibility.Collapsed;
-            }
+            HandleAlertUi(alert);
         });
+    }
+
+    private void HandleAlertUi(CameraDoorAlert alert)
+    {
+        DoorVerifyStatusText.Text =
+            $"{alert.TitleDisplay}: camera {alert.CameraPersonCount} / RFID {alert.RfidScanCount}";
+
+        if (alert.AlertType is "NO_RFID" or "NO_RFID_EXIT" or "TAILGATE" or "EXIT_TAILGATE")
+        {
+            _unauthorizedSessionCount += Math.Max(1, alert.CameraPersonCount);
+            UnauthorizedCountText.Text = _unauthorizedSessionCount.ToString();
+        }
+
+        bool isVoiceAlert =
+            alert.AlertType is "NO_RFID" or "NO_RFID_EXIT" or "TAILGATE" or "EXIT_TAILGATE"
+                or "OCCUPANCY_NO_RFID" or "OCCUPANCY_MISMATCH";
+
+        if (!_backgroundMode
+            && isVoiceAlert
+            && _configurationService.GetCameraLiveSettings().VoiceEnabled)
+        {
+            _voiceAnnouncementService.AnnounceOnce(alert.Message, "en-IN");
+        }
+
+        if (ToastNotificationService.IsEntryExitViolation(alert))
+        {
+            if (!_backgroundMode)
+            {
+                ToastNotificationService.ShowCameraViolation(alert);
+            }
+        }
+
+        if (alert.AlertType is "NO_RFID" or "NO_RFID_EXIT" or "TAILGATE" or "EXIT_TAILGATE"
+            or "OCCUPANCY_NO_RFID" or "OCCUPANCY_MISMATCH")
+        {
+            ShowDoorAlertBanner(alert);
+        }
+        else
+        {
+            DoorAlertBanner.Visibility = Visibility.Collapsed;
+        }
     }
 
     private async Task PersistAlertSafeAsync(MasterCameraConfig camera, CameraDoorAlert alert)
@@ -543,59 +698,6 @@ public partial class LiveCameraPage : Page
         FpsText.Text = "0.0 fps";
         RfidInsideText.Text = "0";
         StreamImage.Source = null;
-    }
-
-    private void DashboardMenu_Click(object sender, RoutedEventArgs e) =>
-        NavigateAway("Dashboard");
-
-    private void ChambersMenu_Click(object sender, RoutedEventArgs e) =>
-        NavigateAway("Chambers");
-
-    private void EmployeesMenu_Click(object sender, RoutedEventArgs e) =>
-        NavigateAway("Employees");
-
-    private void ReadersMenu_Click(object sender, RoutedEventArgs e) =>
-        NavigateAway("Readers");
-
-    private void LiveCameraMenu_Click(object sender, RoutedEventArgs e) { }
-
-    private void ReportsToggle_Click(object sender, RoutedEventArgs e) =>
-        SidebarMenuHelper.ToggleSubMenu(ReportsSubMenuPanel, ReportsArrowText);
-
-    private void ConfigurationToggle_Click(object sender, RoutedEventArgs e) =>
-        SidebarMenuHelper.ToggleSubMenu(ConfigurationSubMenuPanel, ConfigurationArrowText);
-
-    private void EntryExitReportMenu_Click(object sender, RoutedEventArgs e) =>
-        NavigateAway("Reports");
-
-    private void CameraAccessReportMenu_Click(object sender, RoutedEventArgs e) =>
-        NavigateAway("CameraAccessReport");
-
-    private void ChamberEmployeesReportMenu_Click(object sender, RoutedEventArgs e) =>
-        NavigateAway("ChamberEmployeesReport");
-
-    private void ChamberCriticalReportMenu_Click(object sender, RoutedEventArgs e) =>
-        NavigateAway("ChamberCriticalReport");
-
-    private void ProductionLossReportMenu_Click(object sender, RoutedEventArgs e) =>
-        NavigateAway("ProductionLossReport");
-
-    private void SensorReadingsReportMenu_Click(object sender, RoutedEventArgs e) =>
-        NavigateAway("SensorReadingsReport");
-
-    private void SensorConfigurationMenu_Click(object sender, RoutedEventArgs e) =>
-        NavigateAway("SensorConfiguration");
-
-    private void CameraConfigurationMenu_Click(object sender, RoutedEventArgs e) =>
-        NavigateAway("CameraConfiguration");
-
-    private void ManualRfidMenu_Click(object sender, RoutedEventArgs e) =>
-        NavigateAway("ManualRfidTransactions");
-
-    private void NavigateAway(string menu)
-    {
-        StopStream();
-        AppNavigation.Go(NavigationService, menu, _currentUser);
     }
 
     private sealed class CameraOption

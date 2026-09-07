@@ -19,6 +19,13 @@ public sealed class CameraPythonLiveService : IDisposable
 
     public event Action<BitmapSource, CameraDetectionStats>? FrameReady;
 
+    public string CameraId { get; set; } = "default";
+
+    /// <summary>
+    /// When false, only status is polled (lighter for background monitoring).
+    /// </summary>
+    public bool PollFrames { get; set; } = true;
+
     public CameraPythonLiveService()
     {
         _http = new HttpClient
@@ -56,9 +63,11 @@ public sealed class CameraPythonLiveService : IDisposable
             ? "DOOR"
             : cameraPurpose.Trim().ToUpperInvariant();
         bool showDoorLine = purpose is "ENTRY" or "EXIT" or "DOOR"; // DOOR = legacy
+        string cameraId = string.IsNullOrWhiteSpace(CameraId) ? "default" : CameraId.Trim();
 
         var payload = new StartStreamRequest
         {
+            CameraId = cameraId,
             RtspUrl = rtspUrl,
             EnableDetection = enableDetection,
             MinConfidence = minConfidence,
@@ -108,7 +117,11 @@ public sealed class CameraPythonLiveService : IDisposable
         try
         {
             string baseUrl = _configurationService.GetCameraServiceBaseUrl();
-            using var response = await _http.PostAsync($"{baseUrl}/api/stream/stop", null);
+            string cameraId = Uri.EscapeDataString(
+                string.IsNullOrWhiteSpace(CameraId) ? "default" : CameraId.Trim());
+            using var response = await _http.PostAsync(
+                $"{baseUrl}/api/stream/stop?cameraId={cameraId}",
+                null);
         }
         catch
         {
@@ -119,6 +132,8 @@ public sealed class CameraPythonLiveService : IDisposable
     private async Task PollLoopAsync(CancellationToken cancellationToken)
     {
         string baseUrl = _configurationService.GetCameraServiceBaseUrl();
+        string cameraId = Uri.EscapeDataString(
+            string.IsNullOrWhiteSpace(CameraId) ? "default" : CameraId.Trim());
 
         while (!cancellationToken.IsCancellationRequested)
         {
@@ -126,7 +141,7 @@ public sealed class CameraPythonLiveService : IDisposable
             {
                 StatusResponse? status = null;
                 using (var statusResponse = await _http.GetAsync(
-                           $"{baseUrl}/api/stream/status",
+                           $"{baseUrl}/api/stream/status?cameraId={cameraId}",
                            cancellationToken))
                 {
                     if (statusResponse.IsSuccessStatusCode)
@@ -137,10 +152,11 @@ public sealed class CameraPythonLiveService : IDisposable
                 }
 
                 BitmapSource? frame = null;
-                using (var frameResponse = await _http.GetAsync(
-                           $"{baseUrl}/api/stream/frame.jpg",
-                           cancellationToken))
+                if (PollFrames)
                 {
+                    using var frameResponse = await _http.GetAsync(
+                        $"{baseUrl}/api/stream/frame.jpg?cameraId={cameraId}",
+                        cancellationToken);
                     if (frameResponse.IsSuccessStatusCode)
                     {
                         byte[] bytes = await frameResponse.Content.ReadAsByteArrayAsync(cancellationToken);
@@ -162,8 +178,15 @@ public sealed class CameraPythonLiveService : IDisposable
                     Fps = status?.Fps ?? 0
                 };
 
-                frame ??= CreatePlaceholder(stats.StatusMessage);
-                FrameReady?.Invoke(frame, stats);
+                if (PollFrames)
+                {
+                    frame ??= CreatePlaceholder(stats.StatusMessage);
+                    FrameReady?.Invoke(frame, stats);
+                }
+                else
+                {
+                    FrameReady?.Invoke(CreatePlaceholder(stats.StatusMessage), stats);
+                }
             }
             catch (OperationCanceledException)
             {
@@ -171,7 +194,6 @@ public sealed class CameraPythonLiveService : IDisposable
             }
             catch (HttpRequestException)
             {
-                // Camera service down / unreachable — show placeholder, avoid debugger spam.
                 FrameReady?.Invoke(
                     CreatePlaceholder("Camera service unavailable. Start camera_service."),
                     new CameraDetectionStats
@@ -192,7 +214,8 @@ public sealed class CameraPythonLiveService : IDisposable
 
             try
             {
-                await Task.Delay(120, cancellationToken);
+                int delayMs = PollFrames ? 120 : 500;
+                await Task.Delay(delayMs, cancellationToken);
             }
             catch (OperationCanceledException)
             {
@@ -215,7 +238,6 @@ public sealed class CameraPythonLiveService : IDisposable
 
     private static BitmapSource CreatePlaceholder(string message)
     {
-        // 1x1 dark pixel fallback when OpenCV placeholder is unavailable on this path.
         var pixels = new byte[] { 24, 28, 36, 255 };
         var source = BitmapSource.Create(
             1,
@@ -238,6 +260,9 @@ public sealed class CameraPythonLiveService : IDisposable
 
     private sealed class StartStreamRequest
     {
+        [JsonPropertyName("cameraId")]
+        public string CameraId { get; set; } = "default";
+
         [JsonPropertyName("rtspUrl")]
         public string RtspUrl { get; set; } = string.Empty;
 

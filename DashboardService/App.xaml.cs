@@ -10,4 +10,10 @@ public partial class App : Application
         base.OnStartup(e);
         ThemeService.Initialize();
     }
+
+    protected override void OnExit(ExitEventArgs e)
+    {
+        CameraBackgroundMonitoringService.Instance.Dispose();
+        base.OnExit(e);
+    }
 }

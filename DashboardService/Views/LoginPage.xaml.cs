@@ -154,6 +154,8 @@ namespace DashboardService.Views
                     mainWindow.ShowSidebar(user);
                 }
 
+                _ = StartBackgroundMonitoringAsync();
+
                 NavigationService?.Navigate(new DashboardPage(user));
             }
             catch (Exception ex)
@@ -167,6 +169,19 @@ namespace DashboardService.Views
             finally
             {
                 LoginButton.IsEnabled = true;
+            }
+        }
+
+        private static async Task StartBackgroundMonitoringAsync()
+        {
+            try
+            {
+                await CameraBackgroundMonitoringService.Instance.StartAsync();
+            }
+            catch (Exception ex)
+            {
+                System.Diagnostics.Debug.WriteLine(
+                    $"Background camera monitoring failed to start: {ex.Message}");
             }
         }
     }

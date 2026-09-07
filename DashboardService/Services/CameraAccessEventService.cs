@@ -179,6 +179,61 @@ public sealed class CameraAccessEventService
         return rows;
     }
 
+    public async Task<List<CameraAccessEventRow>> GetRecentViolationsAsync(
+        int limit = 10,
+        CancellationToken cancellationToken = default)
+    {
+        await EnsureSchemaAsync(cancellationToken);
+
+        var rows = new List<CameraAccessEventRow>();
+        int take = Math.Clamp(limit, 1, 50);
+
+        await using var connection =
+            new NpgsqlConnection(_configurationService.GetConnectionString());
+        await connection.OpenAsync(cancellationToken);
+
+        const string sql = @"
+            SELECT
+                event_id,
+                occurred_at,
+                camera_id,
+                chamber_id,
+                camera_name,
+                chamber_name,
+                event_type,
+                person_count,
+                rfid_scan_count,
+                COALESCE(message, '')
+            FROM public.camera_access_events
+            WHERE event_type IN ('NO_RFID', 'NO_RFID_EXIT', 'TAILGATE', 'EXIT_TAILGATE')
+            ORDER BY occurred_at DESC, event_id DESC
+            LIMIT @limit;
+        ";
+
+        await using var command = new NpgsqlCommand(sql, connection);
+        command.Parameters.AddWithValue("limit", take);
+
+        await using var reader = await command.ExecuteReaderAsync(cancellationToken);
+        while (await reader.ReadAsync(cancellationToken))
+        {
+            rows.Add(new CameraAccessEventRow
+            {
+                EventId = reader.GetInt64(0),
+                OccurredAt = reader.GetDateTime(1),
+                CameraId = reader.GetInt64(2),
+                ChamberId = reader.GetInt64(3),
+                CameraName = reader.GetString(4),
+                ChamberName = reader.GetString(5),
+                EventType = reader.GetString(6),
+                PersonCount = reader.GetInt32(7),
+                RfidScanCount = reader.IsDBNull(8) ? null : reader.GetInt32(8),
+                Message = reader.GetString(9)
+            });
+        }
+
+        return rows;
+    }
+
     private async Task InsertAsync(
         MasterCameraConfig camera,
         string eventType,

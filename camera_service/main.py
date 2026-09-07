@@ -22,7 +22,7 @@ except ImportError as exc:  # pragma: no cover
         "ultralytics not installed. Run: pip install -r requirements.txt"
     ) from exc
 
-app = FastAPI(title="SRP Camera Detection Service", version="1.2.0")
+app = FastAPI(title="SRP Camera Detection Service", version="1.3.0")
 app.add_middleware(
     CORSMiddleware,
     allow_origins=["*"],
@@ -31,9 +31,14 @@ app.add_middleware(
 )
 
 _lock = threading.Lock()
-_worker: "CameraWorker | None" = None
+_workers: dict[str, "CameraWorker"] = {}
 _model: YOLO | None = None
 _model_lock = threading.Lock()
+
+
+def _normalize_camera_id(camera_id: str | None) -> str:
+    value = (camera_id or "default").strip()
+    return value if value else "default"
 
 
 def get_model() -> YOLO:
@@ -45,6 +50,7 @@ def get_model() -> YOLO:
 
 
 class StartRequest(BaseModel):
+    cameraId: str = Field(default="default", min_length=1)
     rtspUrl: str = Field(min_length=3)
     enableDetection: bool = True
     minConfidence: float = 0.40
@@ -410,20 +416,42 @@ def health() -> dict[str, Any]:
     return {
         "success": True,
         "message": "Camera service is running.",
-        "version": "1.2.0",
-        "mode": "purpose_aware",
+        "version": "1.3.0",
+        "mode": "multi_camera",
+        "activeStreams": len(_workers) if _workers else 0,
+    }
+
+
+def _idle_status(camera_id: str) -> dict[str, Any]:
+    return {
+        "success": True,
+        "cameraId": camera_id,
+        "connected": False,
+        "message": "No active stream.",
+        "totalDetected": 0,
+        "entryCount": 0,
+        "exitCount": 0,
+        "insideCount": 0,
+        "outsideCount": 0,
+        "averageConfidence": 0.0,
+        "fps": 0.0,
+        "lastEvent": "",
+        "boxes": [],
+        "detectionEngine": "Off",
+        "mode": "line_crossing",
     }
 
 
 @app.post("/api/stream/start")
 def start_stream(req: StartRequest) -> dict[str, Any]:
-    global _worker
+    camera_id = _normalize_camera_id(req.cameraId)
     purpose = (req.cameraPurpose or "DOOR").strip().upper()
     show_line = _resolve_show_door_line(purpose, req.showDoorLine)
     with _lock:
-        if _worker is not None:
-            _worker.stop()
-        _worker = CameraWorker(
+        existing = _workers.pop(camera_id, None)
+        if existing is not None:
+            existing.stop()
+        worker = CameraWorker(
             rtsp_url=req.rtspUrl.strip(),
             enable_detection=req.enableDetection,
             min_confidence=req.minConfidence,
@@ -431,55 +459,76 @@ def start_stream(req: StartRequest) -> dict[str, Any]:
             camera_purpose=purpose,
             show_door_line=show_line,
         )
-        _worker.start()
+        _workers[camera_id] = worker
+        worker.start()
     mode = "occupancy" if not show_line else "line-crossing IN/OUT"
     return {
         "success": True,
         "message": f"Stream started ({mode}).",
+        "cameraId": camera_id,
         "cameraPurpose": purpose,
         "showDoorLine": show_line,
     }
 
 
 @app.post("/api/stream/stop")
-def stop_stream() -> dict[str, Any]:
-    global _worker
+def stop_stream(cameraId: str | None = None) -> dict[str, Any]:
+    camera_id = _normalize_camera_id(cameraId) if cameraId else None
+    stopped: list[str] = []
     with _lock:
-        if _worker is not None:
-            _worker.stop()
-            _worker = None
-    return {"success": True, "message": "Stream stopped."}
+        if camera_id is None:
+            for key, worker in list(_workers.items()):
+                worker.stop()
+                stopped.append(key)
+            _workers.clear()
+        else:
+            worker = _workers.pop(camera_id, None)
+            if worker is not None:
+                worker.stop()
+                stopped.append(camera_id)
+    if camera_id is None:
+        message = "All streams stopped."
+    elif stopped:
+        message = f"Stream stopped for camera {camera_id}."
+    else:
+        message = f"No active stream for camera {camera_id}."
+    return {"success": True, "message": message, "stopped": stopped}
 
 
 @app.get("/api/stream/status")
-def stream_status() -> dict[str, Any]:
+def stream_status(cameraId: str = "default") -> dict[str, Any]:
+    camera_id = _normalize_camera_id(cameraId)
     with _lock:
-        if _worker is None:
-            return {
-                "success": True,
-                "connected": False,
-                "message": "No active stream.",
-                "totalDetected": 0,
-                "entryCount": 0,
-                "exitCount": 0,
-                "insideCount": 0,
-                "outsideCount": 0,
-                "averageConfidence": 0.0,
-                "fps": 0.0,
-                "lastEvent": "",
-                "boxes": [],
-                "detectionEngine": "Off",
-                "mode": "line_crossing",
-            }
-        return _worker.snapshot()
+        worker = _workers.get(camera_id)
+        if worker is None:
+            return _idle_status(camera_id)
+        payload = worker.snapshot()
+    payload["cameraId"] = camera_id
+    return payload
+
+
+@app.get("/api/streams/status")
+def streams_status() -> dict[str, Any]:
+    with _lock:
+        items = {
+            camera_id: worker.snapshot()
+            for camera_id, worker in _workers.items()
+        }
+    return {
+        "success": True,
+        "count": len(items),
+        "streams": items,
+    }
 
 
 @app.get("/api/stream/frame.jpg")
-def stream_frame() -> Response:
+def stream_frame(cameraId: str = "default") -> Response:
+    camera_id = _normalize_camera_id(cameraId)
     with _lock:
-        if _worker is None:
+        worker = _workers.get(camera_id)
+        if worker is None:
             raise HTTPException(status_code=404, detail="No active stream.")
-        data = _worker.jpeg()
+        data = worker.jpeg()
     if not data:
         raise HTTPException(status_code=404, detail="No frame yet.")
     return Response(content=data, media_type="image/jpeg")

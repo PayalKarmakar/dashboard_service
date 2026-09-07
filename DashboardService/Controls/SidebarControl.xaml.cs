@@ -4,22 +4,55 @@ using DashboardService.Services;
 using System.Windows;
 using System.Windows.Controls;
 using System.Windows.Input;
+using System.Windows.Media;
 
 namespace DashboardService.Controls;
 
 public partial class SidebarControl : UserControl
 {
+    private static readonly HashSet<string> ReportPages =
+    [
+        "Reports",
+        "CameraAccessReport",
+        "ChamberEmployeesReport",
+        "ChamberCriticalReport",
+        "ProductionLossReport",
+        "SensorReadingsReport",
+        "SystemLogsReport"
+    ];
+
+    private static readonly HashSet<string> ConfigurationPages =
+    [
+        "SensorConfiguration",
+        "CameraConfiguration"
+    ];
+
+    private readonly Dictionary<string, Button> _menuButtons = new();
+
     public SidebarControl()
     {
         InitializeComponent();
 
         IsExpanded = true;
         Width = 230;
-    }
 
-    // =========================================================
-    // EXPANDED / COLLAPSED
-    // =========================================================
+        RegisterMenuButton("Dashboard", DashboardButton);
+        RegisterMenuButton("Chambers", ChambersButton);
+        RegisterMenuButton("Employees", EmployeesButton);
+        RegisterMenuButton("Readers", ReadersButton);
+        RegisterMenuButton("LiveCamera", LiveCameraButton);
+        RegisterMenuButton("ManualRfidTransactions", ManualRfidButton);
+        RegisterMenuButton("Reports", ReportsButton);
+        RegisterMenuButton("CameraAccessReport", CameraAccessButton);
+        RegisterMenuButton("ChamberEmployeesReport", ChamberEmployeesButton);
+        RegisterMenuButton("ChamberCriticalReport", ChamberCriticalButton);
+        RegisterMenuButton("ProductionLossReport", ProductionLossButton);
+        RegisterMenuButton("SensorReadingsReport", SensorReadingsButton);
+        RegisterMenuButton("SystemLogsReport", SystemLogsButton);
+        RegisterMenuButton("SensorConfiguration", SensorConfigurationButton);
+        RegisterMenuButton("CameraConfiguration", CameraConfigurationButton);
+        RegisterMenuButton("Configuration", ConfigurationButton);
+    }
 
     public bool IsExpanded
     {
@@ -34,11 +67,6 @@ public partial class SidebarControl : UserControl
             typeof(SidebarControl),
             new PropertyMetadata(true));
 
-
-    // =========================================================
-    // CURRENT USER
-    // =========================================================
-
     public User? CurrentUser
     {
         get => (User?)GetValue(CurrentUserProperty);
@@ -52,58 +80,109 @@ public partial class SidebarControl : UserControl
             typeof(SidebarControl),
             new PropertyMetadata(null));
 
+    public string ActivePage
+    {
+        get => (string)GetValue(ActivePageProperty);
+        set => SetValue(ActivePageProperty, value);
+    }
 
-    // =========================================================
-    // COLLAPSE / EXPAND
-    // =========================================================
+    public static readonly DependencyProperty ActivePageProperty =
+        DependencyProperty.Register(
+            nameof(ActivePage),
+            typeof(string),
+            typeof(SidebarControl),
+            new PropertyMetadata(string.Empty, OnActivePageChanged));
 
-  
+    private static void OnActivePageChanged(DependencyObject d, DependencyPropertyChangedEventArgs e)
+    {
+        if (d is SidebarControl sidebar)
+        {
+            sidebar.ApplyActivePage(e.NewValue as string ?? string.Empty);
+        }
+    }
+
     public void SetExpanded(bool expanded)
     {
-        IsExpanded = expanded;        
+        IsExpanded = expanded;
         SidebarContent.Visibility = Visibility.Visible;
-
         Width = expanded ? 230 : 76;
     }
 
-    // =========================================================
-    // MAIN MENU
-    // =========================================================
-
-    private void Dashboard_Click(object sender, RoutedEventArgs e)
+    public void SetActivePage(string page)
     {
-        Navigate("Dashboard");
+        ActivePage = page;
     }
 
-    private void Chambers_Click(object sender, RoutedEventArgs e)
+    private void RegisterMenuButton(string key, Button button)
     {
-        Navigate("Chambers");
+        _menuButtons[key] = button;
     }
 
-    private void Employees_Click(object sender, RoutedEventArgs e)
+    private void ApplyActivePage(string page)
     {
-        Navigate("Employees");
+        ClearActiveStyles();
+
+        if (ReportPages.Contains(page))
+        {
+            OpenReportsSubMenu();
+        }
+
+        if (ConfigurationPages.Contains(page))
+        {
+            OpenConfigurationSubMenu();
+        }
+
+        if (_menuButtons.TryGetValue(page, out Button? button))
+        {
+            SetActiveStyle(button);
+            return;
+        }
+
+        if (ReportPages.Contains(page))
+        {
+            SetActiveStyle(ReportsButton);
+        }
+        else if (ConfigurationPages.Contains(page))
+        {
+            SetActiveStyle(ConfigurationButton);
+        }
     }
 
-    private void Readers_Click(object sender, RoutedEventArgs e)
+    private void ClearActiveStyles()
     {
-        Navigate("Readers");
+        foreach (Button button in _menuButtons.Values)
+        {
+            button.ClearValue(BackgroundProperty);
+            button.ClearValue(ForegroundProperty);
+            button.FontWeight = FontWeights.Normal;
+        }
     }
 
-    private void LiveCamera_Click(object sender, RoutedEventArgs e)
+    private void SetActiveStyle(Button button)
     {
-        Navigate("LiveCamera");
+        button.Background = (Brush)FindResource("SidebarActiveBgBrush");
+        button.Foreground = (Brush)FindResource("SidebarTextActiveBrush");
+        button.FontWeight = FontWeights.SemiBold;
     }
 
-    private void ManualRfid_Click(object sender, RoutedEventArgs e)
+    private void OpenReportsSubMenu()
     {
-        Navigate("ManualRfid");
+        ReportsSubMenu.Visibility = Visibility.Visible;
+        ReportsArrow.Text = "⌄";
     }
 
+    private void OpenConfigurationSubMenu()
+    {
+        ConfigurationSubMenu.Visibility = Visibility.Visible;
+        ConfigurationArrow.Text = "⌄";
+    }
 
-    // =========================================================
-    // REPORTS
-    // =========================================================
+    private void Dashboard_Click(object sender, RoutedEventArgs e) => Navigate("Dashboard");
+    private void Chambers_Click(object sender, RoutedEventArgs e) => Navigate("Chambers");
+    private void Employees_Click(object sender, RoutedEventArgs e) => Navigate("Employees");
+    private void Readers_Click(object sender, RoutedEventArgs e) => Navigate("Readers");
+    private void LiveCamera_Click(object sender, RoutedEventArgs e) => Navigate("LiveCamera");
+    private void ManualRfid_Click(object sender, RoutedEventArgs e) => Navigate("ManualRfidTransactions");
 
     private void Reports_Click(object sender, RoutedEventArgs e)
     {
@@ -118,40 +197,13 @@ public partial class SidebarControl : UserControl
                 : "›";
     }
 
-    private void EntryExit_Click(object sender, RoutedEventArgs e)
-    {
-        Navigate("Reports");
-    }
-
-    private void CameraAccess_Click(object sender, RoutedEventArgs e)
-    {
-        Navigate("CameraAccess");
-    }
-
-    private void ChamberEmployees_Click(object sender, RoutedEventArgs e)
-    {
-        Navigate("ChamberEmployeesReport");
-    }
-
-    private void ChamberCritical_Click(object sender, RoutedEventArgs e)
-    {
-        Navigate("ChamberCritical");
-    }
-
-    private void ProductionLoss_Click(object sender, RoutedEventArgs e)
-    {
-        Navigate("ProductionLoss");
-    }
-
-    private void SensorReadings_Click(object sender, RoutedEventArgs e)
-    {
-        Navigate("SensorReadings");
-    }
-
-
-    // =========================================================
-    // CONFIGURATION
-    // =========================================================
+    private void EntryExit_Click(object sender, RoutedEventArgs e) => Navigate("Reports");
+    private void CameraAccess_Click(object sender, RoutedEventArgs e) => Navigate("CameraAccessReport");
+    private void ChamberEmployees_Click(object sender, RoutedEventArgs e) => Navigate("ChamberEmployeesReport");
+    private void ChamberCritical_Click(object sender, RoutedEventArgs e) => Navigate("ChamberCriticalReport");
+    private void ProductionLoss_Click(object sender, RoutedEventArgs e) => Navigate("ProductionLossReport");
+    private void SensorReadings_Click(object sender, RoutedEventArgs e) => Navigate("SensorReadingsReport");
+    private void SystemLogs_Click(object sender, RoutedEventArgs e) => Navigate("SystemLogsReport");
 
     private void Configuration_Click(object sender, RoutedEventArgs e)
     {
@@ -166,39 +218,22 @@ public partial class SidebarControl : UserControl
                 : "›";
     }
 
-    private void SensorConfiguration_Click(object sender, RoutedEventArgs e)
-    {
-        Navigate("SensorConfiguration");
-    }
-
-    private void CameraConfiguration_Click(object sender, RoutedEventArgs e)
-    {
-        Navigate("CameraConfiguration");
-    }
-
-
-    // =========================================================
-    // THEME
-    // =========================================================
+    private void SensorConfiguration_Click(object sender, RoutedEventArgs e) => Navigate("SensorConfiguration");
+    private void CameraConfiguration_Click(object sender, RoutedEventArgs e) => Navigate("CameraConfiguration");
 
     private void ThemeToggle_Click(object sender, MouseButtonEventArgs e)
     {
         ThemeService.SetDarkMode(!ThemeService.IsDarkMode);
     }
 
-
-    // =========================================================
-    // NAVIGATION
-    // =========================================================
-
     private void Navigate(string page)
     {
         if (CurrentUser == null)
+        {
             return;
+        }
 
-        var window = Window.GetWindow(this);
-
-        if (window is MainWindow mainWindow)
+        if (Window.GetWindow(this) is MainWindow mainWindow)
         {
             AppNavigation.Go(
                 mainWindow.MainNavigationFrame.NavigationService,

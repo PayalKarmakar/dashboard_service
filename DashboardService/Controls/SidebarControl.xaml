@@ -184,7 +184,8 @@
 
                 <!-- DASHBOARD -->
 
-                <Button Style="{StaticResource SidebarButtonStyle}"                        
+                <Button x:Name="DashboardButton"
+                        Style="{StaticResource SidebarButtonStyle}"                        
                         Click="Dashboard_Click">
 
                     <Grid>
@@ -212,7 +213,8 @@
 
                 <!-- CHAMBERS -->
 
-                <Button Style="{StaticResource SidebarButtonStyle}"
+                <Button x:Name="ChambersButton"
+                        Style="{StaticResource SidebarButtonStyle}"
                         Click="Chambers_Click">
 
                     <Grid>
@@ -239,7 +241,8 @@
 
                 <!-- EMPLOYEES -->
 
-                <Button Style="{StaticResource SidebarButtonStyle}"
+                <Button x:Name="EmployeesButton"
+                        Style="{StaticResource SidebarButtonStyle}"
                         Click="Employees_Click">
 
                     <Grid>
@@ -266,7 +269,8 @@
 
                 <!-- RFID -->
 
-                <Button Style="{StaticResource SidebarButtonStyle}"
+                <Button x:Name="ReadersButton"
+                        Style="{StaticResource SidebarButtonStyle}"
                         Click="Readers_Click">
 
                     <Grid>
@@ -293,7 +297,8 @@
 
                 <!-- LIVE CAMERA -->
 
-                <Button Style="{StaticResource SidebarButtonStyle}"
+                <Button x:Name="LiveCameraButton"
+                        Style="{StaticResource SidebarButtonStyle}"
                         Click="LiveCamera_Click">
 
                     <Grid>
@@ -320,7 +325,8 @@
 
                 <!-- RFID MANUAL -->
 
-                <Button Style="{StaticResource SidebarButtonStyle}"
+                <Button x:Name="ManualRfidButton"
+                        Style="{StaticResource SidebarButtonStyle}"
                         Click="ManualRfid_Click">
 
                     <Grid>
@@ -347,7 +353,8 @@
 
                 <!-- REPORTS -->
 
-                <Button Style="{StaticResource SidebarButtonStyle}"
+                <Button x:Name="ReportsButton"
+                        Style="{StaticResource SidebarButtonStyle}"
                         Click="Reports_Click">
 
                     <Grid>
@@ -385,42 +392,55 @@
                             Visibility="Collapsed"
                             Margin="28,0,0,4">
 
-                    <Button Content="Entry / Exit"
+                    <Button x:Name="EntryExitButton"
+                            Content="Entry / Exit"
                             Style="{StaticResource SidebarButtonStyle}"
                             Height="40"
                             Click="EntryExit_Click"/>
 
-                    <Button Content="Camera Access"
+                    <Button x:Name="CameraAccessButton"
+                            Content="Camera Access"
                             Style="{StaticResource SidebarButtonStyle}"
                             Height="40"
                             Click="CameraAccess_Click"/>
 
-                    <Button Content="Chamber Employees"
+                    <Button x:Name="ChamberEmployeesButton"
+                            Content="Chamber Employees"
                             Style="{StaticResource SidebarButtonStyle}"
                             Height="40"
                             Click="ChamberEmployees_Click"/>
 
-                    <Button Content="Chamber Critical"
+                    <Button x:Name="ChamberCriticalButton"
+                            Content="Chamber Critical"
                             Style="{StaticResource SidebarButtonStyle}"
                             Height="40"
                             Click="ChamberCritical_Click"/>
 
-                    <Button Content="Production Loss"
+                    <Button x:Name="ProductionLossButton"
+                            Content="Production Loss"
                             Style="{StaticResource SidebarButtonStyle}"
                             Height="40"
                             Click="ProductionLoss_Click"/>
 
-                    <Button Content="Sensor Readings"
+                    <Button x:Name="SensorReadingsButton"
+                            Content="Sensor Readings"
                             Style="{StaticResource SidebarButtonStyle}"
                             Height="40"
                             Click="SensorReadings_Click"/>
+
+                    <Button x:Name="SystemLogsButton"
+                            Content="System Logs"
+                            Style="{StaticResource SidebarButtonStyle}"
+                            Height="40"
+                            Click="SystemLogs_Click"/>
 
                 </StackPanel>
 
 
                 <!-- CONFIGURATION -->
 
-                <Button Style="{StaticResource SidebarButtonStyle}"
+                <Button x:Name="ConfigurationButton"
+                        Style="{StaticResource SidebarButtonStyle}"
                         Click="Configuration_Click">
 
                     <Grid>
@@ -458,12 +478,14 @@
                             Visibility="Collapsed"
                             Margin="28,0,0,4">
 
-                    <Button Content="Sensor"
+                    <Button x:Name="SensorConfigurationButton"
+                            Content="Sensor"
                             Style="{StaticResource SidebarButtonStyle}"
                             Height="40"
                             Click="SensorConfiguration_Click"/>
 
-                    <Button Content="Camera"
+                    <Button x:Name="CameraConfigurationButton"
+                            Content="Camera"
                             Style="{StaticResource SidebarButtonStyle}"
                             Height="40"
                             Click="CameraConfiguration_Click"/>

@@ -78,7 +78,9 @@ public class ConfigurationService
             InputSize = ReadPositiveInt("CameraLiveSettings:InputSize", 320),
             ModelPath = modelPath,
             UsePythonService = ReadBool("CameraLiveSettings:UsePythonService", true),
-            ShowEntryExitStats = ReadBool("CameraLiveSettings:ShowEntryExitStats", true)
+            ShowEntryExitStats = ReadBool("CameraLiveSettings:ShowEntryExitStats", true),
+            BackgroundMonitoringEnabled = ReadBool("CameraLiveSettings:BackgroundMonitoringEnabled", true),
+            VoiceEnabled = ReadBool("CameraLiveSettings:VoiceEnabled", true)
         };
     }
 

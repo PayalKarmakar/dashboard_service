@@ -28,12 +28,15 @@ namespace DashboardService.Views
 
         public ObservableCollection<SensorLiveStatus> DisconnectedSensors { get; set; }
 
+        public ObservableCollection<CameraAccessEventRow> CameraViolations { get; set; }
+
         private readonly DispatcherTimer _countdownTimer;
         private readonly DispatcherTimer _refreshTimer;
         
         private readonly User _currentUser;
         private readonly MonitoringService _monitoringService = new();
         private readonly SystemLogStatusService _systemLogStatusService = new();
+        private readonly CameraAccessEventService _cameraAccessEventService = new();
         private readonly AlertMessageService _alertMessageService = new();
         private readonly VoiceAnnouncementService _voiceAnnouncementService;
         private readonly HashSet<long> _announcementInFlight = new();
@@ -79,6 +82,7 @@ namespace DashboardService.Views
             DisconnectedRfidReaders = new ObservableCollection<RfidReaderLiveStatus>();
             ConnectedSensors = new ObservableCollection<SensorLiveStatus>();
             DisconnectedSensors = new ObservableCollection<SensorLiveStatus>();
+            CameraViolations = new ObservableCollection<CameraAccessEventRow>();
             ActiveSensorViolations = new ObservableCollection<SensorViolation>(); //Payal
 
             ChambersItemsControl.ItemsSource = Chambers;
@@ -88,6 +92,7 @@ namespace DashboardService.Views
             DisconnectedReadersItemsControl.ItemsSource = DisconnectedRfidReaders;
             ConnectedSensorsItemsControl.ItemsSource = ConnectedSensors;
             DisconnectedSensorsItemsControl.ItemsSource = DisconnectedSensors;
+            CameraViolationsItemsControl.ItemsSource = CameraViolations;
 
             _countdownTimer = new DispatcherTimer
             {
@@ -442,9 +447,11 @@ namespace DashboardService.Views
                 RefreshPreviewMembers();
                 UpdateCountdowns();
                 UpdateDashboardSummary();
+                UpdateMonitoringCameraCount();
                 SyncVoicePlayingFlags();
                 await RefreshRfidReaderStatusAsync();
                 await RefreshSensorConnectionStatusAsync();
+                await RefreshCameraViolationsAsync();
                 await EnqueueUnplayedAnnouncementsAsync();
                 await ProcessDueAnnouncementsAsync();
             }
@@ -457,6 +464,37 @@ namespace DashboardService.Views
                     "Dashboard",
                     MessageBoxButton.OK,
                     MessageBoxImage.Error);
+            }
+        }
+
+        private async Task RefreshCameraViolationsAsync()
+        {
+            try
+            {
+                var rows = await _cameraAccessEventService.GetRecentViolationsAsync(10);
+
+                CameraViolations.Clear();
+                foreach (var row in rows)
+                {
+                    CameraViolations.Add(row);
+                }
+
+                bool hasRows = CameraViolations.Count > 0;
+                CameraViolationsScroll.Visibility =
+                    hasRows ? Visibility.Visible : Visibility.Collapsed;
+                NoCameraViolationsPanel.Visibility =
+                    hasRows ? Visibility.Collapsed : Visibility.Visible;
+                if (hasRows)
+                {
+                    NoCameraViolationsText.Text = "No camera violations";
+                }
+            }
+            catch (Exception ex)
+            {
+                CameraViolations.Clear();
+                CameraViolationsScroll.Visibility = Visibility.Collapsed;
+                NoCameraViolationsText.Text = $"Could not load violations: {ex.Message}";
+                NoCameraViolationsPanel.Visibility = Visibility.Visible;
             }
         }
 
@@ -718,8 +756,6 @@ namespace DashboardService.Views
             }
         }
 
-
-
         //private async Task RefreshSensorConnectionStatusAsync()
         //{
         //    try
@@ -954,6 +990,56 @@ namespace DashboardService.Views
                 $"{currentMembers} / {totalCapacity}";
         }
 
+        private void UpdateMonitoringCameraCount()
+        {
+            int rfidInside = Employees.Count;
+            MonitoringCameraCapacityText.Text = $"/{rfidInside}";
+
+            if (!CameraBackgroundMonitoringService.Instance.IsEnabled)
+            {
+                MonitoringCameraCountText.Text = "—";
+                MonitoringCameraCountText.ToolTip =
+                    "Background camera monitoring is disabled in appsettings.";
+                return;
+            }
+
+            var monitoringSessions = CameraBackgroundMonitoringService.Instance
+                .GetStatuses()
+                .Where(status =>
+                    string.Equals(status.Purpose, "MONITORING", StringComparison.OrdinalIgnoreCase)
+                    && status.IsRunning)
+                .ToList();
+
+            if (monitoringSessions.Count == 0)
+            {
+                MonitoringCameraCountText.Text = "—";
+                MonitoringCameraCountText.ToolTip =
+                    "No active MONITORING camera session. Add/activate a monitoring camera.";
+                return;
+            }
+
+            // One monitoring camera per chamber is expected; take max per chamber then sum.
+            int cameraDetected = monitoringSessions
+                .GroupBy(status => status.ChamberName, StringComparer.OrdinalIgnoreCase)
+                .Sum(group => group.Max(status => status.DetectedCount));
+
+            MonitoringCameraCountText.Text = cameraDetected.ToString();
+            MonitoringCameraCountText.ToolTip =
+                $"Camera detected: {cameraDetected} · RFID inside: {rfidInside}";
+
+            if (cameraDetected > rfidInside)
+            {
+                MonitoringCameraCountText.Foreground =
+                    new System.Windows.Media.SolidColorBrush(
+                        (System.Windows.Media.Color)System.Windows.Media.ColorConverter.ConvertFromString("#DC2626"));
+            }
+            else
+            {
+                MonitoringCameraCountText.Foreground =
+                    (System.Windows.Media.Brush)FindResource("TextPrimaryBrush");
+            }
+        }
+
         private void ViewMoreMembers_Click(object sender, RoutedEventArgs e)
         {
             var window = new CurrentMembersWindow(
@@ -1084,35 +1170,6 @@ namespace DashboardService.Views
             }
         }
 
-        private void DashboardMenu_Click(object sender, RoutedEventArgs e)
-        {
-            AppNavigation.Go(NavigationService, "Dashboard", _currentUser);
-        }
-
-        private void ChambersMenu_Click(object sender, RoutedEventArgs e)
-        {
-            _countdownTimer.Stop();
-            _refreshTimer.Stop();
-            _sensorReadingTimer.Stop();
-            AppNavigation.Go(NavigationService, "Chambers", _currentUser);
-        }
-
-        private void EmployeesMenu_Click(object sender, RoutedEventArgs e)
-        {
-            _countdownTimer.Stop();
-            _refreshTimer.Stop();
-            _sensorReadingTimer.Stop();
-            AppNavigation.Go(NavigationService, "Employees", _currentUser);
-        }
-
-        private void ReadersMenu_Click(object sender, RoutedEventArgs e)
-        {
-            _countdownTimer.Stop();
-            _refreshTimer.Stop();
-            _sensorReadingTimer.Stop();
-            AppNavigation.Go(NavigationService, "Readers", _currentUser);
-        }
-
         //private void ReportsToggle_Click(object sender, RoutedEventArgs e)
         //{
         //    bool open = ReportsSubMenuPanel.Visibility != Visibility.Visible;
@@ -1120,87 +1177,7 @@ namespace DashboardService.Views
         //    ReportsArrowText.Text = open ? "▲" : "▼";
         //}
 
-        private void EntryExitReportMenu_Click(object sender, RoutedEventArgs e)
-        {
-            _countdownTimer.Stop();
-            _refreshTimer.Stop();
-            _sensorReadingTimer.Stop();
-            AppNavigation.Go(NavigationService, "Reports", _currentUser);
-        }
-
-        private void CameraAccessReportMenu_Click(object sender, RoutedEventArgs e)
-        {
-            _countdownTimer.Stop();
-            _refreshTimer.Stop();
-            _sensorReadingTimer.Stop();
-            AppNavigation.Go(NavigationService, "CameraAccessReport", _currentUser);
-        }
-
-        private void ChamberEmployeesReportMenu_Click(object sender, RoutedEventArgs e)
-        {
-            _countdownTimer.Stop();
-            _refreshTimer.Stop();
-            _sensorReadingTimer.Stop();
-            AppNavigation.Go(NavigationService, "ChamberEmployeesReport", _currentUser);
-        }
-
-        private void ChamberCriticalReportMenu_Click(object sender, RoutedEventArgs e)
-        {
-            _countdownTimer.Stop();
-            _refreshTimer.Stop();
-            _sensorReadingTimer.Stop();
-            AppNavigation.Go(NavigationService, "ChamberCriticalReport", _currentUser);
-        }
-
-        private void ProductionLossReportMenu_Click(object sender, RoutedEventArgs e)
-        {
-            _countdownTimer.Stop();
-            _refreshTimer.Stop();
-            _sensorReadingTimer.Stop();
-            AppNavigation.Go(NavigationService, "ProductionLossReport", _currentUser);
-        }
-        private void SensorReadingsReportMenu_Click(object sender, RoutedEventArgs e)
-        {
-            _countdownTimer.Stop();
-            _refreshTimer.Stop();
-            _sensorReadingTimer.Stop();
-            AppNavigation.Go(NavigationService, "SensorReadingsReport", _currentUser);
-        }
-
         //private void ConfigurationToggle_Click(object sender, RoutedEventArgs e) =>
-        //    SidebarMenuHelper.ToggleSubMenu(ConfigurationSubMenuPanel, ConfigurationArrowText);
-
-        private void SensorConfigurationMenu_Click(object sender, RoutedEventArgs e)
-        {
-            _countdownTimer.Stop();
-            _refreshTimer.Stop();
-            _sensorReadingTimer.Stop();
-            AppNavigation.Go(NavigationService, "SensorConfiguration", _currentUser);
-        }
-
-        private void LiveCameraMenu_Click(object sender, RoutedEventArgs e)
-        {
-            _countdownTimer.Stop();
-            _refreshTimer.Stop();
-            _sensorReadingTimer.Stop();
-            AppNavigation.Go(NavigationService, "LiveCamera", _currentUser);
-        }
-
-        private void CameraConfigurationMenu_Click(object sender, RoutedEventArgs e)
-        {
-            _countdownTimer.Stop();
-            _refreshTimer.Stop();
-            _sensorReadingTimer.Stop();
-            AppNavigation.Go(NavigationService, "CameraConfiguration", _currentUser);
-        }
-
-        private void ManualRfidMenu_Click(object sender, RoutedEventArgs e)
-        {
-            _countdownTimer.Stop();
-            _refreshTimer.Stop();
-            _sensorReadingTimer.Stop();
-            AppNavigation.Go(NavigationService, "ManualRfidTransactions", _currentUser);
-        }
 
         private void CodeInqLink_RequestNavigate(object sender, RequestNavigateEventArgs e)
         {
