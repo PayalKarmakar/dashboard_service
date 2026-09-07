@@ -20,10 +20,6 @@ public partial class ChambersPage : Page
         ChambersGrid.ItemsSource = _chambersPager.PageItems;
         _currentUser = currentUser;
         Loaded += ChambersPage_Loaded;
-
-        bool isAdmin = string.Equals(_currentUser.Role, "ADMIN", StringComparison.OrdinalIgnoreCase);
-        AddChamberButton.Visibility = isAdmin ? Visibility.Visible : Visibility.Collapsed;
-
     }
 
     private async void ChambersPage_Loaded(object sender, RoutedEventArgs e)
@@ -52,6 +48,34 @@ public partial class ChambersPage : Page
         }
 
         var window = new AddChamberWindow(_currentUser.UserId)
+        {
+            Owner = Window.GetWindow(this)
+        };
+
+        if (window.ShowDialog() == true)
+        {
+            await LoadChambersAsync();
+        }
+    }
+
+    private async void EditChamber_Click(object sender, RoutedEventArgs e)
+    {
+        if (!string.Equals(_currentUser.Role, "ADMIN", StringComparison.OrdinalIgnoreCase))
+        {
+            MessageBox.Show(
+                "Only admin can edit chambers.",
+                "Chambers",
+                MessageBoxButton.OK,
+                MessageBoxImage.Warning);
+            return;
+        }
+
+        if (sender is not Button button || button.DataContext is not Chamber chamber)
+        {
+            return;
+        }
+
+        var window = new AddChamberWindow(_currentUser.UserId, chamber)
         {
             Owner = Window.GetWindow(this)
         };

@@ -15,8 +15,9 @@
             <Grid>
                 <StackPanel VerticalAlignment="Center">
                     <TextBlock Text="Chambers" FontSize="28" FontWeight="Bold" Foreground="{DynamicResource TextPrimaryBrush}"/>
-                    <TextBlock Text="Add and manage monitored chambers" FontSize="13" Foreground="{DynamicResource TextMutedBrush}" Margin="0,4,0,0"/>
+                    <TextBlock Text="Manage monitored chambers" FontSize="13" Foreground="{DynamicResource TextMutedBrush}" Margin="0,4,0,0"/>
                 </StackPanel>
+                <!-- Add Chamber
                 <Button x:Name="AddChamberButton"
                         Content="Add Chamber"
                         Width="150"
@@ -27,6 +28,7 @@
                         BorderThickness="0"
                         FontWeight="SemiBold"
                         Click="AddChamber_Click"/>
+                -->
             </Grid>
 
             <Border Grid.Row="2" Background="{DynamicResource CardBgBrush}" CornerRadius="16" BorderBrush="{DynamicResource CardBorderBrush}" BorderThickness="1" Padding="8">
@@ -81,14 +83,20 @@
                         <DataGridTextColumn Header="MEMBERS" Binding="{Binding MemberThreshold}" Width="0.8*" ElementStyle="{StaticResource DataGridTextCellStyle}"/>
                         <DataGridTextColumn Header="TIME (MIN)" Binding="{Binding TimeThreshold}" Width="0.8*" ElementStyle="{StaticResource DataGridTextCellStyle}"/>
                         <DataGridTextColumn Header="STATUS" Binding="{Binding Status}" Width="0.8*" ElementStyle="{StaticResource DataGridTextCellStyle}"/>
-                        <DataGridTemplateColumn Header="ACTION" Width="110">
+                        <DataGridTemplateColumn Header="ACTION" Width="180">
                             <DataGridTemplateColumn.CellTemplate>
                                 <DataTemplate>
-                                    <Button Content="{Binding ToggleActionText}"
-                                            Padding="8,4"
-                                            Margin="4,2"
-                                            Cursor="Hand"
-                                            Click="ToggleActive_Click"/>
+                                    <StackPanel Orientation="Horizontal" Margin="4,2">
+                                        <Button Content="Edit"
+                                                Padding="8,4"
+                                                Margin="0,0,6,0"
+                                                Cursor="Hand"
+                                                Click="EditChamber_Click"/>
+                                        <Button Content="{Binding ToggleActionText}"
+                                                Padding="8,4"
+                                                Cursor="Hand"
+                                                Click="ToggleActive_Click"/>
+                                    </StackPanel>
                                 </DataTemplate>
                             </DataGridTemplateColumn.CellTemplate>
                         </DataGridTemplateColumn>

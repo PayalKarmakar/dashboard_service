@@ -100,6 +100,49 @@ public class ChamberService
         }
     }
 
+    public async Task UpdateAsync(Chamber chamber, long updatedBy)
+    {
+        await using var connection = new NpgsqlConnection(_configurationService.GetConnectionString());
+        await connection.OpenAsync();
+
+        const string sql = @"
+            UPDATE public.master_chambers
+            SET
+                chamber_code = @code,
+                chamber_name = @name,
+                chamber_location = @location,
+                member_threshold = @memberThreshold,
+                time_threshold = @timeThreshold,
+                updated_at = NOW()
+            WHERE chamber_id = @id;
+        ";
+
+        await using var command = new NpgsqlCommand(sql, connection);
+        command.Parameters.AddWithValue("id", chamber.ChamberId);
+        command.Parameters.AddWithValue("code", chamber.ChamberCode.Trim());
+        command.Parameters.AddWithValue("name", chamber.ChamberName.Trim());
+        command.Parameters.AddWithValue(
+            "location",
+            string.IsNullOrWhiteSpace(chamber.ChamberLocation)
+                ? (object)DBNull.Value
+                : chamber.ChamberLocation.Trim());
+        command.Parameters.AddWithValue(
+            "memberThreshold",
+            (object?)chamber.MemberThreshold ?? DBNull.Value);
+        command.Parameters.AddWithValue(
+            "timeThreshold",
+            (object?)chamber.TimeThreshold ?? DBNull.Value);
+
+        try
+        {
+            await command.ExecuteNonQueryAsync();
+        }
+        catch (PostgresException ex) when (ex.SqlState == "23505")
+        {
+            throw new Exception("Chamber code already exists.");
+        }
+    }
+
     public async Task SetActiveAsync(long chamberId, bool isActive, long updatedBy)
     {
         await using var connection = new NpgsqlConnection(_configurationService.GetConnectionString());

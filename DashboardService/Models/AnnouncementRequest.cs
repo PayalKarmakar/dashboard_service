@@ -12,6 +12,8 @@ public sealed class AnnouncementRequest
 
     public long AlertId { get; init; }
 
+    public string AlertType { get; init; } = string.Empty;
+
     public long TransactionId { get; init; }
 
     public IReadOnlyList<VoiceAnnouncementLine> GetVoiceLines(string? preferredCulture = null)

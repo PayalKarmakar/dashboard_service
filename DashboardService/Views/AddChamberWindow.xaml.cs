@@ -7,12 +7,31 @@ namespace DashboardService.Views;
 public partial class AddChamberWindow : Window
 {
     private readonly ChamberService _chamberService = new();
-    private readonly long _createdBy;
+    private readonly long _changedBy;
+    private readonly Chamber? _editingChamber;
+    private readonly bool _isEditMode;
 
-    public AddChamberWindow(long createdBy)
+    public AddChamberWindow(long changedBy, Chamber? existingChamber = null)
     {
         InitializeComponent();
-        _createdBy = createdBy;
+        _changedBy = changedBy;
+        _editingChamber = existingChamber;
+        _isEditMode = existingChamber != null;
+
+        if (_isEditMode && _editingChamber != null)
+        {
+            Title = "Edit Chamber";
+            TitleText.Text = "Edit Chamber";
+            SubtitleText.Text = "Update chamber details and time threshold";
+            SaveButton.Content = "Update";
+
+            CodeTextBox.Text = _editingChamber.ChamberCode;
+            NameTextBox.Text = _editingChamber.ChamberName;
+            LocationTextBox.Text = _editingChamber.ChamberLocation;
+            MemberThresholdTextBox.Text = _editingChamber.MemberThreshold?.ToString() ?? string.Empty;
+            TimeThresholdTextBox.Text = _editingChamber.TimeThreshold?.ToString() ?? string.Empty;
+        }
+
         CodeTextBox.Focus();
     }
 
@@ -20,12 +39,13 @@ public partial class AddChamberWindow : Window
     {
         string code = CodeTextBox.Text.Trim();
         string name = NameTextBox.Text.Trim();
+        string dialogTitle = _isEditMode ? "Edit Chamber" : "Add Chamber";
 
         if (string.IsNullOrWhiteSpace(code) || string.IsNullOrWhiteSpace(name))
         {
             MessageBox.Show(
                 "Chamber code and name are required.",
-                "Add Chamber",
+                dialogTitle,
                 MessageBoxButton.OK,
                 MessageBoxImage.Warning);
             return;
@@ -39,6 +59,7 @@ public partial class AddChamberWindow : Window
 
         var chamber = new Chamber
         {
+            ChamberId = _editingChamber?.ChamberId ?? 0,
             ChamberCode = code,
             ChamberName = name,
             ChamberLocation = LocationTextBox.Text.Trim(),
@@ -48,14 +69,22 @@ public partial class AddChamberWindow : Window
 
         try
         {
-            await _chamberService.AddAsync(chamber, _createdBy);
+            if (_isEditMode)
+            {
+                await _chamberService.UpdateAsync(chamber, _changedBy);
+            }
+            else
+            {
+                await _chamberService.AddAsync(chamber, _changedBy);
+            }
+
             DialogResult = true;
         }
         catch (Exception ex)
         {
             MessageBox.Show(
                 ex.Message,
-                "Add Chamber",
+                dialogTitle,
                 MessageBoxButton.OK,
                 MessageBoxImage.Error);
         }
@@ -79,7 +108,7 @@ public partial class AddChamberWindow : Window
         {
             MessageBox.Show(
                 $"{fieldName} must be a valid number.",
-                "Add Chamber",
+                "Chamber",
                 MessageBoxButton.OK,
                 MessageBoxImage.Warning);
             return false;

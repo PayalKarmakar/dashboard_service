@@ -19,7 +19,7 @@ namespace DashboardService.Models
 
         public DateTime EntryTime { get; set; }
 
-        // Allowed inside duration. Value comes from appsettings AlertSettings:AfterMinutes.
+        // Allowed inside duration from the chamber TIME (MIN). Falls back to AfterMinutes.
         public int TimeThresholdMinutes { get; set; } = 60;
 
         public int AttentionMinutes { get; set; } = 30;
@@ -111,11 +111,9 @@ namespace DashboardService.Models
                 if (elapsedMinutes >= TimeThresholdMinutes)
                     return "Violation";
 
-                if (elapsedMinutes >= TimeThresholdMinutes - WarningRemainingMinutes)
+                if (TimeThresholdMinutes > WarningRemainingMinutes
+                    && elapsedMinutes >= TimeThresholdMinutes - WarningRemainingMinutes)
                     return "Warning";
-
-                if (elapsedMinutes >= AttentionMinutes)
-                    return "Attention";
 
                 return "Inside";
             }

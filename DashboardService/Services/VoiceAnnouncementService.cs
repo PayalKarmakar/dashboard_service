@@ -39,7 +39,8 @@ public sealed class VoiceAnnouncementService : IDisposable
     public void StartLooping(
         long transactionId,
         IReadOnlyList<VoiceAnnouncementLine> lines,
-        long? alertId = null)
+        long? alertId = null,
+        int? maxSpeakCount = null)
     {
         if (transactionId <= 0 || _disposed)
         {
@@ -63,7 +64,7 @@ public sealed class VoiceAnnouncementService : IDisposable
             _ =>
             {
                 added = true;
-                return new LoopingAnnouncement(validLines, alertId);
+                return new LoopingAnnouncement(validLines, alertId, maxSpeakCount);
             },
             (_, existing) =>
             {
@@ -73,6 +74,7 @@ public sealed class VoiceAnnouncementService : IDisposable
                     existing.AlertId = alertId;
                 }
 
+                existing.MaxSpeakCount = maxSpeakCount;
                 return existing;
             });
 
@@ -85,12 +87,13 @@ public sealed class VoiceAnnouncementService : IDisposable
         _workAvailable.Set();
     }
 
-    public void StartLooping(long transactionId, string message, long? alertId = null)
+    public void StartLooping(long transactionId, string message, long? alertId = null, int? maxSpeakCount = null)
     {
         StartLooping(
             transactionId,
             new[] { new VoiceAnnouncementLine(message) },
-            alertId);
+            alertId,
+            maxSpeakCount);
     }
 
     public void AnnounceOnce(string message, string culture = "en-IN")
@@ -248,6 +251,7 @@ public sealed class VoiceAnnouncementService : IDisposable
                 continue;
             }
 
+            bool stopAfterSpeak = false;
             try
             {
                 lock (_speakLock)
@@ -257,6 +261,7 @@ public sealed class VoiceAnnouncementService : IDisposable
                 }
 
                 SpeakLine(line, transactionId);
+                stopAfterSpeak = item.RegisterSpeak();
 
                 if (item.AlertId is long alertId &&
                     _markPlayedAsync != null &&
@@ -285,6 +290,12 @@ public sealed class VoiceAnnouncementService : IDisposable
                     _currentlySpeakingKey = null;
                     _cancelCurrentSpeech = false;
                 }
+            }
+
+            if (stopAfterSpeak)
+            {
+                Stop(transactionId);
+                continue;
             }
 
             if (_active.ContainsKey(transactionId))
@@ -353,13 +364,27 @@ public sealed class VoiceAnnouncementService : IDisposable
         private int _nextLineIndex;
         private IReadOnlyList<VoiceAnnouncementLine> _lines;
 
-        public LoopingAnnouncement(IReadOnlyList<VoiceAnnouncementLine> lines, long? alertId)
+        public LoopingAnnouncement(
+            IReadOnlyList<VoiceAnnouncementLine> lines,
+            long? alertId,
+            int? maxSpeakCount)
         {
             _lines = lines;
             AlertId = alertId;
+            MaxSpeakCount = maxSpeakCount;
         }
 
         public long? AlertId { get; set; }
+
+        public int? MaxSpeakCount { get; set; }
+
+        public bool RegisterSpeak()
+        {
+            _speakCount++;
+            return MaxSpeakCount.HasValue && _speakCount >= MaxSpeakCount.Value;
+        }
+
+        private int _speakCount;
 
         public void SetLines(IReadOnlyList<VoiceAnnouncementLine> lines)
         {

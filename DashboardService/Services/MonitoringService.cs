@@ -31,7 +31,8 @@ public class MonitoringService
                 COALESCE(c.chamber_name, ''),
                 t.entry_time,
                 t.alert_triggered,
-                t.last_announcement_at
+                t.last_announcement_at,
+                c.time_threshold
             FROM public.rfid_transactions t
             LEFT JOIN public.master_chambers c
                 ON c.chamber_id = t.chamber_id
@@ -53,7 +54,9 @@ public class MonitoringService
                 CardUid = reader.GetString(3),
                 ChamberName = reader.GetString(4),
                 EntryTime = reader.GetDateTime(5),
-                TimeThresholdMinutes = settings.AfterMinutes,
+                TimeThresholdMinutes = ResolveChamberTimeThreshold(
+                    reader.IsDBNull(8) ? null : reader.GetInt32(8),
+                    settings.AfterMinutes),
                 AttentionMinutes = settings.AttentionMinutes,
                 WarningRemainingMinutes = settings.WarningRemainingMinutes,
                 AlertTriggered = reader.GetBoolean(6),
@@ -211,8 +214,15 @@ public class MonitoringService
 
         var settings = _configurationService.GetAlertSettings();
         double elapsedMinutes = (DateTime.Now - employee.EntryTime).TotalMinutes;
+        int allowedMinutes = employee.TimeThresholdMinutes > 0
+            ? employee.TimeThresholdMinutes
+            : settings.AfterMinutes;
+        int warningLeadMinutes = employee.WarningRemainingMinutes > 0
+            ? employee.WarningRemainingMinutes
+            : 10;
+        int warningAtMinutes = allowedMinutes - warningLeadMinutes;
 
-        if (elapsedMinutes >= settings.AfterMinutes)
+        if (elapsedMinutes >= allowedMinutes)
         {
             bool hasViolationRecord =
                 employee.HasAnnouncement(ViolationType) ||
@@ -255,7 +265,7 @@ public class MonitoringService
             return null;
         }
 
-        if (elapsedMinutes >= settings.WarningAtMinutes)
+        if (allowedMinutes > warningLeadMinutes && elapsedMinutes >= warningAtMinutes)
         {
             if (employee.HasAnnouncement(WarningType))
             {
@@ -268,20 +278,17 @@ public class MonitoringService
                 markViolation: false);
         }
 
-        if (elapsedMinutes >= settings.AttentionMinutes)
-        {
-            if (employee.HasAnnouncement(AttentionType))
-            {
-                return null;
-            }
+        return null;
+    }
 
-            return await CreateAnnouncementAsync(
-                employee,
-                AttentionType,
-                markViolation: false);
+    private static int ResolveChamberTimeThreshold(int? chamberMinutes, int fallbackMinutes)
+    {
+        if (chamberMinutes is > 0)
+        {
+            return chamberMinutes.Value;
         }
 
-        return null;
+        return fallbackMinutes > 0 ? fallbackMinutes : 60;
     }
 
     private async Task<Dictionary<long, HashSet<string>>> GetAnnouncementTypesAsync(NpgsqlConnection connection,List<long> transactionIds)
@@ -384,7 +391,11 @@ public class MonitoringService
             .Replace("{ChamberName}", employee.ChamberName, StringComparison.OrdinalIgnoreCase)
             .Replace("{AttentionMinutes}", settings.AttentionMinutes.ToString())
             .Replace("{WarningRemainingMinutes}", settings.WarningRemainingMinutes.ToString())
-            .Replace("{AfterMinutes}", settings.AfterMinutes.ToString());
+            .Replace(
+                "{AfterMinutes}",
+                (employee.TimeThresholdMinutes > 0
+                    ? employee.TimeThresholdMinutes
+                    : settings.AfterMinutes).ToString());
     }
 
     public static string FormatSensorMessage(string template, string parameter, string chamberName)
@@ -439,6 +450,7 @@ public class MonitoringService
         return new AnnouncementRequest
         {
             AlertId = alertId,
+            AlertType = alertType,
             Message = primaryMessage,
             SecondaryMessage = secondaryMessage,
             MessageCulture = AlertMessageService.CultureEnglishIndia,
@@ -468,6 +480,7 @@ public class MonitoringService
         return new AnnouncementRequest
         {
             AlertId = alertId,
+            AlertType = alertType,
             Message = primaryMessage,
             SecondaryMessage = secondaryMessage,
             MessageCulture = AlertMessageService.CultureEnglishIndia,

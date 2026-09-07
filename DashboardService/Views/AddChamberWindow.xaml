@@ -12,8 +12,8 @@
     <Border Margin="24" Background="{DynamicResource ModalCardBrush}" CornerRadius="16" Padding="28,24"
             BorderBrush="{DynamicResource CardBorderBrush}" BorderThickness="1">
         <StackPanel>
-            <TextBlock Text="Add Chamber" FontSize="22" FontWeight="Bold" Foreground="{DynamicResource AccentBrush}"/>
-            <TextBlock Text="Create a new monitored chamber" FontSize="12" Foreground="{DynamicResource TextMutedBrush}" Margin="0,4,0,18"/>
+            <TextBlock x:Name="TitleText" Text="Add Chamber" FontSize="22" FontWeight="Bold" Foreground="{DynamicResource AccentBrush}"/>
+            <TextBlock x:Name="SubtitleText" Text="Create a new monitored chamber" FontSize="12" Foreground="{DynamicResource TextMutedBrush}" Margin="0,4,0,18"/>
 
             <TextBlock Text="Chamber Code *" FontSize="12" FontWeight="SemiBold" Foreground="{DynamicResource TextPrimaryBrush}"/>
             <TextBox x:Name="CodeTextBox" Height="40" Margin="0,6,0,14" Padding="10,0" VerticalContentAlignment="Center"
@@ -39,7 +39,7 @@
                 <Button Content="Cancel" Width="100" Height="40" Margin="0,0,10,0"
                         Background="{DynamicResource ButtonSecondaryBgBrush}" Foreground="{DynamicResource ButtonSecondaryFgBrush}"
                         BorderBrush="{DynamicResource CardBorderBrush}" Click="Cancel_Click"/>
-                <Button Content="Save" Width="110" Height="40" Background="{DynamicResource AccentBrush}" Foreground="White"
+                <Button x:Name="SaveButton" Content="Save" Width="110" Height="40" Background="{DynamicResource AccentBrush}" Foreground="White"
                         BorderThickness="0" Click="Save_Click"/>
             </StackPanel>
         </StackPanel>

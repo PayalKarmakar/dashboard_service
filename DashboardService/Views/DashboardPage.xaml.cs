@@ -323,10 +323,15 @@ namespace DashboardService.Views
             }
 
             _enqueuedAlertIds.Add(announcement.AlertId);
+            bool isWarning = string.Equals(
+                announcement.AlertType,
+                MonitoringService.WarningType,
+                StringComparison.OrdinalIgnoreCase);
             _voiceAnnouncementService.StartLooping(
                 announcement.TransactionId,
                 announcement.GetVoiceLines(_selectedVoiceCulture),
-                announcement.AlertId);
+                announcement.AlertId,
+                maxSpeakCount: isWarning ? 2 : null);
         }
 
         private void VoiceLanguageRadio_Checked(object sender, RoutedEventArgs e)
@@ -429,6 +434,15 @@ namespace DashboardService.Views
             {
                 var chambers = await _monitoringService.GetChamberOccupancyAsync();
                 var members = await _monitoringService.GetMembersInsideAsync();
+                var insideIds = members.Select(x => x.TransactionId).ToHashSet();
+
+                foreach (var previous in Employees.ToList())
+                {
+                    if (!insideIds.Contains(previous.TransactionId))
+                    {
+                        _voiceAnnouncementService.Stop(previous.TransactionId);
+                    }
+                }
 
                 Chambers.Clear();
                 foreach (var chamber in chambers)
