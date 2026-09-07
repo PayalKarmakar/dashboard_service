@@ -30,6 +30,10 @@ namespace DashboardService.Views
 
         public ObservableCollection<CameraAccessEventRow> CameraViolations { get; set; }
 
+        public ObservableCollection<CameraLiveStatus> ConnectedCameras { get; set; }
+
+        public ObservableCollection<CameraLiveStatus> DisconnectedCameras { get; set; }
+
         private readonly DispatcherTimer _countdownTimer;
         private readonly DispatcherTimer _refreshTimer;
         
@@ -37,6 +41,7 @@ namespace DashboardService.Views
         private readonly MonitoringService _monitoringService = new();
         private readonly SystemLogStatusService _systemLogStatusService = new();
         private readonly CameraAccessEventService _cameraAccessEventService = new();
+        private readonly CameraConfigurationService _cameraConfigurationService = new();
         private readonly AlertMessageService _alertMessageService = new();
         private readonly VoiceAnnouncementService _voiceAnnouncementService;
         private readonly HashSet<long> _announcementInFlight = new();
@@ -83,6 +88,8 @@ namespace DashboardService.Views
             ConnectedSensors = new ObservableCollection<SensorLiveStatus>();
             DisconnectedSensors = new ObservableCollection<SensorLiveStatus>();
             CameraViolations = new ObservableCollection<CameraAccessEventRow>();
+            ConnectedCameras = new ObservableCollection<CameraLiveStatus>();
+            DisconnectedCameras = new ObservableCollection<CameraLiveStatus>();
             ActiveSensorViolations = new ObservableCollection<SensorViolation>(); //Payal
 
             ChambersItemsControl.ItemsSource = Chambers;
@@ -93,6 +100,8 @@ namespace DashboardService.Views
             ConnectedSensorsItemsControl.ItemsSource = ConnectedSensors;
             DisconnectedSensorsItemsControl.ItemsSource = DisconnectedSensors;
             CameraViolationsItemsControl.ItemsSource = CameraViolations;
+            ConnectedCamerasItemsControl.ItemsSource = ConnectedCameras;
+            DisconnectedCamerasItemsControl.ItemsSource = DisconnectedCameras;
 
             _countdownTimer = new DispatcherTimer
             {
@@ -465,6 +474,7 @@ namespace DashboardService.Views
                 SyncVoicePlayingFlags();
                 await RefreshRfidReaderStatusAsync();
                 await RefreshSensorConnectionStatusAsync();
+                await RefreshCameraDeviceStatusAsync();
                 await RefreshCameraViolationsAsync();
                 await EnqueueUnplayedAnnouncementsAsync();
                 await ProcessDueAnnouncementsAsync();
@@ -485,7 +495,7 @@ namespace DashboardService.Views
         {
             try
             {
-                var rows = await _cameraAccessEventService.GetRecentViolationsAsync(10);
+                var rows = await _cameraAccessEventService.GetRecentViolationsAsync(5);
 
                 CameraViolations.Clear();
                 foreach (var row in rows)
@@ -509,6 +519,50 @@ namespace DashboardService.Views
                 CameraViolationsScroll.Visibility = Visibility.Collapsed;
                 NoCameraViolationsText.Text = $"Could not load violations: {ex.Message}";
                 NoCameraViolationsPanel.Visibility = Visibility.Visible;
+            }
+        }
+
+        private async Task RefreshCameraDeviceStatusAsync()
+        {
+            try
+            {
+                var cameras = await _cameraConfigurationService.GetAllAsync();
+                var sessions = CameraBackgroundMonitoringService.Instance
+                    .GetStatuses()
+                    .ToDictionary(status => status.CameraId);
+
+                ConnectedCameras.Clear();
+                DisconnectedCameras.Clear();
+
+                foreach (var camera in cameras
+                    .Where(c => c.IsActive)
+                    .OrderBy(c => c.CameraName, StringComparer.OrdinalIgnoreCase))
+                {
+                    bool connected = sessions.TryGetValue(camera.CameraId, out CameraMonitorStatus? session)
+                        && session.IsConnected;
+
+                    var row = new CameraLiveStatus
+                    {
+                        CameraId = camera.CameraId,
+                        CameraName = camera.CameraName,
+                        ChamberName = camera.ChamberName,
+                        IsConnected = connected
+                    };
+
+                    if (connected)
+                    {
+                        ConnectedCameras.Add(row);
+                    }
+                    else
+                    {
+                        DisconnectedCameras.Add(row);
+                    }
+                }
+            }
+            catch
+            {
+                ConnectedCameras.Clear();
+                DisconnectedCameras.Clear();
             }
         }
 

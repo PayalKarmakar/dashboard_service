@@ -1833,6 +1833,7 @@
                             <!-- ========================================================= -->
 
                             <Border Grid.Row="0"
+                                MaxHeight="320"
                                 Background="White"
                                 CornerRadius="16"
                                 BorderBrush="#E2E8F0"
@@ -2033,6 +2034,146 @@
 
 
                                                                 <!-- OFF -->
+                                                                <Border Grid.Column="2"
+                                            Background="#FFF1F2"
+                                            BorderBrush="#FDA4AF"
+                                            BorderThickness="1"
+                                            CornerRadius="9"
+                                            Padding="9,3"
+                                            VerticalAlignment="Center">
+
+                                                                    <TextBlock Text="OFF"
+                                                   FontSize="9"
+                                                   FontWeight="Bold"
+                                                   Foreground="#EF4444"/>
+
+                                                                </Border>
+
+                                                            </Grid>
+
+                                                        </Border>
+
+                                                    </DataTemplate>
+
+                                                </ItemsControl.ItemTemplate>
+
+                                            </ItemsControl>
+
+
+                                            <!-- ================================================= -->
+                                            <!-- CONNECTED CAMERAS                                  -->
+                                            <!-- ================================================= -->
+
+                                            <ItemsControl x:Name="ConnectedCamerasItemsControl">
+
+                                                <ItemsControl.ItemTemplate>
+
+                                                    <DataTemplate>
+
+                                                        <Border Height="56"
+                                    Padding="16,6"
+                                    Background="White">
+
+                                                            <Grid>
+
+                                                                <Grid.ColumnDefinitions>
+                                                                    <ColumnDefinition Width="14"/>
+                                                                    <ColumnDefinition Width="*"/>
+                                                                    <ColumnDefinition Width="Auto"/>
+                                                                </Grid.ColumnDefinitions>
+
+                                                                <Ellipse Grid.Column="0"
+                                             Width="10"
+                                             Height="10"
+                                             Fill="#10B981"
+                                             VerticalAlignment="Center"/>
+
+                                                                <StackPanel Grid.Column="1"
+                                                Margin="10,0,8,0"
+                                                VerticalAlignment="Center">
+
+                                                                    <TextBlock Text="{Binding CameraName}"
+                                                   FontSize="14"
+                                                   FontWeight="SemiBold"
+                                                   Foreground="#0B2248"/>
+
+                                                                    <TextBlock Text="{Binding ChamberName}"
+                                                   FontSize="10"
+                                                   Foreground="#8BA0BC"
+                                                   Margin="0,2,0,0"/>
+
+                                                                </StackPanel>
+
+                                                                <Border Grid.Column="2"
+                                            Background="#ECFDF5"
+                                            BorderBrush="#6EE7B7"
+                                            BorderThickness="1"
+                                            CornerRadius="9"
+                                            Padding="9,3"
+                                            VerticalAlignment="Center">
+
+                                                                    <TextBlock Text="ON"
+                                                   FontSize="9"
+                                                   FontWeight="Bold"
+                                                   Foreground="#059669"/>
+
+                                                                </Border>
+
+                                                            </Grid>
+
+                                                        </Border>
+
+                                                    </DataTemplate>
+
+                                                </ItemsControl.ItemTemplate>
+
+                                            </ItemsControl>
+
+
+                                            <!-- ================================================= -->
+                                            <!-- DISCONNECTED CAMERAS                              -->
+                                            <!-- ================================================= -->
+
+                                            <ItemsControl x:Name="DisconnectedCamerasItemsControl">
+
+                                                <ItemsControl.ItemTemplate>
+
+                                                    <DataTemplate>
+
+                                                        <Border Height="56"
+                                    Padding="16,6"
+                                    Background="White">
+
+                                                            <Grid>
+
+                                                                <Grid.ColumnDefinitions>
+                                                                    <ColumnDefinition Width="14"/>
+                                                                    <ColumnDefinition Width="*"/>
+                                                                    <ColumnDefinition Width="Auto"/>
+                                                                </Grid.ColumnDefinitions>
+
+                                                                <Ellipse Grid.Column="0"
+                                             Width="10"
+                                             Height="10"
+                                             Fill="#FB7185"
+                                             VerticalAlignment="Center"/>
+
+                                                                <StackPanel Grid.Column="1"
+                                                Margin="10,0,8,0"
+                                                VerticalAlignment="Center">
+
+                                                                    <TextBlock Text="{Binding CameraName}"
+                                                   FontSize="14"
+                                                   FontWeight="SemiBold"
+                                                   Foreground="#0B2248"/>
+
+                                                                    <TextBlock Text="{Binding ChamberName}"
+                                                   FontSize="10"
+                                                   Foreground="#8BA0BC"
+                                                   Margin="0,2,0,0"/>
+
+                                                                </StackPanel>
+
                                                                 <Border Grid.Column="2"
                                             Background="#FFF1F2"
                                             BorderBrush="#FDA4AF"
@@ -2275,6 +2416,7 @@
 
                                         <Grid>
                                             <ScrollViewer x:Name="CameraViolationsScroll"
+                                                          MaxHeight="360"
                                                           VerticalScrollBarVisibility="Auto"
                                                           HorizontalScrollBarVisibility="Disabled"
                                                           Visibility="Collapsed">
