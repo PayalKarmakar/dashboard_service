@@ -1,7 +1,10 @@
 using System.Windows;
 using System.Windows.Controls;
+using System.Windows.Media;
 using DashboardService.Models;
 using DashboardService.Services;
+using OpenCvSharp;
+using Window = System.Windows.Window;
 
 namespace DashboardService.Views;
 
@@ -99,6 +102,114 @@ public partial class AddCameraWindow : Window
         catch (Exception ex)
         {
             MessageBox.Show(ex.Message, "Camera Configuration", MessageBoxButton.OK, MessageBoxImage.Error);
+        }
+    }
+
+    private async void Test_Click(object sender, RoutedEventArgs e)
+    {
+        string rtsp = RtspTextBox.Text.Trim();
+        if (string.IsNullOrWhiteSpace(rtsp))
+        {
+            MessageBox.Show(
+                "Enter an RTSP URL first.",
+                "Camera Test",
+                MessageBoxButton.OK,
+                MessageBoxImage.Warning);
+            return;
+        }
+
+        TestButton.IsEnabled = false;
+        TestStatusText.Foreground = (Brush)FindResource("TextMutedBrush");
+        TestStatusText.Text = "Testing camera connection...";
+
+        try
+        {
+            var testTask = Task.Run(() => TryReachRtsp(rtsp));
+            var finished = await Task.WhenAny(testTask, Task.Delay(TimeSpan.FromSeconds(12)));
+            if (finished != testTask)
+            {
+                throw new OperationCanceledException();
+            }
+
+            var result = await testTask;
+
+            if (result.Ok)
+            {
+                TestStatusText.Foreground = new SolidColorBrush(Color.FromRgb(22, 163, 74));
+                TestStatusText.Text = result.Detail;
+                MessageBox.Show(
+                    result.Detail,
+                    "Camera Test",
+                    MessageBoxButton.OK,
+                    MessageBoxImage.Information);
+            }
+            else
+            {
+                TestStatusText.Foreground = new SolidColorBrush(Color.FromRgb(220, 38, 38));
+                TestStatusText.Text = result.Detail;
+                MessageBox.Show(
+                    result.Detail,
+                    "Camera Test",
+                    MessageBoxButton.OK,
+                    MessageBoxImage.Warning);
+            }
+        }
+        catch (OperationCanceledException)
+        {
+            TestStatusText.Foreground = new SolidColorBrush(Color.FromRgb(220, 38, 38));
+            TestStatusText.Text = "Test timed out. Check RTSP URL and network.";
+            MessageBox.Show(
+                "Test timed out. Check RTSP URL and network.",
+                "Camera Test",
+                MessageBoxButton.OK,
+                MessageBoxImage.Warning);
+        }
+        catch (Exception ex)
+        {
+            TestStatusText.Foreground = new SolidColorBrush(Color.FromRgb(220, 38, 38));
+            TestStatusText.Text = ex.Message;
+            MessageBox.Show(ex.Message, "Camera Test", MessageBoxButton.OK, MessageBoxImage.Error);
+        }
+        finally
+        {
+            TestButton.IsEnabled = true;
+        }
+    }
+
+    private static (bool Ok, string Detail) TryReachRtsp(string streamUrl)
+    {
+        VideoCapture? capture = null;
+        try
+        {
+            capture = new VideoCapture(streamUrl, VideoCaptureAPIs.FFMPEG);
+            capture.Set(VideoCaptureProperties.BufferSize, 1);
+
+            if (!capture.IsOpened())
+            {
+                return (false, "Camera not reachable. Check RTSP URL, user/password, and network.");
+            }
+
+            using var frame = new Mat();
+            for (int i = 0; i < 10; i++)
+            {
+                if (capture.Read(frame) && !frame.Empty())
+                {
+                    return (true, $"Camera is reachable. Frame {frame.Width}×{frame.Height} received.");
+                }
+
+                Thread.Sleep(250);
+            }
+
+            return (false, "Stream opened but no video frame was received.");
+        }
+        catch (Exception ex)
+        {
+            return (false, ex.Message);
+        }
+        finally
+        {
+            capture?.Release();
+            capture?.Dispose();
         }
     }
 

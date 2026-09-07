@@ -536,6 +536,7 @@
                             <Border x:Name="ThemeToggleButton"
                                     Width="172"
                                     Height="54"
+                                    Visibility="Collapsed"
                                     Background="{DynamicResource ProfileBgBrush}"
                                     BorderBrush="{DynamicResource CardBorderBrush}"
                                     BorderThickness="1"

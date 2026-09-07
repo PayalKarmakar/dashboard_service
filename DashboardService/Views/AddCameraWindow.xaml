@@ -137,7 +137,22 @@
                                  AcceptsReturn="False"
                                  Height="56"
                                  VerticalContentAlignment="Top"
-                                 Padding="10,8"/>
+                                 Padding="10,8"
+                                 Margin="0,0,0,8"/>
+                        <Button x:Name="TestButton"
+                                Content="Test Camera"
+                                Height="36"
+                                Margin="0,0,0,6"
+                                Background="{DynamicResource ButtonSecondaryBgBrush}"
+                                Foreground="{DynamicResource ButtonSecondaryFgBrush}"
+                                BorderBrush="{DynamicResource CardBorderBrush}"
+                                Click="Test_Click"/>
+                        <TextBlock x:Name="TestStatusText"
+                                   Text="Test the RTSP URL before saving"
+                                   FontSize="11"
+                                   TextWrapping="Wrap"
+                                   Foreground="{DynamicResource TextMutedBrush}"
+                                   Margin="0,0,0,14"/>
                     </StackPanel>
 
                     <StackPanel Grid.Column="2">

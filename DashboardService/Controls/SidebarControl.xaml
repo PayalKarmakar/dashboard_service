@@ -510,6 +510,7 @@
                 <Border x:Name="ThemeToggleButton"
             Width="48"
             Height="32"
+            Visibility="Collapsed"
             Background="{DynamicResource SidebarBgBrush}"
             CornerRadius="10"
             Cursor="Hand"
