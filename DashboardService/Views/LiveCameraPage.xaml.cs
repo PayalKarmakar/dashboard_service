@@ -65,10 +65,10 @@ public partial class LiveCameraPage : Page
             return;
         }
 
-        StartButton.Content = "Refresh View";
+        StartButton.Content = "Start Preview";
         StopButton.Content = "Stop Preview";
         LiveCameraSubtitleText.Text =
-            "Background monitoring is active — select a camera for live preview";
+            "Start preview here — monitoring keeps running in the background";
     }
 
     private async void LiveCameraPage_Loaded(object sender, RoutedEventArgs e)
@@ -153,8 +153,7 @@ public partial class LiveCameraPage : Page
 
         if (_backgroundMode)
         {
-            AttachToBackgroundSession(option.Camera.CameraId);
-            await RefreshRfidInsideAsync();
+            await StartBackgroundPreviewAsync();
             return;
         }
 
@@ -183,8 +182,11 @@ public partial class LiveCameraPage : Page
         StartButton.IsEnabled = false;
         StopButton.IsEnabled = true;
         CameraComboBox.IsEnabled = true;
-        StreamStatusText.Text = session.StatusMessage;
+        StreamStatusText.Text = string.IsNullOrWhiteSpace(session.StatusMessage)
+            ? "Preview running (background monitoring active)"
+            : session.StatusMessage;
         UpdateStatsFromBackground(session.LastStats);
+        SetDoorLineOverlayVisible(true);
 
         if (_selectedCamera != null)
         {
@@ -212,6 +214,7 @@ public partial class LiveCameraPage : Page
 
         _rfidTimer.Stop();
         StreamImage.Source = null;
+        SetDoorLineOverlayVisible(false);
         ResetStats();
     }
 
@@ -222,6 +225,7 @@ public partial class LiveCameraPage : Page
             StreamImage.Source = frame;
             StreamStatusText.Text = stats.StatusMessage;
             UpdateStatsFromBackground(stats);
+            LayoutDoorLineOverlay();
         });
     }
 
@@ -280,6 +284,81 @@ public partial class LiveCameraPage : Page
             : camera.AlertOnNoRfid || camera.AlertOnTailgate
                 ? $"Watching IN/OUT events · match {camera.MatchWindowSeconds}s"
                 : "Alerts disabled for this camera";
+
+        if (DoorLineOverlay.Visibility == Visibility.Visible)
+        {
+            LayoutDoorLineOverlay();
+        }
+    }
+
+    private void StreamPreview_SizeChanged(object sender, SizeChangedEventArgs e)
+    {
+        LayoutDoorLineOverlay();
+    }
+
+    private void SetDoorLineOverlayVisible(bool previewRunning)
+    {
+        bool show = previewRunning && _selectedCamera is { ShowsDoorLine: true };
+        DoorLineOverlay.Visibility = show ? Visibility.Visible : Visibility.Collapsed;
+        if (show)
+        {
+            LayoutDoorLineOverlay();
+        }
+    }
+
+    private void LayoutDoorLineOverlay()
+    {
+        if (DoorLineOverlay.Visibility != Visibility.Visible)
+        {
+            return;
+        }
+
+        double viewW = StreamImage.ActualWidth;
+        double viewH = StreamImage.ActualHeight;
+        if (viewW <= 1 || viewH <= 1)
+        {
+            viewW = DoorLineOverlay.ActualWidth;
+            viewH = DoorLineOverlay.ActualHeight;
+        }
+
+        if (viewW <= 1 || viewH <= 1)
+        {
+            return;
+        }
+
+        double offsetX = 0;
+        double offsetY = 0;
+        double renderW = viewW;
+        double renderH = viewH;
+
+        if (StreamImage.Source is { } source && source.Width > 0 && source.Height > 0)
+        {
+            double scale = Math.Min(viewW / source.Width, viewH / source.Height);
+            renderW = source.Width * scale;
+            renderH = source.Height * scale;
+            offsetX = (viewW - renderW) / 2.0;
+            offsetY = (viewH - renderH) / 2.0;
+        }
+
+        int percent = Math.Clamp(
+            _configurationService.GetCameraLiveSettings().ZoneDividerPercent,
+            20,
+            80);
+        double x = offsetX + renderW * percent / 100.0;
+        double top = offsetY;
+        double bottom = offsetY + renderH;
+
+        DoorLine.X1 = x;
+        DoorLine.Y1 = top;
+        DoorLine.X2 = x;
+        DoorLine.Y2 = bottom;
+
+        Canvas.SetLeft(DoorLineOutText, Math.Max(8, x - 90));
+        Canvas.SetTop(DoorLineOutText, top + 10);
+        Canvas.SetLeft(DoorLineInText, x + 12);
+        Canvas.SetTop(DoorLineInText, top + 10);
+        Canvas.SetLeft(DoorLineLabelText, Math.Max(8, x - 42));
+        Canvas.SetTop(DoorLineLabelText, top + 34);
     }
 
     private async Task ConfigureLocalDoorVerificationAsync(MasterCameraConfig camera)
@@ -322,15 +401,60 @@ public partial class LiveCameraPage : Page
     {
         if (_backgroundMode)
         {
-            if (_selectedCamera != null)
-            {
-                AttachToBackgroundSession(_selectedCamera.CameraId);
-            }
-
+            await StartBackgroundPreviewAsync();
             return;
         }
 
         await StartLocalStreamAsync();
+    }
+
+    private async Task StartBackgroundPreviewAsync()
+    {
+        if (_selectedCamera == null)
+        {
+            MessageBox.Show(
+                "Please select an active camera first.",
+                "Live Camera",
+                MessageBoxButton.OK,
+                MessageBoxImage.Warning);
+            return;
+        }
+
+        StartButton.IsEnabled = false;
+        StreamStatusText.Text = "Starting preview...";
+
+        try
+        {
+            if (!CameraBackgroundMonitoringService.Instance.IsEnabled)
+            {
+                await StartLocalStreamAsync();
+                return;
+            }
+
+            CameraMonitorSession? session =
+                await CameraBackgroundMonitoringService.Instance.EnsureSessionAsync(
+                    _selectedCamera.CameraId);
+
+            if (session == null)
+            {
+                StreamStatusText.Text =
+                    "Could not start background monitoring. Check camera_service and RTSP URL.";
+                StartButton.IsEnabled = true;
+                StopButton.IsEnabled = false;
+                return;
+            }
+
+            DetachFromBackgroundSession();
+            AttachToBackgroundSession(_selectedCamera.CameraId);
+            await RefreshRfidInsideAsync();
+        }
+        catch (Exception ex)
+        {
+            StreamStatusText.Text = ex.Message;
+            StartButton.IsEnabled = true;
+            StopButton.IsEnabled = false;
+            MessageBox.Show(ex.Message, "Live Camera", MessageBoxButton.OK, MessageBoxImage.Error);
+        }
     }
 
     private async Task StartLocalStreamAsync()
@@ -414,8 +538,10 @@ public partial class LiveCameraPage : Page
         if (_backgroundMode)
         {
             DetachFromBackgroundSession();
+            StartButton.IsEnabled = true;
             StopButton.IsEnabled = false;
             StreamStatusText.Text = "Preview stopped (background monitoring continues)";
+            SetDoorLineOverlayVisible(false);
             return;
         }
 
@@ -435,6 +561,7 @@ public partial class LiveCameraPage : Page
         CameraComboBox.IsEnabled = true;
         StreamStatusText.Text = "Stream stopped";
         DoorVerifyStatusText.Text = "Idle";
+        SetDoorLineOverlayVisible(false);
         ResetStats();
     }
 
@@ -444,6 +571,8 @@ public partial class LiveCameraPage : Page
         {
             StreamImage.Source = frame;
             StreamStatusText.Text = stats.StatusMessage;
+            SetDoorLineOverlayVisible(true);
+            LayoutDoorLineOverlay();
             DetectedCountText.Text = stats.TotalDetected.ToString();
             InsideCountText.Text = stats.InsideCount.ToString();
             OutsideCountText.Text = stats.OutsideCount.ToString();

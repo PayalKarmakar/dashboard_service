@@ -62,7 +62,7 @@ public sealed class CameraPythonLiveService : IDisposable
         string purpose = string.IsNullOrWhiteSpace(cameraPurpose)
             ? "DOOR"
             : cameraPurpose.Trim().ToUpperInvariant();
-        bool showDoorLine = purpose is "ENTRY" or "EXIT" or "DOOR"; // DOOR = legacy
+        bool showDoorLine = !string.Equals(purpose, "MONITORING", StringComparison.OrdinalIgnoreCase);
         string cameraId = string.IsNullOrWhiteSpace(CameraId) ? "default" : CameraId.Trim();
 
         var payload = new StartStreamRequest

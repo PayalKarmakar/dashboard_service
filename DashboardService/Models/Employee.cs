@@ -13,6 +13,8 @@ namespace DashboardService.Models
 
         public string EmployeeName { get; set; } = string.Empty;
 
+        public string CardUid { get; set; } = string.Empty;
+
         public string ChamberName { get; set; } = string.Empty;
 
         public DateTime EntryTime { get; set; }

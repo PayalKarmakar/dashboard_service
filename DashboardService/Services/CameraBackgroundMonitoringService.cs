@@ -141,6 +141,39 @@ public sealed class CameraBackgroundMonitoringService : IDisposable
         }
     }
 
+    public async Task<CameraMonitorSession?> EnsureSessionAsync(
+        long cameraId,
+        CancellationToken cancellationToken = default)
+    {
+        if (!IsEnabled)
+        {
+            return null;
+        }
+
+        CameraMonitorSession? session;
+        lock (_sync)
+        {
+            _sessions.TryGetValue(cameraId, out session);
+        }
+
+        if (session == null || !session.IsRunning)
+        {
+            await ReloadAsync(cancellationToken);
+            lock (_sync)
+            {
+                _sessions.TryGetValue(cameraId, out session);
+            }
+        }
+
+        if (session == null)
+        {
+            return null;
+        }
+
+        await session.EnsureLineCrossingModeAsync(cancellationToken);
+        return session;
+    }
+
     public CameraMonitorSession? GetSession(long cameraId)
     {
         lock (_sync)

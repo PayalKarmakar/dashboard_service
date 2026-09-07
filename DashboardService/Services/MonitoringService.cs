@@ -27,6 +27,7 @@ public class MonitoringService
                 t.id,
                 t.employee_id,
                 t.employee_name,
+                COALESCE(t.card_uid, ''),
                 COALESCE(c.chamber_name, ''),
                 t.entry_time,
                 t.alert_triggered,
@@ -49,13 +50,14 @@ public class MonitoringService
                 TransactionId = reader.GetInt64(0),
                 EmployeeId = reader.GetInt64(1),
                 EmployeeName = reader.GetString(2),
-                ChamberName = reader.GetString(3),
-                EntryTime = reader.GetDateTime(4),
+                CardUid = reader.GetString(3),
+                ChamberName = reader.GetString(4),
+                EntryTime = reader.GetDateTime(5),
                 TimeThresholdMinutes = settings.AfterMinutes,
                 AttentionMinutes = settings.AttentionMinutes,
                 WarningRemainingMinutes = settings.WarningRemainingMinutes,
-                AlertTriggered = reader.GetBoolean(5),
-                LastAnnouncementAt = reader.IsDBNull(6) ? null : reader.GetDateTime(6)
+                AlertTriggered = reader.GetBoolean(6),
+                LastAnnouncementAt = reader.IsDBNull(7) ? null : reader.GetDateTime(7)
             });
         }
 

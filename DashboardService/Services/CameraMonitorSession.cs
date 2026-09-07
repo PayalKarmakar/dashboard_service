@@ -177,6 +177,47 @@ public sealed class CameraMonitorSession : IDisposable
         _occupancyVerificationService.Configure(camera);
     }
 
+    public async Task EnsureLineCrossingModeAsync(CancellationToken cancellationToken = default)
+    {
+        if (!IsRunning)
+        {
+            await StartAsync(cancellationToken);
+            return;
+        }
+
+        MasterCameraConfig camera;
+        lock (_sync)
+        {
+            camera = _camera;
+        }
+
+        var settings = _configurationService.GetCameraLiveSettings();
+        bool pollFrames = Volatile.Read(ref _frameSubscriberCount) > 0;
+
+        if (_usePython && await _pythonStreamService.IsAvailableAsync(cancellationToken))
+        {
+            await _pythonStreamService.StartAsync(
+                camera.RtspUrl,
+                camera.PersonDetectionEnabled,
+                settings.MinConfidence,
+                settings.ZoneDividerPercent,
+                camera.CameraPurpose,
+                cancellationToken);
+            _pythonStreamService.PollFrames = pollFrames;
+            return;
+        }
+
+        _opencvStreamService.Start(
+            camera.RtspUrl,
+            camera.PersonDetectionEnabled,
+            settings.MinConfidence,
+            settings.ZoneDividerPercent,
+            settings.DetectEveryNFrames,
+            settings.InputSize,
+            settings.ModelPath,
+            camera.CameraPurpose);
+    }
+
     public void AddFrameSubscriber()
     {
         Interlocked.Increment(ref _frameSubscriberCount);

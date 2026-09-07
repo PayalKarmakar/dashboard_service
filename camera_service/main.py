@@ -61,10 +61,12 @@ class StartRequest(BaseModel):
 
 def _resolve_show_door_line(camera_purpose: str, show_door_line: bool | None) -> bool:
     purpose = (camera_purpose or "DOOR").strip().upper()
+    # Monitoring cameras stay occupancy-only. Everything else draws the IN/OUT line.
+    if purpose == "MONITORING":
+        return False
     if show_door_line is not None:
         return bool(show_door_line)
-    # Only door/entry/exit cameras draw the IN/OUT counting line.
-    return purpose in {"ENTRY", "EXIT", "DOOR"}
+    return True
 
 
 class CameraWorker:
@@ -336,37 +338,37 @@ class CameraWorker:
         h, w = frame.shape[:2]
         line_x = int(w * self.zone_divider_percent / 100.0)
 
-        if self.enable_detection:
-            if self.show_door_line:
-                cv2.line(frame, (line_x, 0), (line_x, h), (0, 220, 255), 2)
-                cv2.putText(
-                    frame,
-                    "OUT  -->",
-                    (max(8, line_x - 110), 28),
-                    cv2.FONT_HERSHEY_SIMPLEX,
-                    0.7,
-                    (0, 220, 255),
-                    2,
-                )
-                cv2.putText(
-                    frame,
-                    "<--  IN",
-                    (line_x + 12, 28),
-                    cv2.FONT_HERSHEY_SIMPLEX,
-                    0.7,
-                    (0, 220, 255),
-                    2,
-                )
-                cv2.putText(
-                    frame,
-                    "DOOR LINE",
-                    (max(8, line_x - 55), 54),
-                    cv2.FONT_HERSHEY_SIMPLEX,
-                    0.5,
-                    (0, 220, 255),
-                    1,
-                )
+        if self.show_door_line:
+            cv2.line(frame, (line_x, 0), (line_x, h), (0, 220, 255), 2)
+            cv2.putText(
+                frame,
+                "OUT  -->",
+                (max(8, line_x - 110), 28),
+                cv2.FONT_HERSHEY_SIMPLEX,
+                0.7,
+                (0, 220, 255),
+                2,
+            )
+            cv2.putText(
+                frame,
+                "<--  IN",
+                (line_x + 12, 28),
+                cv2.FONT_HERSHEY_SIMPLEX,
+                0.7,
+                (0, 220, 255),
+                2,
+            )
+            cv2.putText(
+                frame,
+                "DOOR LINE",
+                (max(8, line_x - 55), 54),
+                cv2.FONT_HERSHEY_SIMPLEX,
+                0.5,
+                (0, 220, 255),
+                1,
+            )
 
+        if self.enable_detection:
             for x1, y1, x2, y2, conf, track_id in boxes:
                 cv2.rectangle(frame, (x1, y1), (x2, y2), (0, 220, 80), 2)
                 label = f"ID {track_id} {conf:.0f}%" if track_id >= 0 else f"{conf:.0f}%"

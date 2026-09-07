@@ -34,6 +34,9 @@ public sealed class MasterCameraConfig
 
     public string ToggleActionText => IsActive ? "Deactivate" : "Activate";
 
+    public bool ShowsDoorLine =>
+        !string.Equals(CameraPurpose, "MONITORING", StringComparison.OrdinalIgnoreCase);
+
     public string PurposeDisplay => CameraPurpose switch
     {
         "ENTRY" => "Entry",

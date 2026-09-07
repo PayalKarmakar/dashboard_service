@@ -252,11 +252,6 @@ public sealed class CameraLiveStreamService : IDisposable
 
     private void DrawOverlay(Mat frame, CameraDetectionStats stats, bool detectionEnabled)
     {
-        if (!detectionEnabled)
-        {
-            return;
-        }
-
         if (_showDoorLine)
         {
             double lineX = frame.Width * _zoneDividerPercent / 100.0;
