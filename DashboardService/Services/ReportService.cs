@@ -286,7 +286,7 @@ public class ReportService
 
         const string sql = @"
             SELECT
-                sl.log_id,
+                sl.id,
                 sl.created_at,
                 COALESCE(sl.service_name, ''),
                 COALESCE(sl.log_level, ''),
@@ -306,7 +306,7 @@ public class ReportService
                     OR (@filter = 'RECONNECTED'
                         AND UPPER(sl.event_type) LIKE '%RECONNECTED%')
                   )
-            ORDER BY sl.created_at DESC, sl.log_id DESC;
+            ORDER BY sl.created_at DESC, sl.id DESC;
         ";
 
         await using var command = new NpgsqlCommand(sql, connection);
