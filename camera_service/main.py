@@ -31,6 +31,7 @@ app.add_middleware(
 )
 
 _lock = threading.Lock()
+_infer_lock = threading.Lock()
 _workers: dict[str, "CameraWorker"] = {}
 _model: YOLO | None = None
 _model_lock = threading.Lock()
@@ -107,6 +108,9 @@ class CameraWorker:
         # track_id -> last side ("OUT" left / "IN" right)
         self._track_side: dict[int, str] = {}
         self._track_last_cross_ts: dict[int, float] = {}
+        self._track_centroids: dict[int, tuple[float, float]] = {}
+        self._track_last_seen: dict[int, float] = {}
+        self._next_track_id = 1
         self._cross_cooldown_sec = 1.5
 
     def start(self) -> None:
@@ -167,7 +171,7 @@ class CameraWorker:
         fail_count = 0
         frame_count = 0
         t0 = time.time()
-        detect_every = 2
+        detect_every = 3 if self.show_door_line else 2
         frame_index = 0
         last_boxes: list[tuple[int, int, int, int, float, int]] = []
 
@@ -211,10 +215,33 @@ class CameraWorker:
 
             if self.enable_detection and frame_index % detect_every == 0:
                 last_boxes = self._track_and_count(frame)
+                self._flush_rtsp()
 
-            self._apply_overlay(frame, last_boxes)
+            vis = frame
+            if vis.shape[1] > 960:
+                scale = 960.0 / vis.shape[1]
+                vis = cv2.resize(
+                    vis,
+                    (960, max(1, int(vis.shape[0] * scale))),
+                    interpolation=cv2.INTER_AREA,
+                )
+                scaled_boxes = [
+                    (
+                        int(x1 * scale),
+                        int(y1 * scale),
+                        int(x2 * scale),
+                        int(y2 * scale),
+                        conf,
+                        tid,
+                    )
+                    for x1, y1, x2, y2, conf, tid in last_boxes
+                ]
+            else:
+                scaled_boxes = last_boxes
 
-            ok_jpg, buf = cv2.imencode(".jpg", frame, [int(cv2.IMWRITE_JPEG_QUALITY), 75])
+            self._apply_overlay(vis, scaled_boxes)
+
+            ok_jpg, buf = cv2.imencode(".jpg", vis, [int(cv2.IMWRITE_JPEG_QUALITY), 62])
             if ok_jpg:
                 self._frame_jpeg = buf.tobytes()
 
@@ -233,6 +260,41 @@ class CameraWorker:
         # Left of door line = OUTSIDE, right = INSIDE
         return "OUT" if cx < line_x else "IN"
 
+    def _flush_rtsp(self) -> None:
+        if self._cap is None:
+            return
+        try:
+            for _ in range(2):
+                self._cap.grab()
+        except Exception:
+            pass
+
+    def _assign_track_id(
+        self,
+        cx: float,
+        cy: float,
+        max_dist: float,
+        now: float,
+        used_ids: set[int],
+    ) -> int:
+        best_id = -1
+        best_dist = max_dist
+        for tid, (px, py) in self._track_centroids.items():
+            if tid in used_ids:
+                continue
+            dist = ((cx - px) ** 2 + (cy - py) ** 2) ** 0.5
+            if dist < best_dist:
+                best_dist = dist
+                best_id = tid
+
+        if best_id < 0:
+            best_id = self._next_track_id
+            self._next_track_id += 1
+
+        self._track_centroids[best_id] = (cx, cy)
+        self._track_last_seen[best_id] = now
+        return best_id
+
     def _track_and_count(
         self, frame: np.ndarray
     ) -> list[tuple[int, int, int, int, float, int]]:
@@ -240,78 +302,72 @@ class CameraWorker:
         h, w = frame.shape[:2]
         line_x = w * self.zone_divider_percent / 100.0
         now = time.time()
+        match_dist = max(48.0, w * 0.12)
 
-        # Monitoring: plain detect (occupancy). Entry/Exit: ByteTrack for line-crossing.
-        if self.show_door_line:
-            results = model.track(
+        # Same fast predict path as monitoring. Line-crossing uses a light
+        # centroid tracker instead of ByteTrack (which dropped FPS to <1).
+        with _infer_lock:
+            results = model.predict(
                 source=frame,
-                conf=self.min_confidence,
+                conf=max(0.25, self.min_confidence * 0.85) if not self.show_door_line else self.min_confidence,
                 classes=[0],
                 verbose=False,
                 imgsz=320,
-                persist=True,
-                tracker="bytetrack.yaml",
-            )
-        else:
-            results = model.predict(
-                source=frame,
-                conf=max(0.25, self.min_confidence * 0.85),
-                classes=[0],
-                verbose=False,
-                imgsz=416,
             )
 
         boxes: list[tuple[int, int, int, int, float, int]] = []
         conf_sum = 0.0
         seen_ids: set[int] = set()
+        used_ids: set[int] = set()
 
         if results:
             r0 = results[0]
             if r0.boxes is not None and len(r0.boxes) > 0:
-                ids = getattr(r0.boxes, "id", None)
-                for i, box in enumerate(r0.boxes):
+                for box in r0.boxes:
                     xyxy = box.xyxy[0].tolist()
                     conf = float(box.conf[0].item()) * 100.0
                     x1, y1, x2, y2 = map(int, xyxy)
                     cx = (x1 + x2) / 2.0
+                    cy = (y1 + y2) / 2.0
                     track_id = -1
-                    if ids is not None:
-                        try:
-                            track_id = int(ids[i].item())
-                        except Exception:
-                            track_id = -1
-                        if track_id >= 0:
-                            seen_ids.add(track_id)
-                            if self.show_door_line:
-                                side = self._side_of(cx, line_x)
-                                prev = self._track_side.get(track_id)
-                                last_cross = self._track_last_cross_ts.get(track_id, 0.0)
+                    if self.show_door_line:
+                        track_id = self._assign_track_id(cx, cy, match_dist, now, used_ids)
+                        used_ids.add(track_id)
+                        seen_ids.add(track_id)
 
-                                if (
-                                    prev is not None
-                                    and prev != side
-                                    and (now - last_cross) >= self._cross_cooldown_sec
-                                ):
-                                    if prev == "OUT" and side == "IN":
-                                        self.entry_count += 1
-                                        self.last_event = f"IN #{self.entry_count}"
-                                        self._track_last_cross_ts[track_id] = now
-                                    elif prev == "IN" and side == "OUT":
-                                        self.exit_count += 1
-                                        self.last_event = f"OUT #{self.exit_count}"
-                                        self._track_last_cross_ts[track_id] = now
+                        side = self._side_of(cx, line_x)
+                        prev = self._track_side.get(track_id)
+                        last_cross = self._track_last_cross_ts.get(track_id, 0.0)
 
-                                self._track_side[track_id] = side
+                        if (
+                            prev is not None
+                            and prev != side
+                            and (now - last_cross) >= self._cross_cooldown_sec
+                        ):
+                            if prev == "OUT" and side == "IN":
+                                self.entry_count += 1
+                                self.last_event = f"IN #{self.entry_count}"
+                                self._track_last_cross_ts[track_id] = now
+                            elif prev == "IN" and side == "OUT":
+                                self.exit_count += 1
+                                self.last_event = f"OUT #{self.exit_count}"
+                                self._track_last_cross_ts[track_id] = now
+
+                        self._track_side[track_id] = side
 
                     conf_sum += conf
                     boxes.append((x1, y1, x2, y2, conf, track_id))
 
-        # Drop stale track sides for IDs not seen recently
-        stale = [tid for tid in self._track_side if tid not in seen_ids]
+        stale = [
+            tid
+            for tid, seen_at in self._track_last_seen.items()
+            if now - seen_at > 2.5
+        ]
         for tid in stale:
-            # keep briefly; remove if missing long — simple cleanup
-            if now - self._track_last_cross_ts.get(tid, now) > 5.0 and tid not in seen_ids:
-                self._track_side.pop(tid, None)
+            self._track_side.pop(tid, None)
+            self._track_centroids.pop(tid, None)
+            self._track_last_seen.pop(tid, None)
+            self._track_last_cross_ts.pop(tid, None)
 
         self.total_detected = len(boxes)
         self.inside_count = self.entry_count
