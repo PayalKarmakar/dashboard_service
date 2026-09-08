@@ -1,4 +1,4 @@
-﻿using DashboardService.Helpers;
+using DashboardService.Helpers;
 using DashboardService.Models;
 using DashboardService.Services;
 using System.Collections.ObjectModel;
