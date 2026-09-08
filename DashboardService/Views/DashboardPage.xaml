@@ -822,6 +822,7 @@
                                 <RowDefinition Height="Auto"/>
                                 <RowDefinition Height="Auto"/>
                                 <RowDefinition Height="Auto"/>
+                                <RowDefinition Height="Auto"/>
                             </Grid.RowDefinitions>
 
 
@@ -1817,12 +1818,86 @@
                                 </Grid>
 
                             </Border>
+
+                            <Border Grid.Row="3"
+                                    Margin="0,0,0,24"
+                                    Background="White"
+                                    CornerRadius="16"
+                                    BorderBrush="#E2E8F0"
+                                    BorderThickness="1"
+                                    MaxHeight="280"
+                                    ClipToBounds="True">
+                                <Grid>
+                                    <Grid.RowDefinitions>
+                                        <RowDefinition Height="Auto"/>
+                                        <RowDefinition Height="*"/>
+                                    </Grid.RowDefinitions>
+                                    <Border Grid.Row="0"
+                                            BorderBrush="#E8EDF3"
+                                            BorderThickness="0,0,0,1"
+                                            Padding="20,12">
+                                        <StackPanel>
+                                            <TextBlock Text="Live Camera Preview"
+                                                       FontSize="18"
+                                                       FontWeight="Bold"
+                                                       Foreground="#0B2248"/>
+                                            <TextBlock Text="All entry, exit, and monitoring cameras"
+                                                       FontSize="11"
+                                                       Foreground="#94A3B8"
+                                                       Margin="0,3,0,0"/>
+                                        </StackPanel>
+                                    </Border>
+                                    <ScrollViewer Grid.Row="1"
+                                                  VerticalScrollBarVisibility="Auto"
+                                                  HorizontalScrollBarVisibility="Disabled"
+                                                  Padding="16,12">
+                                        <ItemsControl x:Name="DashboardCameraPreviewsItemsControl">
+                                            <ItemsControl.ItemsPanel>
+                                                <ItemsPanelTemplate>
+                                                    <WrapPanel/>
+                                                </ItemsPanelTemplate>
+                                            </ItemsControl.ItemsPanel>
+                                            <ItemsControl.ItemTemplate>
+                                                <DataTemplate>
+                                                    <Border Width="200"
+                                                            Height="142"
+                                                            Margin="0,0,12,12"
+                                                            Background="#0B1220"
+                                                            BorderBrush="#E2E8F0"
+                                                            BorderThickness="1"
+                                                            CornerRadius="10"
+                                                            ClipToBounds="True">
+                                                        <Grid>
+                                                            <Image Source="{Binding Frame}"
+                                                                   Stretch="UniformToFill"/>
+                                                            <Border VerticalAlignment="Bottom"
+                                                                    Background="#99000000"
+                                                                    Padding="8,6">
+                                                                <StackPanel>
+                                                                    <TextBlock Text="{Binding Title}"
+                                                                               FontSize="11"
+                                                                               FontWeight="SemiBold"
+                                                                               Foreground="White"
+                                                                               TextTrimming="CharacterEllipsis"/>
+                                                                    <TextBlock Text="{Binding StatusLabel}"
+                                                                               FontSize="9"
+                                                                               Foreground="#CBD5E1"/>
+                                                                </StackPanel>
+                                                            </Border>
+                                                        </Grid>
+                                                    </Border>
+                                                </DataTemplate>
+                                            </ItemsControl.ItemTemplate>
+                                        </ItemsControl>
+                                    </ScrollViewer>
+                                </Grid>
+                            </Border>
                         </Grid>
 
                         <Grid Grid.Column="2">
                             <Grid.RowDefinitions>
                                 <RowDefinition Height="Auto"/>
-                                <RowDefinition Height="18"/>
+                                <RowDefinition Height="12"/>
                                 <RowDefinition Height="Auto"/>
                             </Grid.RowDefinitions>
 
@@ -1907,12 +1982,95 @@
 
                                         <StackPanel>
 
+                                            <ItemsControl x:Name="DeviceStatusItemsControl" Margin="6,4,6,8">
+                                                <ItemsControl.ItemsPanel>
+                                                    <ItemsPanelTemplate>
+                                                        <UniformGrid Columns="2"/>
+                                                    </ItemsPanelTemplate>
+                                                </ItemsControl.ItemsPanel>
+                                                <ItemsControl.ItemTemplate>
+                                                    <DataTemplate>
+                                                        <Border Height="52"
+                                                                Margin="4"
+                                                                Padding="8,6"
+                                                                Background="#F8FAFC"
+                                                                BorderBrush="#E2E8F0"
+                                                                BorderThickness="1"
+                                                                CornerRadius="10">
+                                                            <Grid>
+                                                                <Grid.ColumnDefinitions>
+                                                                    <ColumnDefinition Width="12"/>
+                                                                    <ColumnDefinition Width="*"/>
+                                                                    <ColumnDefinition Width="Auto"/>
+                                                                </Grid.ColumnDefinitions>
+                                                                <Ellipse Grid.Column="0"
+                                                                         Width="8"
+                                                                         Height="8"
+                                                                         VerticalAlignment="Center">
+                                                                    <Ellipse.Style>
+                                                                        <Style TargetType="Ellipse">
+                                                                            <Setter Property="Fill" Value="#FB7185"/>
+                                                                            <Style.Triggers>
+                                                                                <DataTrigger Binding="{Binding IsConnected}" Value="True">
+                                                                                    <Setter Property="Fill" Value="#10B981"/>
+                                                                                </DataTrigger>
+                                                                            </Style.Triggers>
+                                                                        </Style>
+                                                                    </Ellipse.Style>
+                                                                </Ellipse>
+                                                                <StackPanel Grid.Column="1" Margin="8,0,6,0" VerticalAlignment="Center">
+                                                                    <TextBlock Text="{Binding Name}"
+                                                                               FontSize="12"
+                                                                               FontWeight="SemiBold"
+                                                                               Foreground="#0B2248"
+                                                                               TextTrimming="CharacterEllipsis"/>
+                                                                    <TextBlock Text="{Binding Detail}"
+                                                                               FontSize="9"
+                                                                               Foreground="#8BA0BC"
+                                                                               Margin="0,2,0,0"
+                                                                               TextTrimming="CharacterEllipsis"/>
+                                                                </StackPanel>
+                                                                <Border Grid.Column="2" VerticalAlignment="Center" CornerRadius="8" Padding="7,2">
+                                                                    <Border.Style>
+                                                                        <Style TargetType="Border">
+                                                                            <Setter Property="Background" Value="#FFF1F2"/>
+                                                                            <Setter Property="BorderBrush" Value="#FDA4AF"/>
+                                                                            <Setter Property="BorderThickness" Value="1"/>
+                                                                            <Style.Triggers>
+                                                                                <DataTrigger Binding="{Binding IsConnected}" Value="True">
+                                                                                    <Setter Property="Background" Value="#ECFDF5"/>
+                                                                                    <Setter Property="BorderBrush" Value="#6EE7B7"/>
+                                                                                </DataTrigger>
+                                                                            </Style.Triggers>
+                                                                        </Style>
+                                                                    </Border.Style>
+                                                                    <TextBlock Text="{Binding StatusLabel}"
+                                                                               FontSize="9"
+                                                                               FontWeight="Bold">
+                                                                        <TextBlock.Style>
+                                                                            <Style TargetType="TextBlock">
+                                                                                <Setter Property="Foreground" Value="#EF4444"/>
+                                                                                <Style.Triggers>
+                                                                                    <DataTrigger Binding="{Binding IsConnected}" Value="True">
+                                                                                        <Setter Property="Foreground" Value="#059669"/>
+                                                                                    </DataTrigger>
+                                                                                </Style.Triggers>
+                                                                            </Style>
+                                                                        </TextBlock.Style>
+                                                                    </TextBlock>
+                                                                </Border>
+                                                            </Grid>
+                                                        </Border>
+                                                    </DataTemplate>
+                                                </ItemsControl.ItemTemplate>
+                                            </ItemsControl>
+
 
                                             <!-- ================================================= -->
                                             <!-- CONNECTED RFID READERS                             -->
                                             <!-- ================================================= -->
 
-                                            <ItemsControl x:Name="ConnectedReadersItemsControl">
+                                            <ItemsControl x:Name="ConnectedReadersItemsControl" Visibility="Collapsed">
 
                                                 <ItemsControl.ItemTemplate>
 
@@ -1988,7 +2146,7 @@
                                             <!-- DISCONNECTED RFID READERS                         -->
                                             <!-- ================================================= -->
 
-                                            <ItemsControl x:Name="DisconnectedReadersItemsControl">
+                                            <ItemsControl x:Name="DisconnectedReadersItemsControl" Visibility="Collapsed">
 
                                                 <ItemsControl.ItemTemplate>
 
@@ -2064,7 +2222,7 @@
                                             <!-- CONNECTED CAMERAS                                  -->
                                             <!-- ================================================= -->
 
-                                            <ItemsControl x:Name="ConnectedCamerasItemsControl">
+                                            <ItemsControl x:Name="ConnectedCamerasItemsControl" Visibility="Collapsed">
 
                                                 <ItemsControl.ItemTemplate>
 
@@ -2134,7 +2292,7 @@
                                             <!-- DISCONNECTED CAMERAS                              -->
                                             <!-- ================================================= -->
 
-                                            <ItemsControl x:Name="DisconnectedCamerasItemsControl">
+                                            <ItemsControl x:Name="DisconnectedCamerasItemsControl" Visibility="Collapsed">
 
                                                 <ItemsControl.ItemTemplate>
 
@@ -2204,7 +2362,7 @@
                                             <!-- CONNECTED SENSORS                                  -->
                                             <!-- ================================================= -->
 
-                                            <ItemsControl x:Name="ConnectedSensorsItemsControl">
+                                            <ItemsControl x:Name="ConnectedSensorsItemsControl" Visibility="Collapsed">
 
                                                 <ItemsControl.ItemTemplate>
 
@@ -2280,7 +2438,7 @@
                                             <!-- DISCONNECTED SENSORS                              -->
                                             <!-- ================================================= -->
 
-                                            <ItemsControl x:Name="DisconnectedSensorsItemsControl">
+                                            <ItemsControl x:Name="DisconnectedSensorsItemsControl" Visibility="Collapsed">
 
                                                 <ItemsControl.ItemTemplate>
 

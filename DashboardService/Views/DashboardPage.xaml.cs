@@ -7,6 +7,7 @@ using System.Windows.Controls;
 using System.Windows.Input;
 using System.Windows.Media;
 using System.Windows.Media.Animation;
+using System.Windows.Media.Imaging;
 using System.Windows.Navigation;
 using System.Windows.Threading;
 
@@ -33,6 +34,12 @@ namespace DashboardService.Views
         public ObservableCollection<CameraLiveStatus> ConnectedCameras { get; set; }
 
         public ObservableCollection<CameraLiveStatus> DisconnectedCameras { get; set; }
+
+        public ObservableCollection<DeviceStatusItem> DeviceStatusItems { get; set; }
+
+        public ObservableCollection<DashboardCameraPreview> DashboardCameraPreviews { get; set; }
+
+        private readonly Dictionary<long, PreviewSessionBinding> _previewBindings = new();
 
         private readonly DispatcherTimer _countdownTimer;
         private readonly DispatcherTimer _refreshTimer;
@@ -90,6 +97,8 @@ namespace DashboardService.Views
             CameraViolations = new ObservableCollection<CameraAccessEventRow>();
             ConnectedCameras = new ObservableCollection<CameraLiveStatus>();
             DisconnectedCameras = new ObservableCollection<CameraLiveStatus>();
+            DeviceStatusItems = new ObservableCollection<DeviceStatusItem>();
+            DashboardCameraPreviews = new ObservableCollection<DashboardCameraPreview>();
             ActiveSensorViolations = new ObservableCollection<SensorViolation>(); //Payal
 
             ChambersItemsControl.ItemsSource = Chambers;
@@ -102,6 +111,8 @@ namespace DashboardService.Views
             CameraViolationsItemsControl.ItemsSource = CameraViolations;
             ConnectedCamerasItemsControl.ItemsSource = ConnectedCameras;
             DisconnectedCamerasItemsControl.ItemsSource = DisconnectedCameras;
+            DeviceStatusItemsControl.ItemsSource = DeviceStatusItems;
+            DashboardCameraPreviewsItemsControl.ItemsSource = DashboardCameraPreviews;
 
             _countdownTimer = new DispatcherTimer
             {
@@ -275,6 +286,7 @@ namespace DashboardService.Views
             _sensorBlinkTimer.Stop();
             ThemeService.ThemeChanged -= ThemeService_ThemeChanged;
             _voiceAnnouncementService.VoicePlayingChanged -= VoiceAnnouncementService_VoicePlayingChanged;
+            DetachAllCameraPreviews();
             _voiceAnnouncementService.Dispose();
         }
 
@@ -475,6 +487,7 @@ namespace DashboardService.Views
                 await RefreshRfidReaderStatusAsync();
                 await RefreshSensorConnectionStatusAsync();
                 await RefreshCameraDeviceStatusAsync();
+                RebuildDeviceStatusItems();
                 await RefreshCameraViolationsAsync();
                 await EnqueueUnplayedAnnouncementsAsync();
                 await ProcessDueAnnouncementsAsync();
@@ -558,6 +571,8 @@ namespace DashboardService.Views
                         DisconnectedCameras.Add(row);
                     }
                 }
+
+                SyncDashboardCameraPreviews(cameras);
             }
             catch
             {
@@ -565,6 +580,173 @@ namespace DashboardService.Views
                 DisconnectedCameras.Clear();
             }
         }
+
+        private void RebuildDeviceStatusItems()
+        {
+            DeviceStatusItems.Clear();
+
+            foreach (var reader in ConnectedRfidReaders)
+            {
+                DeviceStatusItems.Add(new DeviceStatusItem
+                {
+                    Name = reader.ReaderName,
+                    Detail = reader.IpAddress,
+                    IsConnected = true
+                });
+            }
+
+            foreach (var reader in DisconnectedRfidReaders)
+            {
+                DeviceStatusItems.Add(new DeviceStatusItem
+                {
+                    Name = reader.ReaderName,
+                    Detail = reader.IpAddress,
+                    IsConnected = false
+                });
+            }
+
+            foreach (var camera in ConnectedCameras)
+            {
+                DeviceStatusItems.Add(new DeviceStatusItem
+                {
+                    Name = camera.CameraName,
+                    Detail = camera.ChamberName,
+                    IsConnected = true
+                });
+            }
+
+            foreach (var camera in DisconnectedCameras)
+            {
+                DeviceStatusItems.Add(new DeviceStatusItem
+                {
+                    Name = camera.CameraName,
+                    Detail = camera.ChamberName,
+                    IsConnected = false
+                });
+            }
+
+            foreach (var sensor in ConnectedSensors)
+            {
+                DeviceStatusItems.Add(new DeviceStatusItem
+                {
+                    Name = sensor.SensorName,
+                    Detail = sensor.LocationDisplay,
+                    IsConnected = true
+                });
+            }
+
+            foreach (var sensor in DisconnectedSensors)
+            {
+                DeviceStatusItems.Add(new DeviceStatusItem
+                {
+                    Name = sensor.SensorName,
+                    Detail = sensor.LocationDisplay,
+                    IsConnected = false
+                });
+            }
+        }
+
+        private void SyncDashboardCameraPreviews(IReadOnlyList<MasterCameraConfig> cameras)
+        {
+            var active = cameras
+                .Where(c => c.IsActive)
+                .OrderBy(c => PurposeSort(c.CameraPurpose))
+                .ThenBy(c => c.CameraName, StringComparer.OrdinalIgnoreCase)
+                .ToList();
+
+            var wantedIds = active.Select(c => c.CameraId).ToHashSet();
+            foreach (long cameraId in _previewBindings.Keys.Where(id => !wantedIds.Contains(id)).ToList())
+            {
+                DetachCameraPreview(cameraId);
+            }
+
+            var existing = DashboardCameraPreviews.ToDictionary(x => x.CameraId);
+            DashboardCameraPreviews.Clear();
+
+            foreach (var camera in active)
+            {
+                if (!existing.TryGetValue(camera.CameraId, out DashboardCameraPreview? preview))
+                {
+                    preview = new DashboardCameraPreview
+                    {
+                        CameraId = camera.CameraId,
+                        CameraName = camera.CameraName,
+                        ChamberName = camera.ChamberName,
+                        Purpose = camera.CameraPurpose
+                    };
+                }
+
+                DashboardCameraPreviews.Add(preview);
+                AttachCameraPreview(camera.CameraId, preview);
+            }
+        }
+
+        private void AttachCameraPreview(long cameraId, DashboardCameraPreview preview)
+        {
+            if (_previewBindings.ContainsKey(cameraId))
+            {
+                return;
+            }
+
+            CameraMonitorSession? session =
+                CameraBackgroundMonitoringService.Instance.GetSession(cameraId);
+            if (session == null)
+            {
+                preview.IsConnected = false;
+                return;
+            }
+
+            void Handler(BitmapSource frame, CameraDetectionStats stats)
+            {
+                Dispatcher.BeginInvoke(() =>
+                {
+                    preview.Frame = frame;
+                    preview.IsConnected = stats.IsConnected;
+                });
+            }
+
+            session.FrameReady += Handler;
+            session.AddFrameSubscriber();
+            preview.IsConnected = session.LastStats.IsConnected;
+            _previewBindings[cameraId] = new PreviewSessionBinding(session, Handler);
+        }
+
+        private void DetachCameraPreview(long cameraId)
+        {
+            if (!_previewBindings.TryGetValue(cameraId, out PreviewSessionBinding? binding))
+            {
+                return;
+            }
+
+            binding.Session.FrameReady -= binding.Handler;
+            binding.Session.RemoveFrameSubscriber();
+            _previewBindings.Remove(cameraId);
+        }
+
+        private void DetachAllCameraPreviews()
+        {
+            foreach (long cameraId in _previewBindings.Keys.ToList())
+            {
+                DetachCameraPreview(cameraId);
+            }
+
+            DashboardCameraPreviews.Clear();
+        }
+
+        private static int PurposeSort(string purpose)
+        {
+            return purpose.Trim().ToUpperInvariant() switch
+            {
+                "ENTRY" or "DOOR" => 0,
+                "EXIT" => 1,
+                "MONITORING" => 2,
+                _ => 3
+            };
+        }
+
+        private sealed record PreviewSessionBinding(
+            CameraMonitorSession Session,
+            Action<BitmapSource, CameraDetectionStats> Handler);
 
         private async Task RefreshRfidReaderStatusAsync()
         {
