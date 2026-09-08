@@ -1108,6 +1108,11 @@ namespace DashboardService.Views
             }
         }
 
+        private void ViewMoreCameraViolations_Click(object sender, RoutedEventArgs e)
+        {
+            AppNavigation.Go(NavigationService, "CameraAccessReport", _currentUser);
+        }
+
         private void ViewMoreMembers_Click(object sender, RoutedEventArgs e)
         {
             var window = new CurrentMembersWindow(

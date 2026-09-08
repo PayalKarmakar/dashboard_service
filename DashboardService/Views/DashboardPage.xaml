@@ -2381,6 +2381,7 @@
                                         <RowDefinition Height="Auto"/>
                                         <RowDefinition Height="12"/>
                                         <RowDefinition Height="*"/>
+                                        <RowDefinition Height="Auto"/>
                                     </Grid.RowDefinitions>
 
                                     <Grid Grid.Row="0">
@@ -2506,6 +2507,31 @@
                                             </StackPanel>
                                         </Grid>
                                     </Border>
+
+                                    <Button x:Name="ViewMoreCameraViolationsButton"
+                                            Grid.Row="3"
+                                            Content="View More"
+                                            Height="32"
+                                            Margin="0,12,0,0"
+                                            Padding="12,0"
+                                            HorizontalAlignment="Right"
+                                            Background="#0A3776"
+                                            Foreground="White"
+                                            BorderThickness="0"
+                                            FontSize="11"
+                                            FontWeight="Bold"
+                                            Cursor="Hand"
+                                            Click="ViewMoreCameraViolations_Click">
+                                        <Button.Template>
+                                            <ControlTemplate TargetType="Button">
+                                                <Border Background="{TemplateBinding Background}"
+                                                        CornerRadius="8"
+                                                        Padding="{TemplateBinding Padding}">
+                                                    <ContentPresenter HorizontalAlignment="Center" VerticalAlignment="Center"/>
+                                                </Border>
+                                            </ControlTemplate>
+                                        </Button.Template>
+                                    </Button>
                                 </Grid>
                             </Border>
 
