@@ -35,6 +35,14 @@ namespace DashboardService
             SidebarColumn.Width = new GridLength(0);
 
             MainFrame.Navigate(new LoginPage());
+            Closing += MainWindow_Closing;
+        }
+
+        private void MainWindow_Closing(object? sender, System.ComponentModel.CancelEventArgs e)
+        {
+            CameraBackgroundMonitoringService.Instance.SessionAlertRaised -= OnCameraSessionAlert;
+            // Ensure the process exits when the user closes the window.
+            Application.Current.Shutdown();
         }
 
         public Frame MainNavigationFrame => MainFrame;
