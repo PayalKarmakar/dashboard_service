@@ -371,11 +371,11 @@
                 </Border.Background>
             </Border>
 
-            <ScrollViewer Panel.ZIndex="1"
+            <!--<ScrollViewer Panel.ZIndex="1"
                           VerticalScrollBarVisibility="Auto"
-                          HorizontalScrollBarVisibility="Disabled">
-
-                <Grid>
+                          HorizontalScrollBarVisibility="Disabled">-->
+            <Grid Margin="18,16,18,16" Background="{DynamicResource ContentAreaBgBrush}">
+                <Grid Panel.ZIndex="1">
 
                     <Grid.RowDefinitions>
 
@@ -389,7 +389,7 @@
                         <RowDefinition Height="Auto"/>
 
                         <!-- MAIN TWO-COLUMN DASHBOARD -->
-                        <RowDefinition Height="Auto"/>
+                        <RowDefinition Height="*"/>
 
                     </Grid.RowDefinitions>
 
@@ -489,48 +489,7 @@
                             </Border>
 
 
-                            <!-- ================================= -->
-                            <!-- NOTIFICATION -->
-                            <!-- ================================= -->
 
-                            <Border Width="250"
-                                    Height="54"
-                                    Background="{DynamicResource ProfileBgBrush}"
-                                    BorderBrush="{DynamicResource CardBorderBrush}"
-                                    BorderThickness="1"
-                                    CornerRadius="12"
-                                    Padding="10,6"
-                                    Margin="0,0,14,0"
-                                    VerticalAlignment="Center">
-
-                                <Grid>
-
-                                    <!-- BELL -->
-                                    <Border Width="36"
-                                            Height="36"
-                                            Background="#245181"
-                                            CornerRadius="10"
-                                            HorizontalAlignment="Left"
-                                            VerticalAlignment="Center">
-
-                                        <TextBlock Text="♧"
-                                                FontSize="18"
-                                                Foreground="#8FA9C8"
-                                                HorizontalAlignment="Center"
-                                                VerticalAlignment="Center"/>
-                                    </Border>
-
-                                    <!-- MINUS / VALUE -->
-                                    <TextBlock Text="—"
-                                            FontSize="20"
-                                            Foreground="#7188A5"
-                                            HorizontalAlignment="Right"
-                                            VerticalAlignment="Center"
-                                            Margin="0,0,10,0"/>
-
-                                </Grid>
-
-                            </Border>
 
                             <!-- DARK MODE TOGGLE -->
                             <Border x:Name="ThemeToggleButton"
@@ -803,8 +762,7 @@
                     <!-- HEADER ABOVE IS UNCHANGED                                     -->
                     <!-- ============================================================ -->
 
-                    <Grid Grid.Row="2"
-                  Margin="0,8,0,24">
+                    <Grid Grid.Row="3"  Margin="0,8,0,24">
 
                         <Grid.ColumnDefinitions>
                             <!-- Figma: approximately 75% -->
@@ -820,9 +778,9 @@
                         <Grid Grid.Column="0">
                             <Grid.RowDefinitions>
                                 <RowDefinition Height="Auto"/>
-                                <RowDefinition Height="Auto"/>
-                                <RowDefinition Height="Auto"/>
-                                <RowDefinition Height="Auto"/>
+                                <RowDefinition Height="0"/>
+                                <RowDefinition Height="*"/>
+                                <RowDefinition Height="*"/>
                             </Grid.RowDefinitions>
 
 
@@ -991,17 +949,14 @@
                                         <!-- ================================= -->
 
                                         <Border x:Name="TemperatureCardBorder"
-                                        Grid.Column="0"
-                                        CornerRadius="14"
-                                        Padding="14"
-                                        BorderBrush="#FED7AA"
-                                        BorderThickness="1">
+                                            Grid.Column="0"
+                                            CornerRadius="14"
+                                            Padding="14"
+                                            BorderBrush="#BAE6FD"
+                                            BorderThickness="1">
 
                                             <Border.Background>
-                                                <LinearGradientBrush StartPoint="0,0" EndPoint="1,1">
-                                                    <GradientStop Color="#FFF7ED" Offset="0"/>
-                                                    <GradientStop Color="#FFEDD5" Offset="1"/>
-                                                </LinearGradientBrush>
+                                                <SolidColorBrush Color="#F1F5F9"/>
                                             </Border.Background>
 
                                             <Grid>
@@ -1013,40 +968,38 @@
                                                 </Grid.RowDefinitions>
 
                                                 <TextBlock Text="TEMPERATURE"
-                                                FontSize="20"
-                                                FontWeight="Bold"
-                                                Foreground="#C2410C"/>
+                                                   FontSize="20"
+                                                   FontWeight="Bold"
+                                                   Foreground="#475569"/>
 
                                                 <TextBlock x:Name="TemperatureValueText"
-                                                Grid.Row="1"
-                                                Text="--"
-                                                FontSize="40"
-                                                FontWeight="Bold"
-                                                FontFamily="Bahnschrift"
-                                                Foreground="#EA580C"
-                                                VerticalAlignment="Center"
-                                                Margin="0,4"/>
+                                                   Grid.Row="1"
+                                                   Text="--"
+                                                   FontSize="40"
+                                                   FontWeight="Bold"
+                                                   FontFamily="Bahnschrift"
+                                                   Foreground="#475569"
+                                                   VerticalAlignment="Center"
+                                                   Margin="0,4"/>
 
-                                                <Border x:Name="TemperatureStatusBorder" 
-                                                Grid.Row="2"                           
-                                                Background="#DCFCE7"
-                                                    BorderBrush="#4ADE80"
+                                                <Border x:Name="TemperatureStatusBorder"
+                                                    Grid.Row="2"
+                                                    Background="#F1F5F9"
+                                                    BorderBrush="#CBD5E1"
                                                     BorderThickness="1"
                                                     CornerRadius="8"
                                                     Padding="10,5"
                                                     HorizontalAlignment="Left">
 
                                                     <TextBlock x:Name="TemperatureStatusText"
-                                                Text="NORMAL"
-                                                FontSize="14"
-                                                FontWeight="Bold"
-                                                            Foreground="#166534"
-                                                />
+                                                        Text="NOT CONNECTED"
+                                                        FontSize="14"
+                                                        FontWeight="Bold"
+                                                        Foreground="#475569"/>
 
                                                 </Border>
 
                                             </Grid>
-
                                         </Border>
 
 
@@ -1062,10 +1015,7 @@
                                             BorderThickness="1">
 
                                             <Border.Background>
-                                                <LinearGradientBrush StartPoint="0,0" EndPoint="1,1">
-                                                    <GradientStop Color="#F0F9FF" Offset="0"/>
-                                                    <GradientStop Color="#E0F2FE" Offset="1"/>
-                                                </LinearGradientBrush>
+                                                <SolidColorBrush Color="#F1F5F9"/>
                                             </Border.Background>
 
                                             <Grid>
@@ -1079,7 +1029,7 @@
                                                 <TextBlock Text="HUMIDITY"
                                                 FontSize="20"
                                                 FontWeight="Bold"
-                                                Foreground="#0369A1"/>
+                                                Foreground="#475569"/>
 
                                                 <TextBlock x:Name="HumidityValueText"
                                                 Grid.Row="1"
@@ -1087,24 +1037,24 @@
                                                 FontSize="40"
                                                 FontWeight="Bold"
                                                 FontFamily="Bahnschrift"
-                                                Foreground="#0284C7"
+                                                Foreground="#475569"
                                                 VerticalAlignment="Center"
                                                 Margin="0,4"/>
 
                                                 <Border x:Name="HumidityStatusBorder"  
                                                 Grid.Row="2"
-                                                Background="#DCFCE7"
-                                                BorderBrush="#4ADE80"
+                                                Background="#F1F5F9"
+                                                BorderBrush="#CBD5E1"
                                                 BorderThickness="1"
                                                 CornerRadius="8"
                                                 Padding="10,5"
                                                 HorizontalAlignment="Left">
 
                                                     <TextBlock x:Name="HumidityStatusText"
-                                                    Text="NORMAL"
+                                                    Text="NOT CONNECTED"
                                                     FontSize="14"
                                                     FontWeight="Bold"
-                                                    Foreground="#166534"/>
+                                                    Foreground="#475569"/>
 
                                                 </Border>
 
@@ -1125,10 +1075,7 @@
                                         BorderThickness="1">
 
                                             <Border.Background>
-                                                <LinearGradientBrush StartPoint="0,0" EndPoint="1,1">
-                                                    <GradientStop Color="#FEF2F2" Offset="0"/>
-                                                    <GradientStop Color="#FEE2E2" Offset="1"/>
-                                                </LinearGradientBrush>
+                                                <SolidColorBrush Color="#F1F5F9"/>
                                             </Border.Background>
 
                                             <Grid>
@@ -1140,34 +1087,34 @@
                                                 </Grid.RowDefinitions>
 
                                                 <TextBlock Text="CO"
-                                            FontSize="20"
-                                            FontWeight="Bold"
-                                            Foreground="#B91C1C"/>
+                                                    FontSize="20"
+                                                    FontWeight="Bold"
+                                                    Foreground="#475569"/>
 
                                                 <TextBlock x:Name="CoValueText"
-                                            Grid.Row="1"
-                                            Text="--"
-                                            FontSize="40"
-                                            FontWeight="Bold"
-                                            FontFamily="Bahnschrift"
-                                            Foreground="#DC2626"
-                                            VerticalAlignment="Center"
-                                            Margin="0,4"/>
+                                                    Grid.Row="1"
+                                                    Text="--"
+                                                    FontSize="40"
+                                                    FontWeight="Bold"
+                                                    FontFamily="Bahnschrift"
+                                                     Foreground="#475569"
+                                                    VerticalAlignment="Center"
+                                                    Margin="0,4"/>
 
                                                 <Border x:Name="CoStatusBorder" 
-                                                Grid.Row="2"
-                                                Background="#DCFCE7"
-                                                BorderBrush="#4ADE80"
-                                                BorderThickness="1"
-                                                CornerRadius="8"
-                                                Padding="10,5"
-                                                HorizontalAlignment="Left">
+                                                    Grid.Row="2"
+                                                    Background="#F1F5F9"
+                                                    BorderBrush="#CBD5E1"
+                                                    BorderThickness="1"
+                                                    CornerRadius="8"
+                                                    Padding="10,5"
+                                                    HorizontalAlignment="Left">
 
                                                     <TextBlock x:Name="CoStatusText"
-                                                    Text="NORMAL"
-                                                    FontSize="14"
-                                                    FontWeight="Bold"
-                                                            Foreground="#166534"/>
+                                                       Text="NOT CONNECTED"
+                                                        FontSize="14"
+                                                        FontWeight="Bold"
+                                                        Foreground="#475569"/>
 
                                                 </Border>
 
@@ -1188,10 +1135,7 @@
                                         BorderThickness="1">
 
                                             <Border.Background>
-                                                <LinearGradientBrush StartPoint="0,0" EndPoint="1,1">
-                                                    <GradientStop Color="#FAF5FF" Offset="0"/>
-                                                    <GradientStop Color="#F3E8FF" Offset="1"/>
-                                                </LinearGradientBrush>
+                                                <SolidColorBrush Color="#F1F5F9"/>
                                             </Border.Background>
 
                                             <Grid>
@@ -1205,7 +1149,7 @@
                                                 <TextBlock Text="CO2"
                                             FontSize="20"
                                             FontWeight="Bold"
-                                            Foreground="#6D28D9"/>
+                                           Foreground="#475569"/>
 
                                                 <TextBlock x:Name="Co2ValueText"
                                             Grid.Row="1"
@@ -1213,24 +1157,25 @@
                                             FontSize="40"
                                             FontWeight="Bold"
                                             FontFamily="Bahnschrift"
-                                            Foreground="#7C3AED"
+                                            Foreground="#475569"
                                             VerticalAlignment="Center"
                                             Margin="0,4"/>
 
                                                 <Border x:Name="Co2StatusBorder"  
                                                 Grid.Row="2"
-                                                Background="#DCFCE7"
-                                                BorderBrush="#4ADE80"
+                                                Background="#F1F5F9"
+                                                BorderBrush="#CBD5E1"
                                                 BorderThickness="1"
                                                 CornerRadius="8"
                                                 Padding="10,5"
                                                 HorizontalAlignment="Left">
 
                                                     <TextBlock x:Name="Co2StatusText"
-                                            Text="NORMAL"
-                                            FontSize="14"
-                                            FontWeight="Bold"
-                                                    Foreground="#166534"/>
+                                                       Text="NOT CONNECTED"
+                                                       FontSize="14"
+                                                       FontWeight="Bold"
+                                                    Foreground="#475569"/>
+
 
                                                 </Border>
 
@@ -1251,10 +1196,7 @@
                                         BorderThickness="1">
 
                                             <Border.Background>
-                                                <LinearGradientBrush StartPoint="0,0" EndPoint="1,1">
-                                                    <GradientStop Color="#F0FDF4" Offset="0"/>
-                                                    <GradientStop Color="#DCFCE7" Offset="1"/>
-                                                </LinearGradientBrush>
+                                                <SolidColorBrush Color="#F1F5F9"/>
                                             </Border.Background>
 
                                             <Grid>
@@ -1268,7 +1210,7 @@
                                                 <TextBlock Text="OXYGEN"
                                                 FontSize="20"
                                                 FontWeight="Bold"
-                                                Foreground="#166534"/>
+                                                Foreground="#475569"/>
 
                                                 <TextBlock x:Name="OxygenValueText"
                                                 Grid.Row="1"
@@ -1276,24 +1218,25 @@
                                                 FontSize="40"
                                                 FontWeight="Bold"
                                                 FontFamily="Bahnschrift"
-                                                Foreground="#15803D"
+                                                Foreground="#475569"
                                                 VerticalAlignment="Center"
                                                 Margin="0,4"/>
 
                                                 <Border x:Name="OxygenStatusBorder" 
                                                 Grid.Row="2"
-                                                Background="#DCFCE7"
-                                                BorderBrush="#4ADE80"
+                                                Background="#F1F5F9"
+                                                BorderBrush="#CBD5E1"
                                                 BorderThickness="1"
                                                 CornerRadius="8"
                                                 Padding="10,5"
                                                 HorizontalAlignment="Left">
 
                                                     <TextBlock x:Name="OxygenStatusText"
-                                            Text="NORMAL"
-                                            FontSize="14"
-                                            FontWeight="Bold"
-                                                            Foreground="#166534"/>
+                                                            Text="NOT CONNECTED"
+                                                            FontSize="14"
+                                                            FontWeight="Bold"
+                                                           Foreground="#475569"/>
+
 
                                                 </Border>
 
@@ -1312,7 +1255,7 @@
 
                             <Border Grid.Row="2"
 				Margin="0,18,0,24"
-				MinHeight="360"
+			
 				Background="{DynamicResource CardBgBrush}"
 				CornerRadius="18"
 				BorderBrush="{DynamicResource CardBorderBrush}"
@@ -1352,17 +1295,17 @@
                                                Foreground="{DynamicResource TextPrimaryBrush}"/>
 
 
-                                             <TextBlock x:Name="CurrentMembersCountText"
+                                                <TextBlock x:Name="CurrentMembersCountText"
                                                FontSize="16"
                                                FontWeight="SemiBold"
                                                Foreground="{DynamicResource TextMutedBrush}"
-                                               Margin="8,3,0,0"/>   
+                                               Margin="8,3,0,0"/>
                                             </StackPanel>
 
-                                                <TextBlock Text="Employees currently inside monitored chambers"
+                                            <TextBlock Text="Employees currently inside monitored chambers"
                                                FontSize="12"
                                                Foreground="{DynamicResource TextMutedBrush}"
-                                               Margin="0,5,0,0"/>   
+                                               Margin="0,5,0,0"/>
 
                                         </StackPanel>
 
@@ -1429,31 +1372,32 @@
                                             DockPanel.Dock="Bottom"
                                             Margin="12,0,12,8"/>
                                         <DataGrid x:Name="MembersDataGrid"
-                  Margin="12,0,12,0"
-                  MinHeight="280"
-                  MaxHeight="440"
+                                              Margin="12,0,12,0" 
+                                                  
+          ScrollViewer.VerticalScrollBarVisibility="Visible"
+          ScrollViewer.HorizontalScrollBarVisibility="Disabled"
                  
-                  AutoGenerateColumns="False"
-                  CanUserAddRows="False"
-                  CanUserDeleteRows="False"
-                  CanUserResizeRows="False"
-                  CanUserSortColumns="False"
-                  HeadersVisibility="Column"
-                  GridLinesVisibility="None"
-                  VerticalGridLinesBrush="Transparent"
-                  BorderThickness="1"
-                  BorderBrush="{DynamicResource CardBorderBrush}"
-                  Background="{DynamicResource CardBgBrush}"
-                  RowHeight="68"
-                  FontSize="13"
-                  IsReadOnly="True"
-                  SelectionMode="Single"
-                  SelectionUnit="FullRow"
-                  FocusVisualStyle="{x:Null}"
-                  Foreground="{DynamicResource TextPrimaryBrush}"
-                  RowBackground="Transparent"
-                  AlternatingRowBackground="Transparent"
-                  HorizontalGridLinesBrush="Transparent">
+                                              AutoGenerateColumns="False"
+                                              CanUserAddRows="False"
+                                              CanUserDeleteRows="False"
+                                              CanUserResizeRows="False"
+                                              CanUserSortColumns="False"
+                                              HeadersVisibility="Column"
+                                              GridLinesVisibility="None"
+                                              VerticalGridLinesBrush="Transparent"
+                                              BorderThickness="1"
+                                              BorderBrush="{DynamicResource CardBorderBrush}"
+                                              Background="{DynamicResource CardBgBrush}"
+                                              RowHeight="68"
+                                              FontSize="13"
+                                              IsReadOnly="True"
+                                              SelectionMode="Single"
+                                              SelectionUnit="FullRow"
+                                              FocusVisualStyle="{x:Null}"
+                                              Foreground="{DynamicResource TextPrimaryBrush}"
+                                              RowBackground="Transparent"
+                                              AlternatingRowBackground="Transparent"
+                                              HorizontalGridLinesBrush="Transparent">
 
                                             <DataGrid.Resources>
                                                 <SolidColorBrush x:Key="{x:Static SystemColors.HighlightBrushKey}" Color="#EAF2FC"/>
@@ -1821,54 +1765,384 @@
 
                             <Border Grid.Row="3"
                                     Margin="0,0,0,24"
-                                    Background="White"
-                                    CornerRadius="16"
-                                    BorderBrush="#E2E8F0"
+                                    Background="{DynamicResource CardBgBrush}"
+                                    CornerRadius="18"
+                                    BorderBrush="{DynamicResource CardBorderBrush}"
                                     BorderThickness="1"
-                                    MaxHeight="460"
                                     ClipToBounds="True">
-                                <ScrollViewer VerticalScrollBarVisibility="Auto"
-                                              HorizontalScrollBarVisibility="Disabled"
-                                              Padding="12">
-                                    <ItemsControl x:Name="DashboardCameraPreviewsItemsControl">
-                                        <ItemsControl.ItemsPanel>
-                                            <ItemsPanelTemplate>
-                                                <WrapPanel/>
-                                            </ItemsPanelTemplate>
-                                        </ItemsControl.ItemsPanel>
-                                        <ItemsControl.ItemTemplate>
-                                            <DataTemplate>
-                                                <Border Width="340"
-                                                        Height="240"
-                                                        Margin="0,0,12,12"
-                                                        Background="#0B1220"
-                                                        BorderBrush="#E2E8F0"
-                                                        BorderThickness="1"
-                                                        CornerRadius="12"
-                                                        ClipToBounds="True">
-                                                    <Grid>
-                                                        <Image Source="{Binding Frame}"
-                                                               Stretch="UniformToFill"/>
-                                                        <Border VerticalAlignment="Bottom"
-                                                                Background="#99000000"
-                                                                Padding="10,7">
-                                                            <StackPanel>
-                                                                <TextBlock Text="{Binding Title}"
-                                                                           FontSize="13"
-                                                                           FontWeight="SemiBold"
-                                                                           Foreground="White"
-                                                                           TextTrimming="CharacterEllipsis"/>
-                                                                <TextBlock Text="{Binding StatusLabel}"
-                                                                           FontSize="10"
-                                                                           Foreground="#CBD5E1"/>
+
+                                <Border.Effect>
+                                    <DropShadowEffect BlurRadius="20"
+                                                      ShadowDepth="2"
+                                                      Opacity="0.09"
+                                                      Color="#0A3776"/>
+                                </Border.Effect>
+
+                                <Grid>
+                                    <Grid.RowDefinitions>
+                                        <RowDefinition Height="78"/>
+                                        <RowDefinition Height="*"/>
+                                    </Grid.RowDefinitions>
+
+                                    <!-- HEADER -->
+                                    <Grid Grid.Row="0" Margin="24,0">
+                                        <Grid.ColumnDefinitions>
+                                            <ColumnDefinition Width="*"/>
+                                            <ColumnDefinition Width="Auto"/>
+                                        </Grid.ColumnDefinitions>
+
+                                        <StackPanel VerticalAlignment="Center">
+                                            <StackPanel Orientation="Horizontal">
+                                                <TextBlock Text="Violated Members"
+                                                           FontSize="20"
+                                                           FontWeight="Bold"
+                                                           Foreground="{DynamicResource TextPrimaryBrush}"/>
+
+                                                <TextBlock x:Name="ViolatedMembersCountText"
+                                                           FontSize="16"
+                                                           FontWeight="SemiBold"
+                                                           Foreground="{DynamicResource TextMutedBrush}"
+                                                           Margin="8,3,0,0"/>
+                                            </StackPanel>
+
+                                            <TextBlock Text="Employees who have exceeded their permitted time"
+                                                       FontSize="12"
+                                                       Foreground="{DynamicResource TextMutedBrush}"
+                                                       Margin="0,5,0,0"/>
+                                        </StackPanel>
+                                    </Grid>
+
+                                    <!-- DATA GRID + PAGINATION -->
+                                    <DockPanel Grid.Row="1">
+                                        <controls:PaginationBar x:Name="ViolatedMembersPagerBar"
+                                                               DockPanel.Dock="Bottom"
+                                                               Margin="12,0,12,8"/>
+
+                                        <DataGrid x:Name="ViolatedMembersDataGrid"
+                                          Margin="12,0,12,0"
+                                         
+                 
+                                          AutoGenerateColumns="False"
+                                          CanUserAddRows="False"
+                                          CanUserDeleteRows="False"
+                                          CanUserResizeRows="False"
+                                          CanUserSortColumns="False"
+                                          HeadersVisibility="Column"
+                                          GridLinesVisibility="None"
+                                          VerticalGridLinesBrush="Transparent"
+                                          BorderThickness="1"
+                                          BorderBrush="{DynamicResource CardBorderBrush}"
+                                          Background="{DynamicResource CardBgBrush}"
+                                          RowHeight="58"
+                                          FontSize="13"
+                                          IsReadOnly="True"
+                                          SelectionMode="Single"
+                                          SelectionUnit="FullRow"
+                                          FocusVisualStyle="{x:Null}"
+                                          Foreground="{DynamicResource TextPrimaryBrush}"
+                                          RowBackground="Transparent"
+                                          AlternatingRowBackground="Transparent"
+                                          HorizontalGridLinesBrush="Transparent">
+
+                                            <DataGrid.Resources>
+                                                <SolidColorBrush x:Key="{x:Static SystemColors.HighlightBrushKey}" Color="#EAF2FC"/>
+                                                <SolidColorBrush x:Key="{x:Static SystemColors.HighlightTextBrushKey}" Color="#0B2248"/>
+                                                <SolidColorBrush x:Key="{x:Static SystemColors.InactiveSelectionHighlightBrushKey}" Color="#EAF2FC"/>
+                                                <SolidColorBrush x:Key="{x:Static SystemColors.InactiveSelectionHighlightTextBrushKey}" Color="#0B2248"/>
+
+                                                <Style TargetType="DataGridRow">
+                                                    <Setter Property="Background" Value="Transparent"/>
+                                                    <Setter Property="BorderThickness" Value="0"/>
+                                                    <Setter Property="Margin" Value="0"/>
+                                                    <Setter Property="SnapsToDevicePixels" Value="True"/>
+                                                    <Setter Property="Template">
+                                                        <Setter.Value>
+                                                            <ControlTemplate TargetType="DataGridRow">
+                                                                <Border x:Name="RowChrome"
+                                                    Margin="0,0,0,1"
+                                                    Background="#FFFFFF"
+                                                    BorderBrush="#EEF2F7"
+                                                    BorderThickness="0,0,0,1"
+                                                    SnapsToDevicePixels="True">
+                                                                    <Grid>
+                                                                        <Border x:Name="StatusAccent"
+                                                            Width="4"
+                                                            HorizontalAlignment="Left"
+                                                            Background="Transparent"
+                                                            CornerRadius="2,0,0,2"/>
+                                                                        <SelectiveScrollingGrid Margin="4,0,0,0">
+                                                                            <SelectiveScrollingGrid.ColumnDefinitions>
+                                                                                <ColumnDefinition Width="Auto"/>
+                                                                                <ColumnDefinition Width="*"/>
+                                                                            </SelectiveScrollingGrid.ColumnDefinitions>
+                                                                            <DataGridCellsPresenter Grid.Column="1"
+                                                                                ItemsPanel="{TemplateBinding ItemsPanel}"
+                                                                                SnapsToDevicePixels="{TemplateBinding SnapsToDevicePixels}"/>
+                                                                        </SelectiveScrollingGrid>
+                                                                    </Grid>
+                                                                </Border>
+                                                                <ControlTemplate.Triggers>
+                                                                    <Trigger Property="IsMouseOver" Value="True">
+                                                                        <Setter TargetName="RowChrome" Property="Background" Value="#F8FBFF"/>
+                                                                    </Trigger>
+                                                                    <Trigger Property="IsSelected" Value="True">
+                                                                        <Setter TargetName="RowChrome" Property="Background" Value="#EAF2FC"/>
+                                                                    </Trigger>
+                                                                    <DataTrigger Binding="{Binding Status}" Value="Attention">
+                                                                        <Setter TargetName="StatusAccent" Property="Background" Value="#3B82F6"/>
+                                                                        <Setter TargetName="RowChrome" Property="Background" Value="#F8FBFF"/>
+                                                                    </DataTrigger>
+                                                                    <DataTrigger Binding="{Binding Status}" Value="Warning">
+                                                                        <Setter TargetName="StatusAccent" Property="Background" Value="#F59E0B"/>
+                                                                        <Setter TargetName="RowChrome" Property="Background" Value="#FFFCF5"/>
+                                                                    </DataTrigger>
+                                                                    <DataTrigger Binding="{Binding Status}" Value="Violation">
+                                                                        <Setter TargetName="StatusAccent" Property="Background" Value="#EF4444"/>
+                                                                        <Setter TargetName="RowChrome" Property="Background" Value="#FFFBFB"/>
+                                                                    </DataTrigger>
+                                                                </ControlTemplate.Triggers>
+                                                            </ControlTemplate>
+                                                        </Setter.Value>
+                                                    </Setter>
+                                                </Style>
+
+                                                <Style TargetType="DataGridCell">
+                                                    <Setter Property="BorderThickness" Value="0"/>
+                                                    <Setter Property="Padding" Value="14,0"/>
+                                                    <Setter Property="VerticalContentAlignment" Value="Center"/>
+                                                    <Setter Property="Foreground" Value="{DynamicResource TextPrimaryBrush}"/>
+                                                    <Setter Property="Background" Value="Transparent"/>
+                                                    <Setter Property="FocusVisualStyle" Value="{x:Null}"/>
+                                                    <Style.Triggers>
+                                                        <Trigger Property="IsSelected" Value="True">
+                                                            <Setter Property="Background" Value="Transparent"/>
+                                                            <Setter Property="Foreground" Value="{DynamicResource TextPrimaryBrush}"/>
+                                                        </Trigger>
+                                                    </Style.Triggers>
+                                                </Style>
+
+                                                <Style TargetType="DataGridColumnHeader">
+                                                    <Setter Property="Background" Value="#F8FAFC"/>
+                                                    <Setter Property="Foreground" Value="#64748B"/>
+                                                    <Setter Property="FontSize" Value="11"/>
+                                                    <Setter Property="FontWeight" Value="Bold"/>
+                                                    <Setter Property="Height" Value="44"/>
+                                                    <Setter Property="Padding" Value="14,0"/>
+                                                    <Setter Property="BorderBrush" Value="#E2E8F0"/>
+                                                    <Setter Property="BorderThickness" Value="0,0,0,1"/>
+                                                    <Setter Property="HorizontalContentAlignment" Value="Left"/>
+                                                    <Setter Property="Template">
+                                                        <Setter.Value>
+                                                            <ControlTemplate TargetType="DataGridColumnHeader">
+                                                                <Border Background="{TemplateBinding Background}"
+                                                    BorderBrush="{TemplateBinding BorderBrush}"
+                                                    BorderThickness="{TemplateBinding BorderThickness}"
+                                                    Padding="{TemplateBinding Padding}">
+                                                                    <ContentPresenter VerticalAlignment="Center" HorizontalAlignment="Left"/>
+                                                                </Border>
+                                                            </ControlTemplate>
+                                                        </Setter.Value>
+                                                    </Setter>
+                                                </Style>
+                                            </DataGrid.Resources>
+
+
+                                            <DataGrid.Columns>
+
+                                                <!-- EMPLOYEE -->
+                                                <DataGridTemplateColumn Header="EMPLOYEE" Width="2.3*">
+                                                    <DataGridTemplateColumn.CellTemplate>
+                                                        <DataTemplate>
+                                                            <Grid VerticalAlignment="Center">
+                                                                <Grid.ColumnDefinitions>
+                                                                    <ColumnDefinition Width="44"/>
+                                                                    <ColumnDefinition Width="*"/>
+                                                                </Grid.ColumnDefinitions>
+
+                                                                <Border Grid.Column="0"
+                                                    Width="36"
+                                                    Height="36"
+                                                    Background="#E8F0FE"
+                                                    CornerRadius="18"
+                                                    HorizontalAlignment="Left"
+                                                    VerticalAlignment="Center">
+                                                                    <TextBlock Text="{Binding EmployeeName[0]}"
+                                                           HorizontalAlignment="Center"
+                                                           VerticalAlignment="Center"
+                                                           FontSize="14"
+                                                           FontWeight="Bold"
+                                                           Foreground="#0A3776"/>
+                                                                </Border>
+
+                                                                <StackPanel Grid.Column="1" VerticalAlignment="Center" Margin="6,0,0,0">
+                                                                    <TextBlock Text="{Binding EmployeeName}"
+                                                           FontSize="13"
+                                                           FontWeight="SemiBold"
+                                                           Foreground="#0B2248"/>
+                                                                </StackPanel>
+                                                            </Grid>
+                                                        </DataTemplate>
+                                                    </DataGridTemplateColumn.CellTemplate>
+                                                </DataGridTemplateColumn>
+
+                                                <!-- ID CARD / UID -->
+                                                <DataGridTemplateColumn Header="UID" Width="1.15*">
+                                                    <DataGridTemplateColumn.CellTemplate>
+                                                        <DataTemplate>
+                                                            <Border Background="#F1F5F9"
+                                                CornerRadius="8"
+                                                Padding="10,5"
+                                                HorizontalAlignment="Left"
+                                                VerticalAlignment="Center">
+                                                                <TextBlock Text="{Binding CardUid}"
+                                                       FontSize="12"
+                                                       FontWeight="SemiBold"
+                                                       Foreground="#334155"/>
+                                                            </Border>
+                                                        </DataTemplate>
+                                                    </DataGridTemplateColumn.CellTemplate>
+                                                </DataGridTemplateColumn>
+
+                                                <!-- CHAMBER
+                                                <DataGridTemplateColumn Header="CHAMBER" Width="1.35*">
+                                                    <DataGridTemplateColumn.CellTemplate>
+                                                        <DataTemplate>
+                                                            <Border Background="#EEF5FF"
+                                                BorderBrush="#BFDBFE"
+                                                BorderThickness="1"
+                                                CornerRadius="8"
+                                                Padding="10,5"
+                                                HorizontalAlignment="Left"
+                                                VerticalAlignment="Center">
+                                                                <TextBlock Text="{Binding ChamberName}"
+                                                       FontSize="12"
+                                                       FontWeight="SemiBold"
+                                                       Foreground="#0A3776"/>
+                                                            </Border>
+                                                        </DataTemplate>
+                                                    </DataGridTemplateColumn.CellTemplate>
+                                                </DataGridTemplateColumn>
+                                                -->
+
+                                                <!-- IN TIME -->
+                                                <DataGridTemplateColumn Header="IN TIME" Width="1.45*">
+                                                    <DataGridTemplateColumn.CellTemplate>
+                                                        <DataTemplate>
+                                                            <StackPanel VerticalAlignment="Center">
+                                                                <TextBlock Text="{Binding EntryTime, StringFormat={}{0:hh:mm:ss tt}}"
+                                                       FontSize="13"
+                                                       FontWeight="SemiBold"
+                                                       Foreground="#0B2248"/>
+                                                                <TextBlock Text="{Binding EntryTime, StringFormat={}{0:dd MMM yyyy}}"
+                                                       FontSize="10"
+                                                       Foreground="#94A3B8"
+                                                       Margin="0,2,0,0"/>
                                                             </StackPanel>
-                                                        </Border>
-                                                    </Grid>
-                                                </Border>
-                                            </DataTemplate>
-                                        </ItemsControl.ItemTemplate>
-                                    </ItemsControl>
-                                </ScrollViewer>
+                                                        </DataTemplate>
+                                                    </DataGridTemplateColumn.CellTemplate>
+                                                </DataGridTemplateColumn>
+
+                                                <!-- EXIT TIME -->
+                                                <DataGridTemplateColumn Header="EXIT" Width="1.85*">
+                                                    <DataGridTemplateColumn.CellTemplate>
+                                                        <DataTemplate>
+                                                            <StackPanel
+                                                                VerticalAlignment="Center"
+                                                                HorizontalAlignment="Left">
+
+                                                                <!-- Exit Time -->
+                                                                <TextBlock
+                                                                    Text="{Binding ExitTime, StringFormat={}{0:hh:mm:ss tt}}"
+                                                                    FontSize="13"
+                                                                    FontWeight="SemiBold"
+                                                                    Foreground="#0B2248"/>
+
+                                                                <!-- Exit Date -->
+                                                                <TextBlock
+                                                                    Text="{Binding ExitTime, StringFormat={}{0:dd MMM yyyy}}"
+                                                                    FontSize="10"
+                                                                    Foreground="#94A3B8"
+                                                                    Margin="0,2,0,0"/>
+
+                                                            </StackPanel>
+                                                        </DataTemplate>
+                                                    </DataGridTemplateColumn.CellTemplate>
+                                                </DataGridTemplateColumn>
+
+                                                <!-- STATUS -->
+                                                <DataGridTemplateColumn Header="STATUS" Width="1.15*">
+                                                    <DataGridTemplateColumn.CellTemplate>
+                                                        <DataTemplate>
+                                                            <Border HorizontalAlignment="Left"
+                                                            VerticalAlignment="Center"
+                                                            Padding="11,5"
+                                                            CornerRadius="9">
+                                                                <Border.Style>
+                                                                    <Style TargetType="Border">
+                                                                        <Setter Property="Background" Value="#DCFCE7"/>
+                                                                        <Style.Triggers>
+                                                                            <DataTrigger Binding="{Binding Status}" Value="Attention">
+                                                                                <Setter Property="Background" Value="#DBEAFE"/>
+                                                                            </DataTrigger>
+                                                                            <DataTrigger Binding="{Binding Status}" Value="Warning">
+                                                                                <Setter Property="Background" Value="#FEF3C7"/>
+                                                                            </DataTrigger>
+                                                                            <DataTrigger Binding="{Binding Status}" Value="Alert">
+                                                                                <Setter Property="Background" Value="#FEF3C7"/>
+                                                                            </DataTrigger>
+                                                                            <DataTrigger Binding="{Binding Status}" Value="Violation">
+                                                                                <Setter Property="Background" Value="#FEE2E2"/>
+                                                                            </DataTrigger>
+                                                                        </Style.Triggers>
+                                                                    </Style>
+                                                                </Border.Style>
+                                                                <TextBlock Text="{Binding Status}"
+                                                       FontSize="11"
+                                                       FontWeight="Bold"
+                                                       VerticalAlignment="Center">
+                                                                    <TextBlock.Style>
+                                                                        <Style TargetType="TextBlock">
+                                                                            <Setter Property="Foreground" Value="#166534"/>
+                                                                            <Style.Triggers>
+                                                                                <DataTrigger Binding="{Binding Status}" Value="Attention">
+                                                                                    <Setter Property="Foreground" Value="#1D4ED8"/>
+                                                                                </DataTrigger>
+                                                                                <DataTrigger Binding="{Binding Status}" Value="Warning">
+                                                                                    <Setter Property="Foreground" Value="#B45309"/>
+                                                                                </DataTrigger>
+                                                                                <DataTrigger Binding="{Binding Status}" Value="Alert">
+                                                                                    <Setter Property="Foreground" Value="#B45309"/>
+                                                                                </DataTrigger>
+                                                                                <DataTrigger Binding="{Binding Status}" Value="Violation">
+                                                                                    <Setter Property="Foreground" Value="#B91C1C"/>
+                                                                                </DataTrigger>
+                                                                            </Style.Triggers>
+                                                                        </Style>
+                                                                    </TextBlock.Style>
+                                                                </TextBlock>
+                                                            </Border>
+                                                        </DataTemplate>
+                                                    </DataGridTemplateColumn.CellTemplate>
+                                                </DataGridTemplateColumn>
+
+                                                <!-- DURATION -->
+                                                <DataGridTemplateColumn Header="DURATION" Width="1.85*">
+                                                    <DataGridTemplateColumn.CellTemplate>
+                                                        <DataTemplate>
+                                                            <TextBlock Text="{Binding DurationDisplay}"
+                                                               FontSize="13"
+                                                               FontWeight="Bold"
+                                                               Foreground="#B91C1C"
+                                                               VerticalAlignment="Center"/>
+                                                        </DataTemplate>
+                                                    </DataGridTemplateColumn.CellTemplate>
+                                                </DataGridTemplateColumn>
+
+                                            </DataGrid.Columns>
+
+                                        </DataGrid>
+                                    </DockPanel>
+                                </Grid>
                             </Border>
                         </Grid>
 
@@ -2500,11 +2774,11 @@
                             <!-- ========================================================= -->
 
                             <Border Grid.Row="2"
-                        Background="White"
-                        CornerRadius="16"
-                        BorderBrush="#E2E8F0"
-                        BorderThickness="1"
-                        Padding="16">
+                            Background="White"
+                            CornerRadius="16"
+                            BorderBrush="#E2E8F0"
+                            BorderThickness="1"
+                            Padding="16">
 
                                 <Border.Effect>
                                     <DropShadowEffect BlurRadius="18"
@@ -2677,13 +2951,18 @@
 
 
                 </Grid>
+            </Grid>
 
-            </ScrollViewer>
+            <!--</ScrollViewer>-->
 
         </Grid>
 
-        <ItemsControl x:Name="ChambersItemsControl"
-                      Visibility="Collapsed"/>
+        <ItemsControl x:Name="ChambersItemsControl" Visibility="Collapsed"/>
+        <!-- Hidden compatibility control.
+             Camera live preview UI has been removed.
+             Background camera monitoring remains unchanged. -->
+        <ItemsControl x:Name="DashboardCameraPreviewsItemsControl" Visibility="Collapsed"/>
+
         <!-- DARK MODE BOOT OVERLAY -->
         <Border x:Name="SciFiBootOverlay"
                 Grid.ColumnSpan="2"

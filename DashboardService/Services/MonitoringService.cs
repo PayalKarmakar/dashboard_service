@@ -14,32 +14,43 @@ public class MonitoringService
     private readonly ConfigurationService _configurationService = new();
     private readonly AlertMessageService _alertMessageService = new();
 
-    public async Task<List<Employee>> GetMembersInsideAsync()
+    public async Task<List<Employee>> GetMembersInsideAsync(MemberFilter filter)
     {
         var settings = _configurationService.GetAlertSettings();
         var members = new List<Employee>();
 
         await using var connection = new NpgsqlConnection(_configurationService.GetConnectionString());
+
         await connection.OpenAsync();
 
-        const string sql = @"
-            SELECT
-                t.id,
-                t.employee_id,
-                t.employee_name,
-                COALESCE(t.card_uid, ''),
-                COALESCE(c.chamber_name, ''),
-                t.entry_time,
-                t.alert_triggered,
-                t.last_announcement_at,
-                c.time_threshold
-            FROM public.rfid_transactions t
-            LEFT JOIN public.master_chambers c
-                ON c.chamber_id = t.chamber_id
-            WHERE t.status = 'OPEN'
-              AND t.exit_time IS NULL
-            ORDER BY t.entry_time;
-        ";
+        string condition = filter switch
+        {
+            MemberFilter.Current => "WHERE t.status = 'OPEN' AND t.exit_time IS NULL",
+
+            MemberFilter.Violated => "WHERE t.violation = TRUE",
+
+            _ => throw new ArgumentOutOfRangeException(nameof(filter))
+        };
+
+        string sql = $@"
+        SELECT
+            t.id,
+            t.employee_id,
+            t.employee_name,
+            COALESCE(t.card_uid, ''),
+            COALESCE(c.chamber_name, ''),
+            t.entry_time,
+            t.exit_time,
+            t.duration,
+            t.alert_triggered,
+            t.last_announcement_at,
+            c.time_threshold
+        FROM public.rfid_transactions t
+        LEFT JOIN public.master_chambers c
+            ON c.chamber_id = t.chamber_id
+        {condition}
+        ORDER BY t.entry_time;
+    ";
 
         await using var command = new NpgsqlCommand(sql, connection);
         await using var reader = await command.ExecuteReaderAsync();
@@ -54,13 +65,15 @@ public class MonitoringService
                 CardUid = reader.GetString(3),
                 ChamberName = reader.GetString(4),
                 EntryTime = reader.GetDateTime(5),
-                TimeThresholdMinutes = ResolveChamberTimeThreshold(
-                    reader.IsDBNull(8) ? null : reader.GetInt32(8),
-                    settings.AfterMinutes),
+                ExitTime = reader.IsDBNull(6) ? null : reader.GetDateTime(6),
+                Duration = reader.IsDBNull(7) ? null : reader.GetFieldValue<TimeSpan>(7),
+                AlertTriggered = reader.GetBoolean(8),
+                LastAnnouncementAt = reader.IsDBNull(9) ? null : reader.GetDateTime(9),
+                TimeThresholdMinutes = ResolveChamberTimeThreshold(reader.IsDBNull(10)? null : reader.GetInt32(10), settings.AfterMinutes),
                 AttentionMinutes = settings.AttentionMinutes,
-                WarningRemainingMinutes = settings.WarningRemainingMinutes,
-                AlertTriggered = reader.GetBoolean(6),
-                LastAnnouncementAt = reader.IsDBNull(7) ? null : reader.GetDateTime(7)
+                WarningRemainingMinutes = settings.WarningRemainingMinutes
+
+                
             });
         }
 
@@ -71,13 +84,16 @@ public class MonitoringService
             return members;
         }
 
-        var announcedTypes = await GetAnnouncementTypesAsync(
-            connection,
-            members.Select(x => x.TransactionId).ToList());
+        var announcedTypes =
+            await GetAnnouncementTypesAsync(
+                connection,
+                members.Select(x => x.TransactionId).ToList());
 
         foreach (var member in members)
         {
-            if (announcedTypes.TryGetValue(member.TransactionId, out var types))
+            if (announcedTypes.TryGetValue(
+                member.TransactionId,
+                out var types))
             {
                 member.AnnouncedTypes = types;
             }
@@ -917,4 +933,10 @@ public class MonitoringService
         await command.ExecuteNonQueryAsync();
     }
 
+}
+
+public enum MemberFilter
+{
+    Current,
+    Violated
 }

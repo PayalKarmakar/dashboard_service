@@ -17,6 +17,10 @@ namespace DashboardService.Views
     {
         private readonly ListPager<Employee> _membersPager = new();
 
+        private readonly ListPager<Employee> _violatedMembersPager = new();
+
+        public ObservableCollection<Employee> ViolatedMembers { get; set; }
+
         public ObservableCollection<ChamberDashboard> Chambers { get; set; }
 
         public ObservableCollection<Employee> Employees { get; set; }
@@ -101,9 +105,12 @@ namespace DashboardService.Views
             DashboardCameraPreviews = new ObservableCollection<DashboardCameraPreview>();
             ActiveSensorViolations = new ObservableCollection<SensorViolation>(); //Payal
 
+
             ChambersItemsControl.ItemsSource = Chambers;
             MembersPagerBar.Bind(_membersPager);
             MembersDataGrid.ItemsSource = _membersPager.PageItems;
+            ViolatedMembersPagerBar.Bind(_violatedMembersPager);
+            ViolatedMembersDataGrid.ItemsSource = _violatedMembersPager.PageItems;
             ConnectedReadersItemsControl.ItemsSource = ConnectedRfidReaders;
             DisconnectedReadersItemsControl.ItemsSource = DisconnectedRfidReaders;
             ConnectedSensorsItemsControl.ItemsSource = ConnectedSensors;
@@ -273,8 +280,10 @@ namespace DashboardService.Views
 
         private async void DashboardPage_Loaded(object sender, RoutedEventArgs e)
         {
+
             await RefreshLiveDataAsync();
             await RefreshLiveSensorReadingAsync();
+            await CheckSensorViolationsAsync();
         }
 
         private void DashboardPage_Unloaded(object sender, RoutedEventArgs e)
@@ -454,8 +463,11 @@ namespace DashboardService.Views
             try
             {
                 var chambers = await _monitoringService.GetChamberOccupancyAsync();
-                var members = await _monitoringService.GetMembersInsideAsync();
+                var members = await _monitoringService.GetMembersInsideAsync(MemberFilter.Current);
                 var insideIds = members.Select(x => x.TransactionId).ToHashSet();
+                var violatedMembers = await _monitoringService.GetMembersInsideAsync(MemberFilter.Violated);
+
+                _violatedMembersPager.SetItems(violatedMembers);
 
                 foreach (var previous in Employees.ToList())
                 {
@@ -474,8 +486,7 @@ namespace DashboardService.Views
                 Employees.Clear();
                 foreach (var member in members)
                 {
-                    member.IsVoicePlaying =
-                        _voiceAnnouncementService.IsPlaying(member.TransactionId);
+                    member.IsVoicePlaying = _voiceAnnouncementService.IsPlaying(member.TransactionId);
                     Employees.Add(member);
                 }
 
@@ -487,7 +498,9 @@ namespace DashboardService.Views
                 await RefreshRfidReaderStatusAsync();
                 await RefreshSensorConnectionStatusAsync();
                 await RefreshCameraDeviceStatusAsync();
+
                 RebuildDeviceStatusItems();
+
                 await RefreshCameraViolationsAsync();
                 await EnqueueUnplayedAnnouncementsAsync();
                 await ProcessDueAnnouncementsAsync();
@@ -495,12 +508,8 @@ namespace DashboardService.Views
             catch (Exception ex)
             {
                 _refreshTimer.Stop();
-            _sensorReadingTimer.Stop();
-                MessageBox.Show(
-                    ex.Message,
-                    "Dashboard",
-                    MessageBoxButton.OK,
-                    MessageBoxImage.Error);
+                _sensorReadingTimer.Stop();
+                MessageBox.Show(ex.Message, "Dashboard",MessageBoxButton.OK,MessageBoxImage.Error);
             }
         }
 
@@ -1490,13 +1499,20 @@ namespace DashboardService.Views
         {
             try
             {
+                // Make sure the latest sensor connection state is available
+                // before applying the card colours/status.
+                await RefreshSensorConnectionStatusAsync();
+
                 var violations = await _monitoringService.GetActiveSensorViolationsAsync(1);
 
                 // Update the five sensor cards
                 UpdateSensorStatuses(violations);
 
-                // Process voice announcements
-                await ProcessSensorAnnouncementsAsync(violations); // Do announcements for
+                // Process voice announcements only when sensor is connected
+                if (ConnectedSensors.Any())
+                {
+                    await ProcessSensorAnnouncementsAsync(violations);
+                }
 
                 foreach (var violation in violations)
                 {
@@ -1548,20 +1564,31 @@ namespace DashboardService.Views
                 violations);
         }
 
-        private void SetSensorStatus(
-            string parameter,
-            Border cardBorder,
-            Border statusBorder,
-            TextBlock statusText,
-            List<SensorViolation> violations)
+        private void SetSensorStatus(string parameter,Border cardBorder, Border statusBorder, TextBlock statusText,List<SensorViolation> violations)
         {
-            var parameterViolations = violations
-                .Where(v =>
-                    string.Equals(
-                        v.Parameter,
-                        parameter,
-                        StringComparison.OrdinalIgnoreCase))
-                .ToList();
+            // =========================================================
+            // DISCONNECTED / NO CONNECTION STATUS
+            // =========================================================
+
+            if (!ConnectedSensors.Any())
+            {
+                statusText.Text = "NOT CONNECTED";
+
+                ApplySensorCardTheme(
+                    cardBorder,
+                    statusBorder,
+                    statusText,
+                    fill: Color.FromRgb(241, 245, 249),
+                    border: Color.FromRgb(203, 213, 225),
+                    foreground: Color.FromRgb(71, 85, 105));
+
+                cardBorder.Opacity = 1.0;
+                statusBorder.Opacity = 1.0;
+
+                return;
+            }
+
+            var parameterViolations = violations.Where(v => string.Equals(v.Parameter,parameter, StringComparison.OrdinalIgnoreCase)).ToList();
 
             // =========================
             // NORMAL

@@ -802,7 +802,7 @@ public partial class LiveCameraPage : Page
 
         try
         {
-            var members = await _monitoringService.GetMembersInsideAsync();
+            var members = await _monitoringService.GetMembersInsideAsync(MemberFilter.Current);
             int count = members.Count(m =>
                 string.Equals(m.ChamberName, _selectedCamera?.ChamberName, StringComparison.OrdinalIgnoreCase));
 

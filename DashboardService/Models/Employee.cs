@@ -19,6 +19,11 @@ namespace DashboardService.Models
 
         public DateTime EntryTime { get; set; }
 
+        public DateTime? ExitTime { get; set; }
+        public TimeSpan? Duration { get; set; }
+
+        public string DurationDisplay => Duration.HasValue ? Duration.Value.ToString(@"hh\:mm\:ss"): "-";
+
         // Allowed inside duration from the chamber TIME (MIN). Falls back to AfterMinutes.
         public int TimeThresholdMinutes { get; set; } = 60;
 
