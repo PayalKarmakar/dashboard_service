@@ -39,6 +39,7 @@ public partial class SidebarControl : UserControl
         RegisterMenuButton("Dashboard", DashboardButton);
         RegisterMenuButton("Chambers", ChambersButton);
         RegisterMenuButton("Employees", EmployeesButton);
+        RegisterMenuButton("Users", UsersButton);
         RegisterMenuButton("Readers", ReadersButton);
         RegisterMenuButton("LiveCamera", LiveCameraButton);
         RegisterMenuButton("ManualRfidTransactions", ManualRfidButton);
@@ -78,7 +79,7 @@ public partial class SidebarControl : UserControl
             nameof(CurrentUser),
             typeof(User),
             typeof(SidebarControl),
-            new PropertyMetadata(null));
+            new PropertyMetadata(null, OnCurrentUserChanged));
 
     public string ActivePage
     {
@@ -92,6 +93,14 @@ public partial class SidebarControl : UserControl
             typeof(string),
             typeof(SidebarControl),
             new PropertyMetadata(string.Empty, OnActivePageChanged));
+
+    private static void OnCurrentUserChanged(DependencyObject d, DependencyPropertyChangedEventArgs e)
+    {
+        if (d is SidebarControl sidebar)
+        {
+            sidebar.ApplyRoleMenus();
+        }
+    }
 
     private static void OnActivePageChanged(DependencyObject d, DependencyPropertyChangedEventArgs e)
     {
@@ -111,6 +120,27 @@ public partial class SidebarControl : UserControl
     public void SetActivePage(string page)
     {
         ActivePage = page;
+    }
+
+    private void ApplyRoleMenus()
+    {
+        bool supervisor = CurrentUser != null && AppNavigation.IsSupervisor(CurrentUser);
+        Visibility extra = supervisor ? Visibility.Collapsed : Visibility.Visible;
+
+        ChambersButton.Visibility = extra;
+        EmployeesButton.Visibility = extra;
+        UsersButton.Visibility = extra;
+        ReadersButton.Visibility = extra;
+        ReportsButton.Visibility = extra;
+        ConfigurationButton.Visibility = extra;
+
+        if (supervisor)
+        {
+            ReportsSubMenu.Visibility = Visibility.Collapsed;
+            ConfigurationSubMenu.Visibility = Visibility.Collapsed;
+            ReportsArrow.Text = "›";
+            ConfigurationArrow.Text = "›";
+        }
     }
 
     private void RegisterMenuButton(string key, Button button)
@@ -180,6 +210,7 @@ public partial class SidebarControl : UserControl
     private void Dashboard_Click(object sender, RoutedEventArgs e) => Navigate("Dashboard");
     private void Chambers_Click(object sender, RoutedEventArgs e) => Navigate("Chambers");
     private void Employees_Click(object sender, RoutedEventArgs e) => Navigate("Employees");
+    private void Users_Click(object sender, RoutedEventArgs e) => Navigate("Users");
     private void Readers_Click(object sender, RoutedEventArgs e) => Navigate("Readers");
     private void LiveCamera_Click(object sender, RoutedEventArgs e) => Navigate("LiveCamera");
     private void ManualRfid_Click(object sender, RoutedEventArgs e) => Navigate("ManualRfidTransactions");
@@ -228,7 +259,7 @@ public partial class SidebarControl : UserControl
 
     private void Navigate(string page)
     {
-        if (CurrentUser == null)
+        if (CurrentUser == null || !AppNavigation.CanOpen(CurrentUser, page))
         {
             return;
         }

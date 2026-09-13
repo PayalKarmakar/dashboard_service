@@ -18,6 +18,8 @@ public class EntryExitReportRow
 
     public string Status { get; set; } = string.Empty;
 
+    public bool AlertTriggered { get; set; }
+
     public string EntryDisplay => EntryTime.ToString("dd MMM yyyy hh:mm:ss tt");
 
     public string ExitDisplay => ExitTime.HasValue
@@ -39,10 +41,18 @@ public class EntryExitReportRow
         }
     }
 
-    public string StatusDisplay => string.Equals(Status, "OPEN", StringComparison.OrdinalIgnoreCase)
-        ? "Inside"
-        : string.Equals(Status, "COMPLETED", StringComparison.OrdinalIgnoreCase)
-            || string.Equals(Status, "CLOSED", StringComparison.OrdinalIgnoreCase)
-            ? "Exited"
-            : Status;
+    public string StatusDisplay
+    {
+        get
+        {
+            string visitStatus = string.Equals(Status, "OPEN", StringComparison.OrdinalIgnoreCase)
+                ? "Inside"
+                : string.Equals(Status, "COMPLETED", StringComparison.OrdinalIgnoreCase)
+                    || string.Equals(Status, "CLOSED", StringComparison.OrdinalIgnoreCase)
+                    ? "Exited"
+                    : Status;
+
+            return AlertTriggered ? $"{visitStatus} (Violation)" : visitStatus;
+        }
+    }
 }

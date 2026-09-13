@@ -27,7 +27,8 @@ public class ReportService
                 COALESCE(c.chamber_name, ''),
                 t.entry_time,
                 t.exit_time,
-                COALESCE(t.status, '')
+                COALESCE(t.status, ''),
+                COALESCE(t.alert_triggered, FALSE)
             FROM public.rfid_transactions t
             LEFT JOIN public.master_employees e
                 ON e.emp_id = t.employee_id
@@ -43,7 +44,8 @@ public class ReportService
                   )
               AND (
                     @status = ''
-                    OR LOWER(COALESCE(t.status, '')) = LOWER(@status)
+                    OR (@status = 'VIOLATION' AND t.alert_triggered = TRUE)
+                    OR (@status <> 'VIOLATION' AND LOWER(COALESCE(t.status, '')) = LOWER(@status))
                   )
             ORDER BY t.entry_time DESC;
         ";
@@ -55,7 +57,7 @@ public class ReportService
         command.Parameters.AddWithValue("toDate", to);
         command.Parameters.AddWithValue("search", search);
         command.Parameters.AddWithValue("searchLike", $"%{search.ToLowerInvariant()}%");
-        command.Parameters.AddWithValue("status", (statusFilter ?? string.Empty).Trim());
+        command.Parameters.AddWithValue("status", (statusFilter ?? string.Empty).Trim().ToUpperInvariant());
 
         await using var reader = await command.ExecuteReaderAsync();
 
@@ -70,7 +72,8 @@ public class ReportService
                 ChamberName = reader.GetString(4),
                 EntryTime = reader.GetDateTime(5),
                 ExitTime = reader.IsDBNull(6) ? null : reader.GetDateTime(6),
-                Status = reader.GetString(7)
+                Status = reader.GetString(7),
+                AlertTriggered = reader.GetBoolean(8)
             });
         }
 

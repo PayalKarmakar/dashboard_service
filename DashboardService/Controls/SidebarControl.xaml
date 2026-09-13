@@ -267,6 +267,34 @@
                 </Button>
 
 
+                <!-- USERS -->
+
+                <Button x:Name="UsersButton"
+                        Style="{StaticResource SidebarButtonStyle}"
+                        Click="Users_Click">
+
+                    <Grid>
+
+                        <Grid.ColumnDefinitions>
+                            <ColumnDefinition Width="52"/>
+                            <ColumnDefinition Width="*"/>
+                        </Grid.ColumnDefinitions>
+
+                        <TextBlock Grid.Column="0"
+                                   Text="♔"
+                                   FontSize="18"
+                                   Foreground="#A8B5C7"
+                                   HorizontalAlignment="Center"/>
+
+                        <TextBlock Grid.Column="1"
+                                   Text="Users"
+                                   Style="{StaticResource SidebarTextStyle}"/>
+
+                    </Grid>
+
+                </Button>
+
+
                 <!-- RFID -->
 
                 <Button x:Name="ReadersButton"

@@ -7,8 +7,10 @@ namespace DashboardService.Views;
 public partial class AddChamberWindow : Window
 {
     private readonly ChamberService _chamberService = new();
+    private readonly ConfigurationService _configurationService = new();
+    private readonly AlertMessageService _alertMessageService = new();
     private readonly long _changedBy;
-    private readonly Chamber? _editingChamber;
+    private Chamber? _editingChamber;
     private readonly bool _isEditMode;
 
     public AddChamberWindow(long changedBy, Chamber? existingChamber = null)
@@ -22,17 +24,82 @@ public partial class AddChamberWindow : Window
         {
             Title = "Edit Chamber";
             TitleText.Text = "Edit Chamber";
-            SubtitleText.Text = "Update chamber details and time threshold";
+            SubtitleText.Text = "Values load from the database. Update chamber details and time-alert rules.";
             SaveButton.Content = "Update";
-
-            CodeTextBox.Text = _editingChamber.ChamberCode;
-            NameTextBox.Text = _editingChamber.ChamberName;
-            LocationTextBox.Text = _editingChamber.ChamberLocation;
-            MemberThresholdTextBox.Text = _editingChamber.MemberThreshold?.ToString() ?? string.Empty;
-            TimeThresholdTextBox.Text = _editingChamber.TimeThreshold?.ToString() ?? string.Empty;
         }
 
+        Loaded += AddChamberWindow_Loaded;
         CodeTextBox.Focus();
+    }
+
+    private async void AddChamberWindow_Loaded(object sender, RoutedEventArgs e)
+    {
+        try
+        {
+            var settings = _configurationService.GetAlertSettings();
+            string warningExample = await GetDefaultTemplateAsync(
+                ChamberService.WarningAlertType,
+                settings.WarningMessage);
+            string violationExample = await GetDefaultTemplateAsync(
+                ChamberService.ViolationAlertType,
+                settings.ViolationMessage);
+
+            WarningExampleText.Text = "Example: " + warningExample;
+            ViolationExampleText.Text = "Example: " + violationExample;
+            SystemDefinitionText.Text = BuildSystemDefinition(settings.RepeatAfterViolationMinutes);
+
+            int defaultWarningBefore = settings.WarningRemainingMinutes > 0
+                ? settings.WarningRemainingMinutes
+                : 10;
+            ApplyRule(null, WarningBeforeTextBox, WarningPlayCountTextBox, WarningAudioCheckBox, WarningMessageTextBox,
+                defaultWarningBefore, 1, allowContinue: false);
+            ApplyRule(null, ViolationAfterTextBox, ViolationPlayCountTextBox, ViolationAudioCheckBox, ViolationMessageTextBox,
+                0, ChamberAlertRule.ContinuePlayCount, allowContinue: true);
+
+            if (!_isEditMode || _editingChamber == null)
+            {
+                TimeThresholdTextBox.Text = settings.AfterMinutes.ToString();
+                return;
+            }
+
+            var chamber = await _chamberService.GetByIdAsync(_editingChamber.ChamberId) ?? _editingChamber;
+            _editingChamber = chamber;
+
+            CodeTextBox.Text = chamber.ChamberCode;
+            NameTextBox.Text = chamber.ChamberName;
+            LocationTextBox.Text = chamber.ChamberLocation;
+            MemberThresholdTextBox.Text = chamber.MemberThreshold?.ToString() ?? string.Empty;
+            TimeThresholdTextBox.Text = chamber.TimeThreshold?.ToString() ?? string.Empty;
+
+            var rules = await _chamberService.GetRulesAsync(chamber.ChamberId);
+            ApplyRule(
+                rules.FirstOrDefault(r => r.AlertType.Equals(ChamberService.WarningAlertType, StringComparison.OrdinalIgnoreCase)),
+                WarningBeforeTextBox,
+                WarningPlayCountTextBox,
+                WarningAudioCheckBox,
+                WarningMessageTextBox,
+                defaultWarningBefore,
+                1,
+                allowContinue: false);
+
+            ApplyRule(
+                rules.FirstOrDefault(r => r.AlertType.Equals(ChamberService.ViolationAlertType, StringComparison.OrdinalIgnoreCase)),
+                ViolationAfterTextBox,
+                ViolationPlayCountTextBox,
+                ViolationAudioCheckBox,
+                ViolationMessageTextBox,
+                0,
+                ChamberAlertRule.ContinuePlayCount,
+                allowContinue: true);
+        }
+        catch (Exception ex)
+        {
+            MessageBox.Show(
+                ex.Message,
+                _isEditMode ? "Edit Chamber" : "Add Chamber",
+                MessageBoxButton.OK,
+                MessageBoxImage.Error);
+        }
     }
 
     private async void Save_Click(object sender, RoutedEventArgs e)
@@ -52,8 +119,32 @@ public partial class AddChamberWindow : Window
         }
 
         if (!TryParseOptionalInt(MemberThresholdTextBox.Text, "Member threshold", out int? memberThreshold) ||
-            !TryParseOptionalInt(TimeThresholdTextBox.Text, "Time threshold", out int? timeThreshold))
+            !TryParseRequiredInt(TimeThresholdTextBox.Text, "Time threshold", out int timeThreshold) ||
+            !TryParseRequiredInt(WarningBeforeTextBox.Text, "Warning minutes before", out int warningBefore) ||
+            !TryParseRequiredInt(WarningPlayCountTextBox.Text, "Warning play count", out int warningCount) ||
+            !TryParseRequiredInt(ViolationAfterTextBox.Text, "Violation minutes after", out int violationAfter) ||
+            !TryParseViolationPlayCount(ViolationPlayCountTextBox.Text, dialogTitle, out int violationCount))
         {
+            return;
+        }
+
+        if (warningCount < 1)
+        {
+            MessageBox.Show(
+                "Warning play count must be at least 1.",
+                dialogTitle,
+                MessageBoxButton.OK,
+                MessageBoxImage.Warning);
+            return;
+        }
+
+        if (warningBefore >= timeThreshold)
+        {
+            MessageBox.Show(
+                "Warning minutes before must be less than the time threshold.",
+                dialogTitle,
+                MessageBoxButton.OK,
+                MessageBoxImage.Warning);
             return;
         }
 
@@ -69,14 +160,37 @@ public partial class AddChamberWindow : Window
 
         try
         {
+            long chamberId = chamber.ChamberId;
             if (_isEditMode)
             {
                 await _chamberService.UpdateAsync(chamber, _changedBy);
             }
             else
             {
-                await _chamberService.AddAsync(chamber, _changedBy);
+                chamberId = await _chamberService.AddAsync(chamber, _changedBy);
             }
+
+            await _chamberService.SaveRulesAsync(chamberId,
+            [
+                new ChamberAlertRule
+                {
+                    AlertType = ChamberService.WarningAlertType,
+                    AlertTimeMinutes = warningBefore,
+                    MaxPlayCount = warningCount,
+                    IsAnnouncementEnabled = WarningAudioCheckBox.IsChecked == true,
+                    IsActive = true,
+                    AnnouncementMessage = WarningMessageTextBox.Text.Trim()
+                },
+                new ChamberAlertRule
+                {
+                    AlertType = ChamberService.ViolationAlertType,
+                    AlertTimeMinutes = violationAfter,
+                    MaxPlayCount = violationCount,
+                    IsAnnouncementEnabled = ViolationAudioCheckBox.IsChecked == true,
+                    IsActive = true,
+                    AnnouncementMessage = ViolationMessageTextBox.Text.Trim()
+                }
+            ]);
 
             DialogResult = true;
         }
@@ -93,6 +207,78 @@ public partial class AddChamberWindow : Window
     private void Cancel_Click(object sender, RoutedEventArgs e)
     {
         DialogResult = false;
+    }
+
+    private async Task<string> GetDefaultTemplateAsync(string alertType, string fallback)
+    {
+        var templates = await _alertMessageService.GetTemplatesAsync(
+            AlertMessageService.CategoryEmployee,
+            alertType);
+
+        if (templates.TryGetValue(AlertMessageService.CultureEnglishIndia, out string? template) &&
+            !string.IsNullOrWhiteSpace(template))
+        {
+            return template.Trim();
+        }
+
+        return fallback.Trim();
+    }
+
+    private static string BuildSystemDefinition(int repeatAfterMinutes)
+    {
+        return
+            "Time Threshold is the permitted stay inside the chamber (from entry time).\n\n" +
+            "Warning fires that many minutes BEFORE the threshold. Dashboard status becomes Warning. " +
+            "If Play warning audio is on, voice starts. Play count is how many warning alerts are created " +
+            $"(first immediately, then every {repeatAfterMinutes} minutes). Warning voice speaks 2 times per alert then stops.\n\n" +
+            "Violation fires that many minutes AFTER the threshold (0 = exactly at expiry). Status becomes Violation. " +
+            "If Play violation audio is on, voice loops until the member exits when play count is continue. " +
+            "Stop pauses it; after Stop a number still waits " +
+            $"{repeatAfterMinutes} minutes before the next session, but continue starts speaking again immediately " +
+            "if voice drops without Stop. A number caps how many sessions are created.\n\n" +
+            "Leave message empty to use the system default template shown in Example. Saved text is stored in " +
+            "chamber_alert_rules.announcement_message. Placeholders: {EmployeeName}, {ChamberName}, " +
+            "{WarningRemainingMinutes}, {AfterMinutes}.";
+    }
+
+    private static void ApplyRule(
+        ChamberAlertRule? rule,
+        System.Windows.Controls.TextBox minutesBox,
+        System.Windows.Controls.TextBox countBox,
+        System.Windows.Controls.CheckBox audioBox,
+        System.Windows.Controls.TextBox messageBox,
+        int defaultMinutes,
+        int defaultCount,
+        bool allowContinue)
+    {
+        if (rule == null)
+        {
+            minutesBox.Text = defaultMinutes.ToString();
+            countBox.Text = ChamberAlertRule.FormatPlayCount(defaultCount, allowContinue);
+            audioBox.IsChecked = true;
+            messageBox.Text = string.Empty;
+            return;
+        }
+
+        minutesBox.Text = rule.AlertTimeMinutes.ToString();
+        countBox.Text = ChamberAlertRule.FormatPlayCount(rule.MaxPlayCount, allowContinue);
+        audioBox.IsChecked = rule.IsAnnouncementEnabled;
+        messageBox.Text = rule.AnnouncementMessage;
+    }
+
+    private static bool TryParseViolationPlayCount(string text, string dialogTitle, out int playCount)
+    {
+        if (ChamberAlertRule.TryParsePlayCount(text, allowContinue: true, out playCount))
+        {
+            return true;
+        }
+
+        MessageBox.Show(
+            "Violation play count must be continue or a number of 1 or more.",
+            dialogTitle,
+            MessageBoxButton.OK,
+            MessageBoxImage.Warning);
+        return false;
     }
 
     private static bool TryParseOptionalInt(string text, string fieldName, out int? value)
@@ -115,6 +301,22 @@ public partial class AddChamberWindow : Window
         }
 
         value = parsed;
+        return true;
+    }
+
+    private static bool TryParseRequiredInt(string text, string fieldName, out int value)
+    {
+        value = 0;
+        if (string.IsNullOrWhiteSpace(text) || !int.TryParse(text.Trim(), out value) || value < 0)
+        {
+            MessageBox.Show(
+                $"{fieldName} is required and must be 0 or more.",
+                "Chamber",
+                MessageBoxButton.OK,
+                MessageBoxImage.Warning);
+            return false;
+        }
+
         return true;
     }
 }

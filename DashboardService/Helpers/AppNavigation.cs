@@ -8,9 +8,22 @@ namespace DashboardService.Helpers;
 
 public static class AppNavigation
 {
+    public static bool IsSupervisor(User currentUser) =>
+        string.Equals(currentUser.Role, "SUPERVISOR", StringComparison.OrdinalIgnoreCase);
+
+    public static bool CanOpen(User currentUser, string menu)
+    {
+        if (!IsSupervisor(currentUser))
+        {
+            return true;
+        }
+
+        return menu is "Dashboard" or "LiveCamera";
+    }
+
     public static void Go(NavigationService? navigation, string menu, User currentUser)
     {
-        if (navigation == null)
+        if (navigation == null || !CanOpen(currentUser, menu))
         {
             return;
         }
@@ -20,6 +33,7 @@ public static class AppNavigation
             "Dashboard" => new DashboardPage(currentUser),
             "Chambers" => new ChambersPage(currentUser),
             "Employees" => new EmployeesPage(currentUser),
+            "Users" => new UsersPage(currentUser),
             "Readers" => new ReadersPage(currentUser),
             "Reports" => new ReportsPage(currentUser),
             "ChamberEmployeesReport" => new ChamberEmployeesReportPage(currentUser),

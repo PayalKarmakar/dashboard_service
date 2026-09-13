@@ -83,6 +83,7 @@
                             <ComboBoxItem Content="All" Tag=""/>
                             <ComboBoxItem Content="Inside (OPEN)" Tag="OPEN"/>
                             <ComboBoxItem Content="Exited (COMPLETED)" Tag="COMPLETED"/>
+                            <ComboBoxItem Content="Violation" Tag="VIOLATION"/>
                         </ComboBox>
                     </StackPanel>
 

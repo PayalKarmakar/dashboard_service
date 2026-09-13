@@ -835,24 +835,11 @@
                                                 Foreground="#64748B"
                                                 VerticalAlignment="Center"
                                                 Margin="0,0,8,0"/>
-                                                <RadioButton x:Name="VoiceLangEnglishRadio"
-                                                    Content="English"
-                                                    GroupName="DashboardVoiceLang"
+                                                <TextBlock Text="English"
                                                     FontSize="11"
                                                     FontWeight="SemiBold"
                                                     Foreground="#0A3776"
-                                                    IsChecked="True"
-                                                    Margin="0,0,10,0"
-                                                    VerticalAlignment="Center"
-                                                    Checked="VoiceLanguageRadio_Checked"/>
-                                                <RadioButton x:Name="VoiceLangBengaliRadio"
-                                                    Content="বাংলা"
-                                                    GroupName="DashboardVoiceLang"
-                                                    FontSize="11"
-                                                    FontWeight="SemiBold"
-                                                    Foreground="#0A3776"
-                                                    VerticalAlignment="Center"
-                                                    Checked="VoiceLanguageRadio_Checked"/>
+                                                    VerticalAlignment="Center"/>
                                             </StackPanel>
                                         </Border>
 

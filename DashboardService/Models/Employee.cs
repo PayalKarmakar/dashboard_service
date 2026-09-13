@@ -17,6 +17,8 @@ namespace DashboardService.Models
 
         public string ChamberName { get; set; } = string.Empty;
 
+        public long ChamberId { get; set; }
+
         public DateTime EntryTime { get; set; }
 
         public DateTime? ExitTime { get; set; }
@@ -30,6 +32,40 @@ namespace DashboardService.Models
         public int AttentionMinutes { get; set; } = 30;
 
         public int WarningRemainingMinutes { get; set; } = 10;
+
+        public int ViolationAfterMinutes { get; set; }
+
+        public bool WarningAudioEnabled { get; set; } = true;
+
+        public bool ViolationAudioEnabled { get; set; } = true;
+
+        public int WarningMaxPlayCount { get; set; } = 1;
+
+        public int ViolationMaxPlayCount { get; set; }
+
+        public string WarningMessage { get; set; } = string.Empty;
+
+        public string ViolationMessage { get; set; } = string.Empty;
+
+        public long? WarningRuleId { get; set; }
+
+        public long? ViolationRuleId { get; set; }
+
+        public Dictionary<string, int> AnnouncementCounts { get; set; } = new(StringComparer.OrdinalIgnoreCase);
+
+        public int GetAnnouncementCount(params string[] alertTypes)
+        {
+            int total = 0;
+            foreach (string type in alertTypes)
+            {
+                if (AnnouncementCounts.TryGetValue(type, out int count))
+                {
+                    total += count;
+                }
+            }
+
+            return total;
+        }
 
         public bool AlertTriggered { get; set; }
 
@@ -113,10 +149,11 @@ namespace DashboardService.Models
                 double elapsedMinutes =
                     (DateTime.Now - EntryTime).TotalMinutes;
 
-                if (elapsedMinutes >= TimeThresholdMinutes)
+                if (elapsedMinutes >= TimeThresholdMinutes + Math.Max(0, ViolationAfterMinutes))
                     return "Violation";
 
-                if (TimeThresholdMinutes > WarningRemainingMinutes
+                if (WarningRemainingMinutes > 0
+                    && TimeThresholdMinutes > WarningRemainingMinutes
                     && elapsedMinutes >= TimeThresholdMinutes - WarningRemainingMinutes)
                     return "Warning";
 

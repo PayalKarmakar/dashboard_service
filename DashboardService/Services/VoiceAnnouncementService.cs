@@ -264,6 +264,7 @@ public sealed class VoiceAnnouncementService : IDisposable
                 stopAfterSpeak = item.RegisterSpeak();
 
                 if (item.AlertId is long alertId &&
+                    alertId > 0 &&
                     _markPlayedAsync != null &&
                     _markedPlayed.Add(alertId))
                 {

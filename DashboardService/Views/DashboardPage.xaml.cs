@@ -57,6 +57,7 @@ namespace DashboardService.Views
         private readonly VoiceAnnouncementService _voiceAnnouncementService;
         private readonly HashSet<long> _announcementInFlight = new();
         private readonly HashSet<long> _enqueuedAlertIds = new();
+        private readonly HashSet<long> _userStoppedVoice = new();
         private readonly SemaphoreSlim _announcementProcessLock = new(1, 1);
         private SensorReading? _latestSensorReading;
 
@@ -69,7 +70,6 @@ namespace DashboardService.Views
         public ObservableCollection<SensorViolation> ActiveSensorViolations { get; set; }
         private readonly DispatcherTimer _sensorBlinkTimer;
         private bool _sensorBlinkState;
-        private string _selectedVoiceCulture = AlertMessageService.CultureEnglishIndia;
         private bool _sensorVoiceEnabled = true;
 
         public DashboardPage()
@@ -353,27 +353,16 @@ namespace DashboardService.Views
             }
 
             _enqueuedAlertIds.Add(announcement.AlertId);
+            _userStoppedVoice.Remove(announcement.TransactionId);
             bool isWarning = string.Equals(
                 announcement.AlertType,
                 MonitoringService.WarningType,
                 StringComparison.OrdinalIgnoreCase);
             _voiceAnnouncementService.StartLooping(
                 announcement.TransactionId,
-                announcement.GetVoiceLines(_selectedVoiceCulture),
+                announcement.GetVoiceLines(AlertMessageService.CultureEnglishIndia),
                 announcement.AlertId,
                 maxSpeakCount: isWarning ? 2 : null);
-        }
-
-        private void VoiceLanguageRadio_Checked(object sender, RoutedEventArgs e)
-        {
-            if (VoiceLangBengaliRadio?.IsChecked == true)
-            {
-                _selectedVoiceCulture = AlertMessageService.CultureBengaliIndia;
-            }
-            else
-            {
-                _selectedVoiceCulture = AlertMessageService.CultureEnglishIndia;
-            }
         }
 
         private void StopSensorVoice_Click(object sender, RoutedEventArgs e)
@@ -417,6 +406,11 @@ namespace DashboardService.Views
                 return;
             }
 
+            if (_voiceAnnouncementService.IsPlaying(employee.TransactionId))
+            {
+                _userStoppedVoice.Add(employee.TransactionId);
+            }
+
             _voiceAnnouncementService.Stop(employee.TransactionId);
             employee.IsVoicePlaying = false;
             UpdateStopAllButtonVisibility();
@@ -424,13 +418,17 @@ namespace DashboardService.Views
 
         private void StopAllVoice_Click(object sender, RoutedEventArgs e)
         {
-            _voiceAnnouncementService.StopAll();
-
             foreach (var employee in Employees)
             {
+                if (_voiceAnnouncementService.IsPlaying(employee.TransactionId))
+                {
+                    _userStoppedVoice.Add(employee.TransactionId);
+                }
+
                 employee.IsVoicePlaying = false;
             }
 
+            _voiceAnnouncementService.StopAll();
             UpdateStopAllButtonVisibility();
         }
 
@@ -474,6 +472,7 @@ namespace DashboardService.Views
                     if (!insideIds.Contains(previous.TransactionId))
                     {
                         _voiceAnnouncementService.Stop(previous.TransactionId);
+                        _userStoppedVoice.Remove(previous.TransactionId);
                     }
                 }
 
@@ -1206,6 +1205,20 @@ namespace DashboardService.Views
 
                     try
                     {
+                        if (ShouldKeepContinueVoice(employee))
+                        {
+                            AnnouncementRequest? live = await _monitoringService.BuildLiveAnnouncementAsync(
+                                employee,
+                                MonitoringService.ViolationType);
+
+                            if (live != null && !string.IsNullOrWhiteSpace(live.Message))
+                            {
+                                StartVoiceLoop(live);
+                            }
+
+                            continue;
+                        }
+
                         AnnouncementRequest? announcement =
                             await _monitoringService.TryCreateDueAnnouncementAsync(employee);
 
@@ -1228,6 +1241,18 @@ namespace DashboardService.Views
             {
                 _announcementProcessLock.Release();
             }
+        }
+
+        private bool ShouldKeepContinueVoice(Employee employee)
+        {
+            if (!employee.ViolationAudioEnabled ||
+                !ChamberAlertRule.IsContinue(employee.ViolationMaxPlayCount) ||
+                _userStoppedVoice.Contains(employee.TransactionId))
+            {
+                return false;
+            }
+
+            return string.Equals(employee.Status, "Violation", StringComparison.OrdinalIgnoreCase);
         }
 
         private void UpdateDashboardSummary()
@@ -1301,6 +1326,11 @@ namespace DashboardService.Views
 
         private void ViewMoreCameraViolations_Click(object sender, RoutedEventArgs e)
         {
+            if (!AppNavigation.CanOpen(_currentUser, "CameraAccessReport"))
+            {
+                return;
+            }
+
             AppNavigation.Go(NavigationService, "CameraAccessReport", _currentUser);
         }
 
@@ -1310,6 +1340,11 @@ namespace DashboardService.Views
                 Employees,
                 stopMemberVoice: transactionId =>
                 {
+                    if (_voiceAnnouncementService.IsPlaying(transactionId))
+                    {
+                        _userStoppedVoice.Add(transactionId);
+                    }
+
                     _voiceAnnouncementService.Stop(transactionId);
                     foreach (var employee in Employees.Where(x => x.TransactionId == transactionId))
                     {
@@ -1320,12 +1355,17 @@ namespace DashboardService.Views
                 },
                 stopAllVoice: () =>
                 {
-                    _voiceAnnouncementService.StopAll();
                     foreach (var employee in Employees)
                     {
+                        if (_voiceAnnouncementService.IsPlaying(employee.TransactionId))
+                        {
+                            _userStoppedVoice.Add(employee.TransactionId);
+                        }
+
                         employee.IsVoicePlaying = false;
                     }
 
+                    _voiceAnnouncementService.StopAll();
                     UpdateStopAllButtonVisibility();
                 },
                 isVoicePlaying: transactionId =>
@@ -1358,6 +1398,13 @@ namespace DashboardService.Views
             AdminInitialText.Text = displayName.Length > 0
                 ? displayName[..1].ToUpperInvariant()
                 : "A";
+
+            bool supervisor = AppNavigation.IsSupervisor(_currentUser);
+            if (ViewMoreCameraViolationsButton != null)
+            {
+                ViewMoreCameraViolationsButton.Visibility =
+                    supervisor ? Visibility.Collapsed : Visibility.Visible;
+            }
         }
 
         private void AdminMenuButton_MouseLeftButtonUp( object sender,MouseButtonEventArgs e)
@@ -1780,30 +1827,17 @@ namespace DashboardService.Views
 
                 string chamberName = $"Chamber {violation.ChamberId}";
                 var voiceLines = new List<VoiceAnnouncementLine>();
+                string englishCulture = settings.EnglishVoiceCulture;
 
-                string preferredCulture = _selectedVoiceCulture;
-                string fallbackCulture =
-                    preferredCulture.Equals(settings.BengaliVoiceCulture, StringComparison.OrdinalIgnoreCase)
-                        ? settings.EnglishVoiceCulture
-                        : settings.BengaliVoiceCulture;
-
-                if (templates.TryGetValue(preferredCulture, out string? preferredTemplate) &&
-                    !string.IsNullOrWhiteSpace(preferredTemplate))
+                if (templates.TryGetValue(englishCulture, out string? englishTemplate) &&
+                    !string.IsNullOrWhiteSpace(englishTemplate))
                 {
                     voiceLines.Add(new VoiceAnnouncementLine(
                         MonitoringService.FormatSensorMessage(
-                            preferredTemplate,
+                            englishTemplate,
                             violation.Parameter,
                             chamberName),
-                        preferredCulture));
-                }
-                else if (templates.TryGetValue(fallbackCulture, out string? fallbackTemplate) &&  !string.IsNullOrWhiteSpace(fallbackTemplate))
-                {
-                    voiceLines.Add(new VoiceAnnouncementLine(MonitoringService.FormatSensorMessage(
-                            fallbackTemplate,
-                            violation.Parameter,
-                            chamberName),
-                        fallbackCulture));
+                        englishCulture));
                 }
 
                 if (voiceLines.Count == 0)

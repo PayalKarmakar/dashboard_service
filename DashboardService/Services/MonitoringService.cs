@@ -13,6 +13,7 @@ public class MonitoringService
 
     private readonly ConfigurationService _configurationService = new();
     private readonly AlertMessageService _alertMessageService = new();
+    private readonly ChamberService _chamberService = new();
 
     public async Task<List<Employee>> GetMembersInsideAsync(MemberFilter filter)
     {
@@ -44,9 +45,10 @@ public class MonitoringService
             t.duration,
             t.alert_triggered,
             t.last_announcement_at,
-            c.time_threshold
+            c.time_threshold,
+            t.chamber_id
         FROM public.rfid_transactions t
-        LEFT JOIN public.master_chambers c
+            LEFT JOIN public.master_chambers c
             ON c.chamber_id = t.chamber_id
         {condition}
         ORDER BY t.entry_time;
@@ -71,9 +73,8 @@ public class MonitoringService
                 LastAnnouncementAt = reader.IsDBNull(9) ? null : reader.GetDateTime(9),
                 TimeThresholdMinutes = ResolveChamberTimeThreshold(reader.IsDBNull(10)? null : reader.GetInt32(10), settings.AfterMinutes),
                 AttentionMinutes = settings.AttentionMinutes,
-                WarningRemainingMinutes = settings.WarningRemainingMinutes
-
-                
+                WarningRemainingMinutes = settings.WarningRemainingMinutes,
+                ChamberId = reader.IsDBNull(11) ? 0 : reader.GetInt64(11)
             });
         }
 
@@ -89,6 +90,14 @@ public class MonitoringService
                 connection,
                 members.Select(x => x.TransactionId).ToList());
 
+        var announcementCounts =
+            await GetAnnouncementCountsAsync(
+                connection,
+                members.Select(x => x.TransactionId).ToList());
+
+        var rulesByChamber = await _chamberService.GetRulesByChamberIdsAsync(
+            members.Select(x => x.ChamberId).Where(id => id > 0).Distinct().ToList());
+
         foreach (var member in members)
         {
             if (announcedTypes.TryGetValue(
@@ -97,6 +106,13 @@ public class MonitoringService
             {
                 member.AnnouncedTypes = types;
             }
+
+            if (announcementCounts.TryGetValue(member.TransactionId, out var counts))
+            {
+                member.AnnouncementCounts = counts;
+            }
+
+            ApplyChamberAlertRules(member, rulesByChamber);
         }
 
         return members;
@@ -235,34 +251,33 @@ public class MonitoringService
             : settings.AfterMinutes;
         int warningLeadMinutes = employee.WarningRemainingMinutes > 0
             ? employee.WarningRemainingMinutes
-            : 10;
+            : 0;
+        int violationAfterMinutes = Math.Max(0, employee.ViolationAfterMinutes);
         int warningAtMinutes = allowedMinutes - warningLeadMinutes;
+        int violationAtMinutes = allowedMinutes + violationAfterMinutes;
 
-        if (elapsedMinutes >= allowedMinutes)
+        if (elapsedMinutes >= violationAtMinutes)
         {
-            bool hasViolationRecord =
-                employee.HasAnnouncement(ViolationType) ||
-                employee.HasAnnouncement(LegacyViolationType) ||
-                employee.AlertTriggered;
-
-            bool heardViolationAudio =
-                employee.HasAnnouncement(ViolationType) ||
-                employee.HasAnnouncement(ViolationRepeatType);
-
-            if (!hasViolationRecord)
+            if (!employee.ViolationAudioEnabled)
             {
-                return await CreateAnnouncementAsync(
-                    employee,
-                    ViolationType,
-                    markViolation: true);
+                return null;
             }
 
-            if (!heardViolationAudio && !employee.LastAnnouncementAt.HasValue)
+            int played = employee.GetAnnouncementCount(ViolationType, ViolationRepeatType, LegacyViolationType);
+            if (!ChamberAlertRule.IsContinue(employee.ViolationMaxPlayCount) &&
+                played >= employee.ViolationMaxPlayCount)
+            {
+                return null;
+            }
+
+            if (played == 0)
             {
                 return await CreateAnnouncementAsync(
                     employee,
                     ViolationType,
-                    markViolation: true);
+                    markViolation: true,
+                    customMessage: employee.ViolationMessage,
+                    ruleId: employee.ViolationRuleId);
             }
 
             bool repeatDue =
@@ -275,23 +290,53 @@ public class MonitoringService
                 return await CreateAnnouncementAsync(
                     employee,
                     ViolationRepeatType,
-                    markViolation: true);
+                    markViolation: true,
+                    customMessage: employee.ViolationMessage,
+                    ruleId: employee.ViolationRuleId);
             }
 
             return null;
         }
 
-        if (allowedMinutes > warningLeadMinutes && elapsedMinutes >= warningAtMinutes)
+        if (warningLeadMinutes > 0
+            && allowedMinutes > warningLeadMinutes
+            && elapsedMinutes >= warningAtMinutes)
         {
-            if (employee.HasAnnouncement(WarningType))
+            if (!employee.WarningAudioEnabled)
             {
                 return null;
             }
 
-            return await CreateAnnouncementAsync(
-                employee,
-                WarningType,
-                markViolation: false);
+            int played = employee.GetAnnouncementCount(WarningType);
+            if (played >= Math.Max(1, employee.WarningMaxPlayCount))
+            {
+                return null;
+            }
+
+            if (played == 0)
+            {
+                return await CreateAnnouncementAsync(
+                    employee,
+                    WarningType,
+                    markViolation: false,
+                    customMessage: employee.WarningMessage,
+                    ruleId: employee.WarningRuleId);
+            }
+
+            bool repeatDue =
+                !employee.LastAnnouncementAt.HasValue ||
+                DateTime.Now - employee.LastAnnouncementAt.Value >=
+                    TimeSpan.FromMinutes(settings.RepeatAfterViolationMinutes);
+
+            if (repeatDue)
+            {
+                return await CreateAnnouncementAsync(
+                    employee,
+                    WarningType,
+                    markViolation: false,
+                    customMessage: employee.WarningMessage,
+                    ruleId: employee.WarningRuleId);
+            }
         }
 
         return null;
@@ -339,7 +384,89 @@ public class MonitoringService
         return result;
     }
 
-    private async Task<long> SaveAnnouncementAsync(Employee employee, string alertType, string message,bool markViolation)
+    private async Task<Dictionary<long, Dictionary<string, int>>> GetAnnouncementCountsAsync(
+        NpgsqlConnection connection,
+        List<long> transactionIds)
+    {
+        var result = new Dictionary<long, Dictionary<string, int>>();
+        if (transactionIds.Count == 0)
+        {
+            return result;
+        }
+
+        const string sql = @"
+            SELECT rfid_transaction_id, alert_type, COUNT(*)::int
+            FROM public.rfid_transaction_alerts
+            WHERE rfid_transaction_id = ANY(@ids)
+            GROUP BY rfid_transaction_id, alert_type;
+        ";
+
+        await using var command = new NpgsqlCommand(sql, connection);
+        command.Parameters.AddWithValue("ids", transactionIds.ToArray());
+        await using var reader = await command.ExecuteReaderAsync();
+
+        while (await reader.ReadAsync())
+        {
+            long id = reader.GetInt64(0);
+            string type = reader.GetString(1);
+            int count = reader.GetInt32(2);
+
+            if (!result.TryGetValue(id, out var counts))
+            {
+                counts = new Dictionary<string, int>(StringComparer.OrdinalIgnoreCase);
+                result[id] = counts;
+            }
+
+            counts[type] = count;
+        }
+
+        return result;
+    }
+
+    private static void ApplyChamberAlertRules(
+        Employee employee,
+        Dictionary<long, List<ChamberAlertRule>> rulesByChamber)
+    {
+        if (employee.ChamberId <= 0
+            || !rulesByChamber.TryGetValue(employee.ChamberId, out var rules))
+        {
+            return;
+        }
+
+        var warning = rules.FirstOrDefault(r =>
+            r.IsActive && r.AlertType.Equals(ChamberService.WarningAlertType, StringComparison.OrdinalIgnoreCase));
+        var violation = rules.FirstOrDefault(r =>
+            r.IsActive && r.AlertType.Equals(ChamberService.ViolationAlertType, StringComparison.OrdinalIgnoreCase));
+
+        if (warning != null)
+        {
+            employee.WarningRemainingMinutes = warning.AlertTimeMinutes;
+            employee.WarningAudioEnabled = warning.IsAnnouncementEnabled;
+            employee.WarningMaxPlayCount = Math.Max(1, warning.MaxPlayCount);
+            employee.WarningMessage = warning.AnnouncementMessage;
+            employee.WarningRuleId = warning.RuleId;
+        }
+
+        if (violation != null)
+        {
+            employee.ViolationAfterMinutes = violation.AlertTimeMinutes;
+            employee.ViolationAudioEnabled = violation.IsAnnouncementEnabled;
+            employee.ViolationMaxPlayCount = Math.Max(0, violation.MaxPlayCount);
+            employee.ViolationMessage = violation.AnnouncementMessage;
+            employee.ViolationRuleId = violation.RuleId;
+        }
+        else
+        {
+            employee.ViolationAfterMinutes = 0;
+        }
+    }
+
+    private async Task<long> SaveAnnouncementAsync(
+        Employee employee,
+        string alertType,
+        string message,
+        bool markViolation,
+        long? ruleId)
     {
         await using var connection = new NpgsqlConnection(_configurationService.GetConnectionString());
         await connection.OpenAsync();
@@ -349,6 +476,7 @@ public class MonitoringService
             INSERT INTO public.rfid_transaction_alerts
             (
                 rfid_transaction_id,
+                rule_id,
                 alert_type,
                 announcement_message,
                 announcement_played
@@ -356,6 +484,7 @@ public class MonitoringService
             VALUES
             (
                 @id,
+                @ruleId,
                 @alertType,
                 @message,
                 FALSE
@@ -365,6 +494,7 @@ public class MonitoringService
 
         await using var insertCommand = new NpgsqlCommand(insertSql, connection, dbTransaction);
         insertCommand.Parameters.AddWithValue("id", employee.TransactionId);
+        insertCommand.Parameters.AddWithValue("ruleId", (object?)ruleId ?? DBNull.Value);
         insertCommand.Parameters.AddWithValue("alertType", alertType);
         insertCommand.Parameters.AddWithValue("message", message);
         long alertId = Convert.ToInt64(await insertCommand.ExecuteScalarAsync());
@@ -391,6 +521,8 @@ public class MonitoringService
 
         employee.AnnouncedTypes.Add(alertType);
         employee.LastAnnouncementAt = DateTime.Now;
+        employee.AnnouncementCounts.TryGetValue(alertType, out int existingCount);
+        employee.AnnouncementCounts[alertType] = existingCount + 1;
         if (markViolation)
         {
             employee.AlertTriggered = true;
@@ -421,47 +553,55 @@ public class MonitoringService
             .Replace("{ChamberName}", chamberName, StringComparison.OrdinalIgnoreCase);
     }
 
-    private async Task<AnnouncementRequest?> CreateAnnouncementAsync(
-        Employee employee,
-        string alertType,
-        bool markViolation)
+    public async Task<AnnouncementRequest?> BuildLiveAnnouncementAsync(Employee employee, string alertType)
     {
-        var settings = _configurationService.GetAlertSettings();
-        var templates = await _alertMessageService.GetTemplatesAsync(
-            AlertMessageService.CategoryEmployee,
-            alertType);
+        var (primaryMessage, secondaryMessage) = await ResolveEmployeeMessagesAsync(
+            employee,
+            alertType,
+            string.Equals(alertType, WarningType, StringComparison.OrdinalIgnoreCase)
+                ? employee.WarningMessage
+                : employee.ViolationMessage);
 
-        if (!templates.TryGetValue(AlertMessageService.CultureEnglishIndia, out string? primaryTemplate) ||
-            string.IsNullOrWhiteSpace(primaryTemplate))
-        {
-            primaryTemplate = alertType.ToUpperInvariant() switch
-            {
-                AttentionType => settings.AttentionMessage,
-                WarningType => settings.WarningMessage,
-                ViolationType => settings.ViolationMessage,
-                ViolationRepeatType => settings.ViolationRepeatMessage,
-                _ => string.Empty
-            };
-        }
-
-        if (string.IsNullOrWhiteSpace(primaryTemplate))
+        if (string.IsNullOrWhiteSpace(primaryMessage))
         {
             return null;
         }
 
-        string primaryMessage = FormatMessage(primaryTemplate, employee, settings);
+        return new AnnouncementRequest
+        {
+            AlertId = 0,
+            AlertType = alertType,
+            Message = primaryMessage,
+            SecondaryMessage = secondaryMessage,
+            MessageCulture = AlertMessageService.CultureEnglishIndia,
+            SecondaryCulture = AlertMessageService.CultureBengaliIndia,
+            TransactionId = employee.TransactionId
+        };
+    }
+
+    private async Task<AnnouncementRequest?> CreateAnnouncementAsync(
+        Employee employee,
+        string alertType,
+        bool markViolation,
+        string? customMessage = null,
+        long? ruleId = null)
+    {
+        var (primaryMessage, secondaryMessage) = await ResolveEmployeeMessagesAsync(
+            employee,
+            alertType,
+            customMessage);
+
+        if (string.IsNullOrWhiteSpace(primaryMessage))
+        {
+            return null;
+        }
+
         long alertId = await SaveAnnouncementAsync(
             employee,
             alertType,
             primaryMessage,
-            markViolation);
-
-        string? secondaryMessage = null;
-        if (templates.TryGetValue(AlertMessageService.CultureBengaliIndia, out string? secondaryTemplate) &&
-            !string.IsNullOrWhiteSpace(secondaryTemplate))
-        {
-            secondaryMessage = FormatMessage(secondaryTemplate, employee, settings);
-        }
+            markViolation,
+            ruleId);
 
         return new AnnouncementRequest
         {
@@ -473,6 +613,54 @@ public class MonitoringService
             SecondaryCulture = AlertMessageService.CultureBengaliIndia,
             TransactionId = employee.TransactionId
         };
+    }
+
+    private async Task<(string Primary, string? Secondary)> ResolveEmployeeMessagesAsync(
+        Employee employee,
+        string alertType,
+        string? customMessage)
+    {
+        var settings = _configurationService.GetAlertSettings();
+        string primaryTemplate = customMessage?.Trim() ?? string.Empty;
+        var templates = await _alertMessageService.GetTemplatesAsync(
+            AlertMessageService.CategoryEmployee,
+            alertType);
+
+        if (string.IsNullOrWhiteSpace(primaryTemplate))
+        {
+            if (!templates.TryGetValue(AlertMessageService.CultureEnglishIndia, out string? dbTemplate) ||
+                string.IsNullOrWhiteSpace(dbTemplate))
+            {
+                primaryTemplate = alertType.ToUpperInvariant() switch
+                {
+                    AttentionType => settings.AttentionMessage,
+                    WarningType => settings.WarningMessage,
+                    ViolationType => settings.ViolationMessage,
+                    ViolationRepeatType => settings.ViolationRepeatMessage,
+                    _ => string.Empty
+                };
+            }
+            else
+            {
+                primaryTemplate = dbTemplate;
+            }
+        }
+
+        if (string.IsNullOrWhiteSpace(primaryTemplate))
+        {
+            return (string.Empty, null);
+        }
+
+        string primaryMessage = FormatMessage(primaryTemplate, employee, settings);
+        string? secondaryMessage = null;
+        if (string.IsNullOrWhiteSpace(customMessage) &&
+            templates.TryGetValue(AlertMessageService.CultureBengaliIndia, out string? secondaryTemplate) &&
+            !string.IsNullOrWhiteSpace(secondaryTemplate))
+        {
+            secondaryMessage = FormatMessage(secondaryTemplate, employee, settings);
+        }
+
+        return (primaryMessage, secondaryMessage);
     }
 
     private async Task<AnnouncementRequest?> BuildAnnouncementRequestAsync(
