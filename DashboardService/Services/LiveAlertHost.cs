@@ -73,8 +73,7 @@ public sealed class LiveAlertHost
             _sensorTimer.Start();
         });
 
-        _ = TickRefreshAsync();
-        _ = TickSensorAlertsAsync();
+        _ = KickSensorAlertsAsync(resetAnnouncementMarks: true);
     }
 
     public void Stop()
@@ -202,6 +201,25 @@ public sealed class LiveAlertHost
         {
             System.Diagnostics.Debug.WriteLine($"Live alert due-check failed: {ex.Message}");
         }
+    }
+
+    private async Task KickSensorAlertsAsync(bool resetAnnouncementMarks)
+    {
+        try
+        {
+            if (resetAnnouncementMarks)
+            {
+                _localSensorAnnounced.Clear();
+                await _monitoringService.ClearSensorAnnouncementMarksAsync(1);
+            }
+        }
+        catch (Exception ex)
+        {
+            System.Diagnostics.Debug.WriteLine($"Could not reset sensor announcement marks: {ex.Message}");
+        }
+
+        await TickRefreshAsync();
+        await TickSensorAlertsAsync();
     }
 
     private async Task TickSensorAlertsAsync()
@@ -364,7 +382,10 @@ public sealed class LiveAlertHost
 
             if (voiceLines.Count == 0)
             {
-                continue;
+                voiceLines.Add(new VoiceAnnouncementLine(
+                    $"{currentSeverity} alert. {violation.Parameter} level in {chamberName} has crossed the permitted limit. Kindly check immediately.",
+                    englishCulture,
+                    playEmergencySound: true));
             }
 
             Voice.AnnounceOnce(voiceLines);
