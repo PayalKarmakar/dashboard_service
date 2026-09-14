@@ -28,7 +28,7 @@ internal static class EmergencySoundPlayer
             return;
         }
 
-        Application.Current.Dispatcher.BeginInvoke(new Action(() =>
+        Application.Current.Dispatcher.Invoke(new Action(() =>
         {
             if (!_playingUnderVoice)
             {
@@ -38,7 +38,7 @@ internal static class EmergencySoundPlayer
             try
             {
                 StopPlayerOnUi();
-                var player = new MediaPlayer { Volume = 0.9 };
+                var player = new MediaPlayer { Volume = 0.35 };
                 _activePlayer = player;
                 player.MediaEnded += (_, _) => ReplayIfNeeded(player);
                 player.MediaFailed += (_, _) =>

@@ -12,6 +12,8 @@ namespace DashboardService.Models
 
         public int RepeatAfterMinutes { get; set; }
 
+        public int RepeatAfterSeconds { get; set; }
+
         public int SensorViolationDbCheckIntervalSeconds { get; set; }
 
         public int CheckLiveSensorReadingInterval { get; set; }

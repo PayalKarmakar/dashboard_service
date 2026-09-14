@@ -332,28 +332,20 @@ public sealed class VoiceAnnouncementService : IDisposable
 
             if (line.PlayEmergencySound)
             {
-                EmergencySoundPlayer.StartUnderVoice();
-                Thread.Sleep(250);
-            }
-
-            DateTime started = DateTime.UtcNow;
-            try
-            {
-                IndianOnlineTts.Speak(line.Message, culture, shouldCancel);
-            }
-            finally
-            {
-                if (line.PlayEmergencySound)
+                try
                 {
-                    int remainMs = 4000 - (int)(DateTime.UtcNow - started).TotalMilliseconds;
-                    if (remainMs > 0 && shouldCancel?.Invoke() != true)
-                    {
-                        Thread.Sleep(remainMs);
-                    }
-
+                    EmergencySoundPlayer.StartUnderVoice();
+                    IndianOnlineTts.SpeakLocal(line.Message, shouldCancel);
+                }
+                finally
+                {
                     EmergencySoundPlayer.StopUnderVoice();
                 }
+
+                return;
             }
+
+            IndianOnlineTts.Speak(line.Message, culture, shouldCancel);
         }
         catch (Exception ex)
         {

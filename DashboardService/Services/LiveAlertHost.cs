@@ -335,7 +335,7 @@ public sealed class LiveAlertHost
                 !string.Equals(local.Severity, currentSeverity, StringComparison.OrdinalIgnoreCase);
             bool repeatDue =
                 !neverAnnounced &&
-                (DateTime.Now - local.At) >= TimeSpan.FromMinutes(settings.RepeatAfterMinutes);
+                (DateTime.Now - local.At) >= GetSensorRepeatDelay(settings);
 
             if (!neverAnnounced && !severityChanged && !repeatDue)
             {
@@ -373,6 +373,17 @@ public sealed class LiveAlertHost
                 violationId,
                 currentSeverity);
         }
+    }
+
+    private static TimeSpan GetSensorRepeatDelay(SensorAlertSettings settings)
+    {
+        if (settings.RepeatAfterSeconds > 0)
+        {
+            return TimeSpan.FromSeconds(settings.RepeatAfterSeconds);
+        }
+
+        int minutes = settings.RepeatAfterMinutes > 0 ? settings.RepeatAfterMinutes : 1;
+        return TimeSpan.FromMinutes(minutes);
     }
 
     private static DateTime ToLocalTime(DateTime value) =>

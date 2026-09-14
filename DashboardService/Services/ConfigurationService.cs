@@ -123,6 +123,7 @@ public class ConfigurationService
         {
             VoiceEnabled = ReadBool("SensorAlertSettings:VoiceEnabled", true),
             RepeatAfterMinutes = ReadPositiveInt("SensorAlertSettings:RepeatAfterMinutes", 5),
+            RepeatAfterSeconds = ReadPositiveInt("SensorAlertSettings:RepeatAfterSeconds", 0),
             SensorViolationDbCheckIntervalSeconds = ReadPositiveInt("SensorAlertSettings:SensorViolationDbCheckIntervalSeconds", 2),
             CheckLiveSensorReadingInterval = ReadPositiveInt("SensorAlertSettings:CheckLiveSensorReadingInterval", 1),
             EnglishVoiceCulture = ReadMessage("SensorAlertSettings:EnglishVoiceCulture", "en-IN"),

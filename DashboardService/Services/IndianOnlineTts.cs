@@ -31,6 +31,19 @@ internal static class IndianOnlineTts
         return client;
     }
 
+    public static void SpeakLocal(string message, Func<bool>? shouldCancel = null)
+    {
+        if (string.IsNullOrWhiteSpace(message))
+        {
+            return;
+        }
+
+        foreach (string chunk in SplitChunks(message.Trim(), maxChars: 160))
+        {
+            SpeakLocalFallback(chunk, shouldCancel);
+        }
+    }
+
     public static void Speak(string message, string culture, Func<bool>? shouldCancel = null)
     {
         if (string.IsNullOrWhiteSpace(message))
