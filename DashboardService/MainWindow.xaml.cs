@@ -66,6 +66,16 @@ namespace DashboardService
             CameraBackgroundMonitoringService.Instance.SessionAlertRaised += OnCameraSessionAlert;
         }
 
+        public void HideSidebar()
+        {
+            GlobalSidebar.CurrentUser = null;
+            GlobalSidebar.Visibility = Visibility.Collapsed;
+            SidebarToggleButton.Visibility = Visibility.Collapsed;
+            SidebarColumn.Width = new GridLength(0);
+
+            CameraBackgroundMonitoringService.Instance.SessionAlertRaised -= OnCameraSessionAlert;
+        }
+
         private void OnCameraSessionAlert(long cameraId, CameraDoorAlert alert)
         {
             ToastNotificationService.ShowCameraViolation(alert);

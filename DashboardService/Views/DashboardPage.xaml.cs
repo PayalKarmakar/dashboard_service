@@ -1480,6 +1480,11 @@ namespace DashboardService.Views
             _sensorReadingTimer.Stop();
             _voiceAnnouncementService.StopAll();
 
+            if (Window.GetWindow(this) is MainWindow mainWindow)
+            {
+                mainWindow.HideSidebar();
+            }
+
             var navigation = NavigationService;
             navigation?.Navigate(new LoginPage());
 
@@ -1845,7 +1850,8 @@ namespace DashboardService.Views
                             englishTemplate,
                             violation.Parameter,
                             chamberName),
-                        englishCulture));
+                        englishCulture,
+                        playEmergencySound: true));
                 }
 
                 if (voiceLines.Count == 0)

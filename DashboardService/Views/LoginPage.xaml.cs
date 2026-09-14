@@ -16,7 +16,17 @@ namespace DashboardService.Views
         {
             InitializeComponent();
             _loginService = new LoginService();
-            Loaded += (_, _) => UserIdTextBox.Focus();
+            Loaded += LoginPage_Loaded;
+        }
+
+        private void LoginPage_Loaded(object sender, RoutedEventArgs e)
+        {
+            if (Window.GetWindow(this) is MainWindow mainWindow)
+            {
+                mainWindow.HideSidebar();
+            }
+
+            UserIdTextBox.Focus();
         }
 
         private void ChangePasswordLink_Click(object sender, RoutedEventArgs e)

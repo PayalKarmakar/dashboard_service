@@ -49,7 +49,7 @@ public sealed class VoiceAnnouncementService : IDisposable
 
         var validLines = lines
             .Where(line => !string.IsNullOrWhiteSpace(line.Message))
-            .Select(line => new VoiceAnnouncementLine(line.Message.Trim(), line.Culture))
+            .Select(line => new VoiceAnnouncementLine(line.Message.Trim(), line.Culture, line.PlayEmergencySound))
             .ToList();
 
         if (validLines.Count == 0)
@@ -124,7 +124,7 @@ public sealed class VoiceAnnouncementService : IDisposable
             }
 
             _oneTimeAnnouncements.Enqueue(
-                new VoiceAnnouncementLine(line.Message.Trim(), line.Culture));
+                new VoiceAnnouncementLine(line.Message.Trim(), line.Culture, line.PlayEmergencySound));
         }
 
         _workAvailable.Set();
@@ -176,6 +176,7 @@ public sealed class VoiceAnnouncementService : IDisposable
             {
                 _cancelCurrentSpeech = true;
                 IndianOnlineTts.CancelActivePlayback();
+                EmergencySoundPlayer.CancelActivePlayback();
             }
         }
 
@@ -197,6 +198,7 @@ public sealed class VoiceAnnouncementService : IDisposable
             {
                 _cancelCurrentSpeech = true;
                 IndianOnlineTts.CancelActivePlayback();
+                EmergencySoundPlayer.CancelActivePlayback();
             }
         }
     }
@@ -207,6 +209,7 @@ public sealed class VoiceAnnouncementService : IDisposable
         {
             _cancelCurrentSpeech = true;
             IndianOnlineTts.CancelActivePlayback();
+            EmergencySoundPlayer.CancelActivePlayback();
         }
     }
 
@@ -322,13 +325,17 @@ public sealed class VoiceAnnouncementService : IDisposable
                 culture = AlertMessageService.CultureEnglishIndia;
             }
 
-            IndianOnlineTts.Speak(
-                line.Message,
-                culture,
-                shouldCancel: () =>
-                    _disposed ||
-                    _cancelCurrentSpeech ||
-                    (transactionId.HasValue && !_active.ContainsKey(transactionId.Value)));
+            Func<bool> shouldCancel = () =>
+                _disposed ||
+                _cancelCurrentSpeech ||
+                (transactionId.HasValue && !_active.ContainsKey(transactionId.Value));
+
+            if (line.PlayEmergencySound)
+            {
+                EmergencySoundPlayer.Play(shouldCancel);
+            }
+
+            IndianOnlineTts.Speak(line.Message, culture, shouldCancel);
         }
         catch (Exception ex)
         {
@@ -348,6 +355,7 @@ public sealed class VoiceAnnouncementService : IDisposable
         _active.Clear();
         CancelSpeech();
         IndianOnlineTts.CancelActivePlayback();
+        EmergencySoundPlayer.CancelActivePlayback();
         _workAvailable.Set();
 
         _oneTimeAnnouncements.Clear();
