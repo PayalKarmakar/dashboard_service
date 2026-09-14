@@ -449,6 +449,7 @@
                             Content="Production Loss"
                             Style="{StaticResource SidebarButtonStyle}"
                             Height="40"
+                            Visibility="Collapsed"
                             Click="ProductionLoss_Click"/>
 
                     <Button x:Name="SensorReadingsButton"

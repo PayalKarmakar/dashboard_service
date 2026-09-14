@@ -55,10 +55,7 @@ namespace DashboardService.Views
         private readonly CameraConfigurationService _cameraConfigurationService = new();
         private readonly AlertMessageService _alertMessageService = new();
         private readonly VoiceAnnouncementService _voiceAnnouncementService;
-        private readonly HashSet<long> _announcementInFlight = new();
-        private readonly HashSet<long> _enqueuedAlertIds = new();
-        private readonly HashSet<long> _userStoppedVoice = new();
-        private readonly SemaphoreSlim _announcementProcessLock = new(1, 1);
+        private readonly HashSet<long> _userStoppedVoice;
         private SensorReading? _latestSensorReading;
 
         //Payal
@@ -70,7 +67,11 @@ namespace DashboardService.Views
         public ObservableCollection<SensorViolation> ActiveSensorViolations { get; set; }
         private readonly DispatcherTimer _sensorBlinkTimer;
         private bool _sensorBlinkState;
-        private bool _sensorVoiceEnabled = true;
+        private bool _sensorVoiceEnabled
+        {
+            get => LiveAlertHost.Instance.SensorVoiceEnabled;
+            set => LiveAlertHost.Instance.SensorVoiceEnabled = value;
+        }
 
         public DashboardPage()
             : this(new User
@@ -89,8 +90,10 @@ namespace DashboardService.Views
             _currentUser = currentUser;
             ApplyCurrentUser();
 
-            _voiceAnnouncementService = new VoiceAnnouncementService(alertId => _monitoringService.MarkAnnouncementPlayedAsync(alertId));
+            _voiceAnnouncementService = LiveAlertHost.Instance.Voice;
+            _userStoppedVoice = LiveAlertHost.Instance.UserStoppedVoice;
             _voiceAnnouncementService.VoicePlayingChanged += VoiceAnnouncementService_VoicePlayingChanged;
+            LiveAlertHost.Instance.Start();
 
             Chambers = new ObservableCollection<ChamberDashboard>();
             Employees = new ObservableCollection<Employee>();
@@ -296,7 +299,6 @@ namespace DashboardService.Views
             ThemeService.ThemeChanged -= ThemeService_ThemeChanged;
             _voiceAnnouncementService.VoicePlayingChanged -= VoiceAnnouncementService_VoicePlayingChanged;
             DetachAllCameraPreviews();
-            _voiceAnnouncementService.Dispose();
         }
 
         private void VoiceAnnouncementService_VoicePlayingChanged(long transactionId, bool isPlaying)
@@ -334,43 +336,7 @@ namespace DashboardService.Views
 
         private void StartVoiceLoop(AnnouncementRequest announcement)
         {
-            if (announcement.TransactionId <= 0 ||
-                string.IsNullOrWhiteSpace(announcement.Message))
-            {
-                return;
-            }
-
-            var settings = new ConfigurationService().GetAlertSettings();
-            if (!settings.VoiceEnabled)
-            {
-                // Still mark as handled so DB alerts don't pile up as "unplayed".
-                if (announcement.AlertId > 0)
-                {
-                    _ = _monitoringService.MarkAnnouncementPlayedAsync(announcement.AlertId);
-                }
-
-                return;
-            }
-
-            _enqueuedAlertIds.Add(announcement.AlertId);
-            _userStoppedVoice.Remove(announcement.TransactionId);
-            bool limitedLoop = string.Equals(
-                    announcement.AlertType,
-                    MonitoringService.WarningType,
-                    StringComparison.OrdinalIgnoreCase)
-                || string.Equals(
-                    announcement.AlertType,
-                    MonitoringService.HalfTimeType,
-                    StringComparison.OrdinalIgnoreCase)
-                || string.Equals(
-                    announcement.AlertType,
-                    MonitoringService.AttentionType,
-                    StringComparison.OrdinalIgnoreCase);
-            _voiceAnnouncementService.StartLooping(
-                announcement.TransactionId,
-                announcement.GetVoiceLines(AlertMessageService.CultureEnglishIndia),
-                announcement.AlertId,
-                maxSpeakCount: limitedLoop ? 2 : null);
+            LiveAlertHost.Instance.StartVoiceLoop(announcement);
         }
 
         private void StopSensorVoice_Click(object sender, RoutedEventArgs e)
@@ -509,8 +475,6 @@ namespace DashboardService.Views
                 RebuildDeviceStatusItems();
 
                 await RefreshCameraViolationsAsync();
-                await EnqueueUnplayedAnnouncementsAsync();
-                await ProcessDueAnnouncementsAsync();
             }
             catch (Exception ex)
             {
@@ -1156,11 +1120,10 @@ namespace DashboardService.Views
                 Employees.Count > 0 ? Visibility.Visible : Visibility.Collapsed;
         }
 
-        private async void CountdownTimer_Tick(object? sender, EventArgs e)
+        private void CountdownTimer_Tick(object? sender, EventArgs e)
         {
             UpdateCountdowns();
             UpdateDashboardSummary();
-            await ProcessDueAnnouncementsAsync();
         }
 
         private void UpdateCountdowns()
@@ -1172,95 +1135,6 @@ namespace DashboardService.Views
 
                 employee.RemainingTime = allowedExitTime - DateTime.Now;
             }
-        }
-
-        private async Task EnqueueUnplayedAnnouncementsAsync()
-        {
-            var pending = await _monitoringService.GetUnplayedAnnouncementsAsync();
-
-            foreach (var announcement in pending)
-            {
-                StartVoiceLoop(announcement);
-            }
-        }
-
-        private async Task ProcessDueAnnouncementsAsync()
-        {
-            if (!await _announcementProcessLock.WaitAsync(0))
-            {
-                return;
-            }
-
-            try
-            {
-                foreach (var employee in Employees.ToList())
-                {
-                    if (employee.TransactionId <= 0)
-                    {
-                        continue;
-                    }
-
-                    // Keep continuous loop; don't stack new alerts while voice is active.
-                    if (_voiceAnnouncementService.IsPlaying(employee.TransactionId))
-                    {
-                        continue;
-                    }
-
-                    if (!_announcementInFlight.Add(employee.TransactionId))
-                    {
-                        continue;
-                    }
-
-                    try
-                    {
-                        if (ShouldKeepContinueVoice(employee))
-                        {
-                            AnnouncementRequest? live = await _monitoringService.BuildLiveAnnouncementAsync(
-                                employee,
-                                MonitoringService.ViolationType);
-
-                            if (live != null && !string.IsNullOrWhiteSpace(live.Message))
-                            {
-                                StartVoiceLoop(live);
-                            }
-
-                            continue;
-                        }
-
-                        AnnouncementRequest? announcement =
-                            await _monitoringService.TryCreateDueAnnouncementAsync(employee);
-
-                        if (announcement != null &&
-                            !string.IsNullOrWhiteSpace(announcement.Message))
-                        {
-                            StartVoiceLoop(announcement);
-                        }
-                    }
-                    catch
-                    {
-                    }
-                    finally
-                    {
-                        _announcementInFlight.Remove(employee.TransactionId);
-                    }
-                }
-            }
-            finally
-            {
-                _announcementProcessLock.Release();
-            }
-        }
-
-        private bool ShouldKeepContinueVoice(Employee employee)
-        {
-            if (!employee.ViolationAudioEnabled ||
-                !ChamberAlertRule.IsContinue(employee.ViolationMaxPlayCount) ||
-                _userStoppedVoice.Contains(employee.TransactionId))
-            {
-                return false;
-            }
-
-            return string.Equals(employee.Status, "Violation", StringComparison.OrdinalIgnoreCase);
         }
 
         private void UpdateDashboardSummary()
@@ -1478,7 +1352,7 @@ namespace DashboardService.Views
             _countdownTimer.Stop();
             _refreshTimer.Stop();
             _sensorReadingTimer.Stop();
-            _voiceAnnouncementService.StopAll();
+            LiveAlertHost.Instance.Stop();
 
             if (Window.GetWindow(this) is MainWindow mainWindow)
             {
@@ -1567,12 +1441,6 @@ namespace DashboardService.Views
 
                 // Update the five sensor cards
                 UpdateSensorStatuses(violations);
-
-                // Process voice announcements only when sensor is connected
-                if (ConnectedSensors.Any())
-                {
-                    await ProcessSensorAnnouncementsAsync(violations);
-                }
 
                 foreach (var violation in violations)
                 {

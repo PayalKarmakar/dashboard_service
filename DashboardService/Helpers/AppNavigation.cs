@@ -13,6 +13,11 @@ public static class AppNavigation
 
     public static bool CanOpen(User currentUser, string menu)
     {
+        if (menu is "ProductionLossReport")
+        {
+            return false;
+        }
+
         if (!IsSupervisor(currentUser))
         {
             return true;

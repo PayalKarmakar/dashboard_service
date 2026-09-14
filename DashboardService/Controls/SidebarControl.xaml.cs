@@ -133,6 +133,7 @@ public partial class SidebarControl : UserControl
         ReadersButton.Visibility = extra;
         ReportsButton.Visibility = extra;
         ConfigurationButton.Visibility = extra;
+        ProductionLossButton.Visibility = Visibility.Collapsed;
 
         if (supervisor)
         {

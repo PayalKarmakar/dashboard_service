@@ -5,7 +5,8 @@ using System.Text;
 namespace DashboardService.Services;
 
 /// <summary>
-/// Plays a short two-tone emergency siren before sensor voice alerts.
+/// Plays the bundled emergency sound (sound.mpeg) before sensor voice alerts.
+/// Falls back to a generated siren if the file is missing.
 /// </summary>
 internal static class EmergencySoundPlayer
 {
@@ -15,11 +16,18 @@ internal static class EmergencySoundPlayer
 
     public static void Play(Func<bool>? shouldCancel = null)
     {
-        string path = Path.Combine(Path.GetTempPath(), $"srp-siren-{Guid.NewGuid():N}.wav");
+        string? mpegPath = ResolveSoundPath();
+        if (!string.IsNullOrWhiteSpace(mpegPath))
+        {
+            PlayFileBlocking(mpegPath, "mpegvideo", shouldCancel);
+            return;
+        }
+
+        string wavPath = Path.Combine(Path.GetTempPath(), $"srp-siren-{Guid.NewGuid():N}.wav");
         try
         {
-            File.WriteAllBytes(path, BuildSirenWav());
-            PlayWavBlocking(path, shouldCancel);
+            File.WriteAllBytes(wavPath, BuildSirenWav());
+            PlayFileBlocking(wavPath, "waveaudio", shouldCancel);
         }
         catch (Exception ex)
         {
@@ -27,7 +35,7 @@ internal static class EmergencySoundPlayer
         }
         finally
         {
-            try { File.Delete(path); } catch { }
+            try { File.Delete(wavPath); } catch { }
         }
     }
 
@@ -44,6 +52,21 @@ internal static class EmergencySoundPlayer
             Mci($"close {_activeAlias}");
             _activeAlias = null;
         }
+    }
+
+    private static string? ResolveSoundPath()
+    {
+        string baseDir = AppContext.BaseDirectory;
+        string[] candidates =
+        [
+            Path.Combine(baseDir, "Assets", "sound.mpeg"),
+            Path.Combine(baseDir, "sound.mpeg"),
+            Path.Combine(baseDir, "..", "..", "..", "..", "sound.mpeg")
+        ];
+
+        return candidates
+            .Select(Path.GetFullPath)
+            .FirstOrDefault(File.Exists);
     }
 
     private static byte[] BuildSirenWav()
@@ -113,7 +136,7 @@ internal static class EmergencySoundPlayer
         return stream.ToArray();
     }
 
-    private static void PlayWavBlocking(string path, Func<bool>? shouldCancel)
+    private static void PlayFileBlocking(string path, string mediaType, Func<bool>? shouldCancel)
     {
         string alias = $"srpsiren{Interlocked.Increment(ref _aliasSeq)}";
         string escaped = path.Replace("'", "\\'", StringComparison.Ordinal);
@@ -125,10 +148,10 @@ internal static class EmergencySoundPlayer
 
         try
         {
-            if (Mci($"open \"{escaped}\" type waveaudio alias {alias}") != 0 &&
+            if (Mci($"open \"{escaped}\" type {mediaType} alias {alias}") != 0 &&
                 Mci($"open \"{escaped}\" type mpegvideo alias {alias}") != 0)
             {
-                throw new InvalidOperationException("Failed to open emergency siren.");
+                throw new InvalidOperationException("Failed to open emergency sound.");
             }
 
             Mci($"play {alias}");

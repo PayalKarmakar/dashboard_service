@@ -21,6 +21,8 @@ namespace DashboardService.Views
 
         private void LoginPage_Loaded(object sender, RoutedEventArgs e)
         {
+            LiveAlertHost.Instance.Stop();
+
             if (Window.GetWindow(this) is MainWindow mainWindow)
             {
                 mainWindow.HideSidebar();
@@ -165,6 +167,7 @@ namespace DashboardService.Views
                 }
 
                 _ = StartBackgroundMonitoringAsync();
+                LiveAlertHost.Instance.Start();
 
                 NavigationService?.Navigate(new DashboardPage(user));
             }

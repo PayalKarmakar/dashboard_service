@@ -38,6 +38,7 @@ public partial class App : Application
                 try
                 {
                     CameraBackgroundMonitoringService.Instance.Dispose();
+                    LiveAlertHost.Instance.DisposeVoice();
                 }
                 catch
                 {
