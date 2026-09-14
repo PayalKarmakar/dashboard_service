@@ -332,17 +332,21 @@ public sealed class VoiceAnnouncementService : IDisposable
 
             if (line.PlayEmergencySound)
             {
-                try
-                {
-                    EmergencySoundPlayer.Play(shouldCancel);
-                }
-                catch (Exception ex)
-                {
-                    System.Diagnostics.Debug.WriteLine($"Emergency sound skipped: {ex.Message}");
-                }
+                EmergencySoundPlayer.StartUnderVoice();
+                Thread.Sleep(250);
             }
 
-            IndianOnlineTts.Speak(line.Message, culture, shouldCancel);
+            try
+            {
+                IndianOnlineTts.Speak(line.Message, culture, shouldCancel);
+            }
+            finally
+            {
+                if (line.PlayEmergencySound)
+                {
+                    EmergencySoundPlayer.StopUnderVoice();
+                }
+            }
         }
         catch (Exception ex)
         {

@@ -7,7 +7,7 @@ using System.Windows.Media;
 namespace DashboardService.Services;
 
 /// <summary>
-/// Plays the bundled emergency sound (sound.mpeg) before sensor voice alerts.
+/// Plays the bundled emergency sound (sound.mpeg) together with sensor voice alerts.
 /// Falls back to a generated siren if the file is missing.
 /// </summary>
 internal static class EmergencySoundPlayer
@@ -16,6 +16,105 @@ internal static class EmergencySoundPlayer
     private static int _aliasSeq;
     private static string? _activeAlias;
     private static MediaPlayer? _activePlayer;
+    private static string? _loopFilePath;
+    private static volatile bool _playingUnderVoice;
+
+    public static void StartUnderVoice()
+    {
+        _playingUnderVoice = true;
+        string? loopFile = EnsureLoopFile();
+        if (string.IsNullOrWhiteSpace(loopFile) || Application.Current?.Dispatcher == null)
+        {
+            return;
+        }
+
+        Application.Current.Dispatcher.BeginInvoke(new Action(() =>
+        {
+            if (!_playingUnderVoice)
+            {
+                return;
+            }
+
+            try
+            {
+                StopPlayerOnUi();
+                var player = new MediaPlayer { Volume = 0.9 };
+                _activePlayer = player;
+                player.MediaEnded += (_, _) => ReplayIfNeeded(player);
+                player.MediaFailed += (_, _) =>
+                {
+                    System.Diagnostics.Debug.WriteLine("Emergency MediaPlayer failed; keeping voice.");
+                };
+                player.Open(new Uri(loopFile, UriKind.Absolute));
+                player.Play();
+            }
+            catch (Exception ex)
+            {
+                System.Diagnostics.Debug.WriteLine($"Emergency start failed: {ex.Message}");
+            }
+        }));
+    }
+
+    public static void StopUnderVoice()
+    {
+        _playingUnderVoice = false;
+        CancelActivePlayback();
+    }
+
+    private static string? EnsureLoopFile()
+    {
+        if (!string.IsNullOrWhiteSpace(_loopFilePath) && File.Exists(_loopFilePath))
+        {
+            return _loopFilePath;
+        }
+
+        string? sourcePath = ResolveSoundPath();
+        string tempPath = Path.Combine(Path.GetTempPath(), "srp-sensor-alert.mp3");
+        try
+        {
+            if (!string.IsNullOrWhiteSpace(sourcePath))
+            {
+                File.Copy(sourcePath, tempPath, overwrite: true);
+            }
+            else
+            {
+                tempPath = Path.Combine(Path.GetTempPath(), "srp-sensor-alert.wav");
+                File.WriteAllBytes(tempPath, BuildSirenWav());
+            }
+
+            _loopFilePath = tempPath;
+            return _loopFilePath;
+        }
+        catch (Exception ex)
+        {
+            System.Diagnostics.Debug.WriteLine($"Emergency loop file failed: {ex.Message}");
+            return null;
+        }
+    }
+
+    private static void ReplayIfNeeded(MediaPlayer player)
+    {
+        if (!_playingUnderVoice)
+        {
+            return;
+        }
+
+        try
+        {
+            player.Position = TimeSpan.Zero;
+            player.Play();
+        }
+        catch
+        {
+        }
+    }
+
+    private static void StopPlayerOnUi()
+    {
+        try { _activePlayer?.Stop(); } catch { }
+        try { _activePlayer?.Close(); } catch { }
+        _activePlayer = null;
+    }
 
     public static void Play(Func<bool>? shouldCancel = null)
     {
@@ -78,6 +177,7 @@ internal static class EmergencySoundPlayer
 
     public static void CancelActivePlayback()
     {
+        _playingUnderVoice = false;
         lock (PlayLock)
         {
             if (string.IsNullOrEmpty(_activeAlias) && _activePlayer == null)
