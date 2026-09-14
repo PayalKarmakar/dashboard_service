@@ -354,15 +354,23 @@ namespace DashboardService.Views
 
             _enqueuedAlertIds.Add(announcement.AlertId);
             _userStoppedVoice.Remove(announcement.TransactionId);
-            bool isWarning = string.Equals(
-                announcement.AlertType,
-                MonitoringService.WarningType,
-                StringComparison.OrdinalIgnoreCase);
+            bool limitedLoop = string.Equals(
+                    announcement.AlertType,
+                    MonitoringService.WarningType,
+                    StringComparison.OrdinalIgnoreCase)
+                || string.Equals(
+                    announcement.AlertType,
+                    MonitoringService.HalfTimeType,
+                    StringComparison.OrdinalIgnoreCase)
+                || string.Equals(
+                    announcement.AlertType,
+                    MonitoringService.AttentionType,
+                    StringComparison.OrdinalIgnoreCase);
             _voiceAnnouncementService.StartLooping(
                 announcement.TransactionId,
                 announcement.GetVoiceLines(AlertMessageService.CultureEnglishIndia),
                 announcement.AlertId,
-                maxSpeakCount: isWarning ? 2 : null);
+                maxSpeakCount: limitedLoop ? 2 : null);
         }
 
         private void StopSensorVoice_Click(object sender, RoutedEventArgs e)

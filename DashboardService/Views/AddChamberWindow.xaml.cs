@@ -43,22 +43,33 @@ public partial class AddChamberWindow : Window
             string violationExample = await GetDefaultTemplateAsync(
                 ChamberService.ViolationAlertType,
                 settings.ViolationMessage);
+            string halfTimeExample = await GetDefaultTemplateAsync(
+                ChamberService.HalfTimeAlertType,
+                settings.AttentionMessage);
 
             WarningExampleText.Text = "Example: " + warningExample;
             ViolationExampleText.Text = "Example: " + violationExample;
+            HalfTimeExampleText.Text = "Example: " + halfTimeExample;
             SystemDefinitionText.Text = BuildSystemDefinition(settings.RepeatAfterViolationMinutes);
 
             int defaultWarningBefore = settings.WarningRemainingMinutes > 0
                 ? settings.WarningRemainingMinutes
                 : 10;
+            int defaultRepeatAfter = settings.RepeatAfterViolationMinutes > 0
+                ? settings.RepeatAfterViolationMinutes
+                : 5;
             ApplyRule(null, WarningBeforeTextBox, WarningPlayCountTextBox, WarningAudioCheckBox, WarningMessageTextBox,
                 defaultWarningBefore, 1, allowContinue: false);
             ApplyRule(null, ViolationAfterTextBox, ViolationPlayCountTextBox, ViolationAudioCheckBox, ViolationMessageTextBox,
                 0, ChamberAlertRule.ContinuePlayCount, allowContinue: true);
+            RestartAfterStopTextBox.Text = defaultRepeatAfter.ToString();
 
             if (!_isEditMode || _editingChamber == null)
             {
                 TimeThresholdTextBox.Text = settings.AfterMinutes.ToString();
+                int addHalfDefault = Math.Max(1, settings.AfterMinutes / 2);
+                ApplyRule(null, HalfTimeMinutesTextBox, HalfTimePlayCountTextBox, HalfTimeAudioCheckBox, HalfTimeMessageTextBox,
+                    addHalfDefault, 1, allowContinue: false);
                 return;
             }
 
@@ -91,6 +102,23 @@ public partial class AddChamberWindow : Window
                 0,
                 ChamberAlertRule.ContinuePlayCount,
                 allowContinue: true);
+
+            var violationRule = rules.FirstOrDefault(r =>
+                r.AlertType.Equals(ChamberService.ViolationAlertType, StringComparison.OrdinalIgnoreCase));
+            RestartAfterStopTextBox.Text = (violationRule?.RepeatAfterMinutes > 0
+                ? violationRule.RepeatAfterMinutes
+                : defaultRepeatAfter).ToString();
+
+            int halfDefault = Math.Max(1, (chamber.TimeThreshold ?? settings.AfterMinutes) / 2);
+            ApplyRule(
+                rules.FirstOrDefault(r => r.AlertType.Equals(ChamberService.HalfTimeAlertType, StringComparison.OrdinalIgnoreCase)),
+                HalfTimeMinutesTextBox,
+                HalfTimePlayCountTextBox,
+                HalfTimeAudioCheckBox,
+                HalfTimeMessageTextBox,
+                halfDefault,
+                1,
+                allowContinue: false);
         }
         catch (Exception ex)
         {
@@ -122,8 +150,11 @@ public partial class AddChamberWindow : Window
             !TryParseRequiredInt(TimeThresholdTextBox.Text, "Time threshold", out int timeThreshold) ||
             !TryParseRequiredInt(WarningBeforeTextBox.Text, "Warning minutes before", out int warningBefore) ||
             !TryParseRequiredInt(WarningPlayCountTextBox.Text, "Warning play count", out int warningCount) ||
+            !TryParseRequiredInt(HalfTimeMinutesTextBox.Text, "Half-time minutes", out int halfTimeMinutes) ||
+            !TryParseRequiredInt(HalfTimePlayCountTextBox.Text, "Half-time play count", out int halfTimeCount) ||
             !TryParseRequiredInt(ViolationAfterTextBox.Text, "Violation minutes after", out int violationAfter) ||
-            !TryParseViolationPlayCount(ViolationPlayCountTextBox.Text, dialogTitle, out int violationCount))
+            !TryParseViolationPlayCount(ViolationPlayCountTextBox.Text, dialogTitle, out int violationCount) ||
+            !TryParseRequiredInt(RestartAfterStopTextBox.Text, "Restart after Stop", out int restartAfterStop))
         {
             return;
         }
@@ -138,10 +169,51 @@ public partial class AddChamberWindow : Window
             return;
         }
 
+        if (halfTimeCount < 1)
+        {
+            MessageBox.Show(
+                "Half-time play count must be at least 1.",
+                dialogTitle,
+                MessageBoxButton.OK,
+                MessageBoxImage.Warning);
+            return;
+        }
+
+        if (restartAfterStop < 1)
+        {
+            MessageBox.Show(
+                "Restart after Stop must be at least 1 minute.",
+                dialogTitle,
+                MessageBoxButton.OK,
+                MessageBoxImage.Warning);
+            return;
+        }
+
         if (warningBefore >= timeThreshold)
         {
             MessageBox.Show(
                 "Warning minutes before must be less than the time threshold.",
+                dialogTitle,
+                MessageBoxButton.OK,
+                MessageBoxImage.Warning);
+            return;
+        }
+
+        if (halfTimeMinutes < 1 || halfTimeMinutes >= timeThreshold)
+        {
+            MessageBox.Show(
+                "Half-time minutes must be between 1 and less than the time threshold.",
+                dialogTitle,
+                MessageBoxButton.OK,
+                MessageBoxImage.Warning);
+            return;
+        }
+
+        int warningAt = timeThreshold - warningBefore;
+        if (halfTimeMinutes >= warningAt)
+        {
+            MessageBox.Show(
+                "Half-time must be earlier than the warning (before time threshold minus warning minutes).",
                 dialogTitle,
                 MessageBoxButton.OK,
                 MessageBoxImage.Warning);
@@ -174,9 +246,20 @@ public partial class AddChamberWindow : Window
             [
                 new ChamberAlertRule
                 {
+                    AlertType = ChamberService.HalfTimeAlertType,
+                    AlertTimeMinutes = halfTimeMinutes,
+                    MaxPlayCount = halfTimeCount,
+                    RepeatAfterMinutes = restartAfterStop,
+                    IsAnnouncementEnabled = HalfTimeAudioCheckBox.IsChecked == true,
+                    IsActive = true,
+                    AnnouncementMessage = HalfTimeMessageTextBox.Text.Trim()
+                },
+                new ChamberAlertRule
+                {
                     AlertType = ChamberService.WarningAlertType,
                     AlertTimeMinutes = warningBefore,
                     MaxPlayCount = warningCount,
+                    RepeatAfterMinutes = restartAfterStop,
                     IsAnnouncementEnabled = WarningAudioCheckBox.IsChecked == true,
                     IsActive = true,
                     AnnouncementMessage = WarningMessageTextBox.Text.Trim()
@@ -186,6 +269,7 @@ public partial class AddChamberWindow : Window
                     AlertType = ChamberService.ViolationAlertType,
                     AlertTimeMinutes = violationAfter,
                     MaxPlayCount = violationCount,
+                    RepeatAfterMinutes = restartAfterStop,
                     IsAnnouncementEnabled = ViolationAudioCheckBox.IsChecked == true,
                     IsActive = true,
                     AnnouncementMessage = ViolationMessageTextBox.Text.Trim()
@@ -228,17 +312,18 @@ public partial class AddChamberWindow : Window
     {
         return
             "Time Threshold is the permitted stay inside the chamber (from entry time).\n\n" +
+            "Half-time fires that many minutes AFTER entry (default is half of Time Threshold). Status becomes Attention. " +
+            "Voice speaks 2 times per alert then stops.\n\n" +
             "Warning fires that many minutes BEFORE the threshold. Dashboard status becomes Warning. " +
             "If Play warning audio is on, voice starts. Play count is how many warning alerts are created " +
             $"(first immediately, then every {repeatAfterMinutes} minutes). Warning voice speaks 2 times per alert then stops.\n\n" +
             "Violation fires that many minutes AFTER the threshold (0 = exactly at expiry). Status becomes Violation. " +
             "If Play violation audio is on, voice loops until the member exits when play count is continue. " +
-            "Stop pauses it; after Stop a number still waits " +
-            $"{repeatAfterMinutes} minutes before the next session, but continue starts speaking again immediately " +
-            "if voice drops without Stop. A number caps how many sessions are created.\n\n" +
+            "Stop pauses it. Restart after Stop is how many minutes later the next session starts " +
+            "(only if play count still allows it). A number caps how many sessions are created.\n\n" +
             "Leave message empty to use the system default template shown in Example. Saved text is stored in " +
             "chamber_alert_rules.announcement_message. Placeholders: {EmployeeName}, {ChamberName}, " +
-            "{WarningRemainingMinutes}, {AfterMinutes}.";
+            "{HalfTimeMinutes}, {WarningRemainingMinutes}, {AfterMinutes}.";
     }
 
     private static void ApplyRule(

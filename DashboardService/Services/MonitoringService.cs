@@ -6,6 +6,7 @@ namespace DashboardService.Services;
 public class MonitoringService
 {
     public const string AttentionType = "ATTENTION";
+    public const string HalfTimeType = "HALF_TIME";
     public const string WarningType = "WARNING";
     public const string ViolationType = "VIOLATION";
     public const string ViolationRepeatType = "VIOLATION_REPEAT";
@@ -280,10 +281,13 @@ public class MonitoringService
                     ruleId: employee.ViolationRuleId);
             }
 
+            int repeatAfterMinutes = employee.ViolationRepeatAfterMinutes > 0
+                ? employee.ViolationRepeatAfterMinutes
+                : settings.RepeatAfterViolationMinutes;
             bool repeatDue =
                 !employee.LastAnnouncementAt.HasValue ||
                 DateTime.Now - employee.LastAnnouncementAt.Value >=
-                    TimeSpan.FromMinutes(settings.RepeatAfterViolationMinutes);
+                    TimeSpan.FromMinutes(repeatAfterMinutes);
 
             if (repeatDue)
             {
@@ -336,6 +340,46 @@ public class MonitoringService
                     markViolation: false,
                     customMessage: employee.WarningMessage,
                     ruleId: employee.WarningRuleId);
+            }
+        }
+
+        if (employee.HalfTimeMinutes > 0
+            && elapsedMinutes >= employee.HalfTimeMinutes)
+        {
+            if (!employee.HalfTimeAudioEnabled)
+            {
+                return null;
+            }
+
+            int played = employee.GetAnnouncementCount(HalfTimeType, AttentionType);
+            if (played >= Math.Max(1, employee.HalfTimeMaxPlayCount))
+            {
+                return null;
+            }
+
+            if (played == 0)
+            {
+                return await CreateAnnouncementAsync(
+                    employee,
+                    HalfTimeType,
+                    markViolation: false,
+                    customMessage: employee.HalfTimeMessage,
+                    ruleId: employee.HalfTimeRuleId);
+            }
+
+            bool repeatDue =
+                !employee.LastAnnouncementAt.HasValue ||
+                DateTime.Now - employee.LastAnnouncementAt.Value >=
+                    TimeSpan.FromMinutes(settings.RepeatAfterViolationMinutes);
+
+            if (repeatDue)
+            {
+                return await CreateAnnouncementAsync(
+                    employee,
+                    HalfTimeType,
+                    markViolation: false,
+                    customMessage: employee.HalfTimeMessage,
+                    ruleId: employee.HalfTimeRuleId);
             }
         }
 
@@ -437,6 +481,8 @@ public class MonitoringService
             r.IsActive && r.AlertType.Equals(ChamberService.WarningAlertType, StringComparison.OrdinalIgnoreCase));
         var violation = rules.FirstOrDefault(r =>
             r.IsActive && r.AlertType.Equals(ChamberService.ViolationAlertType, StringComparison.OrdinalIgnoreCase));
+        var halfTime = rules.FirstOrDefault(r =>
+            r.IsActive && r.AlertType.Equals(ChamberService.HalfTimeAlertType, StringComparison.OrdinalIgnoreCase));
 
         if (warning != null)
         {
@@ -454,10 +500,23 @@ public class MonitoringService
             employee.ViolationMaxPlayCount = Math.Max(0, violation.MaxPlayCount);
             employee.ViolationMessage = violation.AnnouncementMessage;
             employee.ViolationRuleId = violation.RuleId;
+            employee.ViolationRepeatAfterMinutes = violation.RepeatAfterMinutes > 0
+                ? violation.RepeatAfterMinutes
+                : 5;
         }
         else
         {
             employee.ViolationAfterMinutes = 0;
+        }
+
+        if (halfTime != null)
+        {
+            employee.HalfTimeMinutes = Math.Max(0, halfTime.AlertTimeMinutes);
+            employee.HalfTimeAudioEnabled = halfTime.IsAnnouncementEnabled;
+            employee.HalfTimeMaxPlayCount = Math.Max(1, halfTime.MaxPlayCount);
+            employee.HalfTimeMessage = halfTime.AnnouncementMessage;
+            employee.HalfTimeRuleId = halfTime.RuleId;
+            employee.AttentionMinutes = employee.HalfTimeMinutes;
         }
     }
 
@@ -538,6 +597,7 @@ public class MonitoringService
             .Replace("$employeename", employee.EmployeeName, StringComparison.OrdinalIgnoreCase)
             .Replace("{ChamberName}", employee.ChamberName, StringComparison.OrdinalIgnoreCase)
             .Replace("{AttentionMinutes}", settings.AttentionMinutes.ToString())
+            .Replace("{HalfTimeMinutes}", employee.HalfTimeMinutes.ToString())
             .Replace("{WarningRemainingMinutes}", settings.WarningRemainingMinutes.ToString())
             .Replace(
                 "{AfterMinutes}",
@@ -634,6 +694,7 @@ public class MonitoringService
                 primaryTemplate = alertType.ToUpperInvariant() switch
                 {
                     AttentionType => settings.AttentionMessage,
+                    HalfTimeType => settings.AttentionMessage,
                     WarningType => settings.WarningMessage,
                     ViolationType => settings.ViolationMessage,
                     ViolationRepeatType => settings.ViolationRepeatMessage,

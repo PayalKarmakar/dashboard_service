@@ -300,6 +300,7 @@ public sealed class AlertMessageService
             string appsettingsKey = alertType.ToUpperInvariant() switch
             {
                 "ATTENTION" => "Attention",
+                "HALF_TIME" => "Attention",
                 "WARNING" => "Warning",
                 "VIOLATION" => "Violation",
                 "VIOLATION_REPEAT" => "ViolationRepeat",

@@ -7,6 +7,7 @@ public class ChamberService
 {
     public const string WarningAlertType = "WARNING";
     public const string ViolationAlertType = "VIOLATION";
+    public const string HalfTimeAlertType = "HALF_TIME";
 
     private readonly ConfigurationService _configurationService = new();
     private static bool _schemaEnsured;
@@ -234,7 +235,8 @@ public class ChamberService
                 announcement_message,
                 is_announcement_enabled,
                 is_active,
-                max_play_count
+                max_play_count,
+                repeat_after_minutes
             )
             VALUES
             (
@@ -244,7 +246,8 @@ public class ChamberService
                 @message,
                 @audioEnabled,
                 @isActive,
-                @maxPlayCount
+                @maxPlayCount,
+                @repeatAfterMinutes
             )
             ON CONFLICT (chamber_id, alert_type)
             DO UPDATE SET
@@ -253,6 +256,7 @@ public class ChamberService
                 is_announcement_enabled = EXCLUDED.is_announcement_enabled,
                 is_active = EXCLUDED.is_active,
                 max_play_count = EXCLUDED.max_play_count,
+                repeat_after_minutes = EXCLUDED.repeat_after_minutes,
                 updated_at = NOW();
         ";
 
@@ -274,6 +278,9 @@ public class ChamberService
             command.Parameters.AddWithValue(
                 "maxPlayCount",
                 unlimited ? ChamberAlertRule.ContinuePlayCount : Math.Max(1, rule.MaxPlayCount));
+            command.Parameters.AddWithValue(
+                "repeatAfterMinutes",
+                Math.Max(0, rule.RepeatAfterMinutes));
             await command.ExecuteNonQueryAsync();
         }
     }
@@ -294,7 +301,8 @@ public class ChamberService
                 COALESCE(announcement_message, ''),
                 is_announcement_enabled,
                 is_active,
-                COALESCE(max_play_count, 0)
+                COALESCE(max_play_count, 0),
+                COALESCE(repeat_after_minutes, 5)
             FROM public.chamber_alert_rules
             WHERE chamber_id = ANY(@ids);
         ";
@@ -314,7 +322,8 @@ public class ChamberService
                 AnnouncementMessage = reader.GetString(4),
                 IsAnnouncementEnabled = reader.GetBoolean(5),
                 IsActive = reader.GetBoolean(6),
-                MaxPlayCount = reader.GetInt32(7)
+                MaxPlayCount = reader.GetInt32(7),
+                RepeatAfterMinutes = reader.GetInt32(8)
             });
         }
 
@@ -349,6 +358,9 @@ public class ChamberService
         const string sql = @"
             ALTER TABLE public.chamber_alert_rules
               ADD COLUMN IF NOT EXISTS max_play_count integer NOT NULL DEFAULT 1;
+
+            ALTER TABLE public.chamber_alert_rules
+              ADD COLUMN IF NOT EXISTS repeat_after_minutes integer NOT NULL DEFAULT 5;
 
             DO $$
             BEGIN

@@ -43,6 +43,18 @@ namespace DashboardService.Models
 
         public int ViolationMaxPlayCount { get; set; }
 
+        public int ViolationRepeatAfterMinutes { get; set; } = 5;
+
+        public int HalfTimeMinutes { get; set; }
+
+        public bool HalfTimeAudioEnabled { get; set; } = true;
+
+        public int HalfTimeMaxPlayCount { get; set; } = 1;
+
+        public string HalfTimeMessage { get; set; } = string.Empty;
+
+        public long? HalfTimeRuleId { get; set; }
+
         public string WarningMessage { get; set; } = string.Empty;
 
         public string ViolationMessage { get; set; } = string.Empty;
@@ -156,6 +168,9 @@ namespace DashboardService.Models
                     && TimeThresholdMinutes > WarningRemainingMinutes
                     && elapsedMinutes >= TimeThresholdMinutes - WarningRemainingMinutes)
                     return "Warning";
+
+                if (HalfTimeMinutes > 0 && elapsedMinutes >= HalfTimeMinutes)
+                    return "Attention";
 
                 return "Inside";
             }

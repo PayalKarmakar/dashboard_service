@@ -18,6 +18,8 @@ public class ChamberAlertRule
 
     public int MaxPlayCount { get; set; } = 1;
 
+    public int RepeatAfterMinutes { get; set; } = 5;
+
     /// <summary>0 means keep creating violation sessions until the member exits.</summary>
     public const int ContinuePlayCount = 0;
 
