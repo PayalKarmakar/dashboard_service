@@ -15,12 +15,13 @@ internal static class IndianOnlineTts
     private static readonly object PlayLock = new();
     private static int _aliasSeq;
     private static string? _activeAlias;
+    private static DateTime _skipOnlineUntilUtc;
 
     private static HttpClient CreateClient()
     {
         var client = new HttpClient
         {
-            Timeout = TimeSpan.FromSeconds(20)
+            Timeout = TimeSpan.FromSeconds(3)
         };
         client.DefaultRequestHeaders.TryAddWithoutValidation(
             "User-Agent",
@@ -49,8 +50,25 @@ internal static class IndianOnlineTts
             string? mp3Path = null;
             try
             {
+                if (DateTime.UtcNow < _skipOnlineUntilUtc)
+                {
+                    SpeakLocalFallback(chunk, shouldCancel);
+                    continue;
+                }
+
                 mp3Path = DownloadMp3(chunk, tl);
                 PlayMp3Blocking(mp3Path, shouldCancel);
+            }
+            catch (Exception ex) when (
+                ex is TaskCanceledException
+                or OperationCanceledException
+                or HttpRequestException
+                or AggregateException)
+            {
+                _skipOnlineUntilUtc = DateTime.UtcNow.AddMinutes(10);
+                System.Diagnostics.Debug.WriteLine(
+                    $"Online Indian TTS unavailable ({ex.GetType().Name}). Using local voice.");
+                SpeakLocalFallback(chunk, shouldCancel);
             }
             catch (Exception ex)
             {

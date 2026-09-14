@@ -18,6 +18,7 @@ public sealed class LiveAlertHost
     private readonly HashSet<long> _announcementInFlight = new();
     private readonly HashSet<long> _enqueuedAlertIds = new();
     private readonly SemaphoreSlim _announcementProcessLock = new(1, 1);
+    private readonly Dictionary<long, (DateTime At, string Severity)> _localSensorAnnounced = new();
     private readonly object _sync = new();
 
     private DispatcherTimer? _dueTimer;
@@ -114,6 +115,7 @@ public sealed class LiveAlertHost
         UserStoppedVoice.Clear();
         _enqueuedAlertIds.Clear();
         _announcementInFlight.Clear();
+        _localSensorAnnounced.Clear();
         _members = new();
         SensorVoiceEnabled = true;
     }
@@ -323,18 +325,17 @@ public sealed class LiveAlertHost
         foreach (var violation in violations)
         {
             string currentSeverity = violation.Status.ToUpperInvariant();
+            long violationId = violation.SensorViolationsId;
 
-            bool severityChanged = !string.Equals(
-                violation.LastAnnouncedSeverity,
-                currentSeverity,
-                StringComparison.OrdinalIgnoreCase);
+            _localSensorAnnounced.TryGetValue(violationId, out var local);
 
+            bool neverAnnounced = local.At == default;
+            bool severityChanged =
+                !neverAnnounced &&
+                !string.Equals(local.Severity, currentSeverity, StringComparison.OrdinalIgnoreCase);
             bool repeatDue =
-                violation.LastAnnouncedAt.HasValue &&
-                (DateTime.Now - ToLocalTime(violation.LastAnnouncedAt.Value))
-                    >= TimeSpan.FromMinutes(settings.RepeatAfterMinutes);
-
-            bool neverAnnounced = !violation.LastAnnouncedAt.HasValue;
+                !neverAnnounced &&
+                (DateTime.Now - local.At) >= TimeSpan.FromMinutes(settings.RepeatAfterMinutes);
 
             if (!neverAnnounced && !severityChanged && !repeatDue)
             {
@@ -367,8 +368,9 @@ public sealed class LiveAlertHost
             }
 
             Voice.AnnounceOnce(voiceLines);
+            _localSensorAnnounced[violationId] = (DateTime.Now, currentSeverity);
             await _monitoringService.MarkSensorViolationAnnouncedAsync(
-                violation.SensorViolationsId,
+                violationId,
                 currentSeverity);
         }
     }

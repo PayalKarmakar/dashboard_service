@@ -336,6 +336,7 @@ public sealed class VoiceAnnouncementService : IDisposable
                 Thread.Sleep(250);
             }
 
+            DateTime started = DateTime.UtcNow;
             try
             {
                 IndianOnlineTts.Speak(line.Message, culture, shouldCancel);
@@ -344,6 +345,12 @@ public sealed class VoiceAnnouncementService : IDisposable
             {
                 if (line.PlayEmergencySound)
                 {
+                    int remainMs = 4000 - (int)(DateTime.UtcNow - started).TotalMilliseconds;
+                    if (remainMs > 0 && shouldCancel?.Invoke() != true)
+                    {
+                        Thread.Sleep(remainMs);
+                    }
+
                     EmergencySoundPlayer.StopUnderVoice();
                 }
             }

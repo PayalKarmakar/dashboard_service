@@ -22,6 +22,12 @@
     </Content>
     <Content Include="Assets\sound.mpeg">
       <CopyToOutputDirectory>PreserveNewest</CopyToOutputDirectory>
+      <TargetPath>Assets\sound.mpeg</TargetPath>
+    </Content>
+    <Content Include="Assets\sound.mpeg">
+      <CopyToOutputDirectory>PreserveNewest</CopyToOutputDirectory>
+      <Link>sound.mpeg</Link>
+      <TargetPath>sound.mpeg</TargetPath>
     </Content>
     <Content Include="Models\Vision\yolov5n.onnx">
       <CopyToOutputDirectory>PreserveNewest</CopyToOutputDirectory>

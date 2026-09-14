@@ -211,7 +211,8 @@ internal static class EmergencySoundPlayer
         [
             Path.Combine(baseDir, "Assets", "sound.mpeg"),
             Path.Combine(baseDir, "sound.mpeg"),
-            Path.Combine(baseDir, "..", "..", "..", "..", "sound.mpeg")
+            Path.Combine(AppContext.BaseDirectory, "Assets", "sound.mpeg"),
+            Path.Combine(AppContext.BaseDirectory, "sound.mpeg"),
         ];
 
         return candidates
