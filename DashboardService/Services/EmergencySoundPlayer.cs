@@ -23,12 +23,25 @@ internal static class EmergencySoundPlayer
     {
         _playingUnderVoice = true;
         string? loopFile = EnsureLoopFile();
-        if (string.IsNullOrWhiteSpace(loopFile) || Application.Current?.Dispatcher == null)
+        if (string.IsNullOrWhiteSpace(loopFile))
         {
             return;
         }
 
-        Application.Current.Dispatcher.Invoke(new Action(() =>
+        if (TryStartMciLoop(loopFile))
+        {
+            return;
+        }
+
+        var dispatcher = Application.Current?.Dispatcher;
+        if (dispatcher == null)
+        {
+            return;
+        }
+
+        // Do not block the speech thread on the UI dispatcher — that can
+        // swallow the whole announcement after login.
+        dispatcher.BeginInvoke(new Action(() =>
         {
             if (!_playingUnderVoice)
             {
@@ -53,6 +66,41 @@ internal static class EmergencySoundPlayer
                 System.Diagnostics.Debug.WriteLine($"Emergency start failed: {ex.Message}");
             }
         }));
+    }
+
+    private static bool TryStartMciLoop(string loopFile)
+    {
+        string escaped = loopFile.Replace("'", "\\'", StringComparison.Ordinal);
+        lock (PlayLock)
+        {
+            if (!string.IsNullOrEmpty(_activeAlias))
+            {
+                Mci($"stop {_activeAlias}");
+                Mci($"close {_activeAlias}");
+                _activeAlias = null;
+            }
+
+            string alias = $"srploop{Interlocked.Increment(ref _aliasSeq)}";
+            bool opened =
+                Mci($"open \"{escaped}\" type mpegvideo alias {alias}") == 0 ||
+                Mci($"open \"{escaped}\" alias {alias}") == 0;
+
+            if (!opened)
+            {
+                return false;
+            }
+
+            _activeAlias = alias;
+            Mci($"setaudio {alias} volume to 350");
+            if (Mci($"play {alias} repeat") != 0 && Mci($"play {alias}") != 0)
+            {
+                Mci($"close {alias}");
+                _activeAlias = null;
+                return false;
+            }
+
+            return true;
+        }
     }
 
     public static void StopUnderVoice()
@@ -180,28 +228,27 @@ internal static class EmergencySoundPlayer
         _playingUnderVoice = false;
         lock (PlayLock)
         {
-            if (string.IsNullOrEmpty(_activeAlias) && _activePlayer == null)
+            if (!string.IsNullOrEmpty(_activeAlias))
             {
-                return;
+                Mci($"stop {_activeAlias}");
+                Mci($"close {_activeAlias}");
+                _activeAlias = null;
             }
-
-            Mci($"stop {_activeAlias}");
-            Mci($"close {_activeAlias}");
-            _activeAlias = null;
         }
 
-        try
+        var dispatcher = Application.Current?.Dispatcher;
+        if (dispatcher == null)
         {
-            Application.Current?.Dispatcher.Invoke(() =>
-            {
-                try { _activePlayer?.Stop(); } catch { }
-                try { _activePlayer?.Close(); } catch { }
-                _activePlayer = null;
-            });
+            _activePlayer = null;
+            return;
         }
-        catch
+
+        dispatcher.BeginInvoke(new Action(() =>
         {
-        }
+            try { _activePlayer?.Stop(); } catch { }
+            try { _activePlayer?.Close(); } catch { }
+            _activePlayer = null;
+        }));
     }
 
     private static string? ResolveSoundPath()

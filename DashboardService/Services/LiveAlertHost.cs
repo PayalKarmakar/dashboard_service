@@ -76,6 +76,12 @@ public sealed class LiveAlertHost
         _ = KickSensorAlertsAsync(resetAnnouncementMarks: true);
     }
 
+    public void RetriggerSensorAnnouncements()
+    {
+        SensorVoiceEnabled = true;
+        _ = KickSensorAlertsAsync(resetAnnouncementMarks: true);
+    }
+
     public void Stop()
     {
         lock (_sync)

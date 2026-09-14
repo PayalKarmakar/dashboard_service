@@ -234,7 +234,29 @@ public sealed class VoiceAnnouncementService : IDisposable
 
             if (_oneTimeAnnouncements.TryDequeue(out VoiceAnnouncementLine? oneTimeLine))
             {
-                SpeakLine(oneTimeLine, null);
+                try
+                {
+                    lock (_speakLock)
+                    {
+                        _currentlySpeakingKey = null;
+                        _cancelCurrentSpeech = false;
+                    }
+
+                    SpeakLine(oneTimeLine, null);
+                }
+                catch (Exception ex)
+                {
+                    System.Diagnostics.Debug.WriteLine($"One-time voice announcement failed: {ex.Message}");
+                }
+                finally
+                {
+                    lock (_speakLock)
+                    {
+                        _currentlySpeakingKey = null;
+                        _cancelCurrentSpeech = false;
+                    }
+                }
+
                 continue;
             }
 

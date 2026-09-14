@@ -353,7 +353,7 @@ namespace DashboardService.Views
 
             try
             {
-                await _monitoringService.ClearSensorAnnouncementMarksAsync(1);
+                LiveAlertHost.Instance.RetriggerSensorAnnouncements();
                 await CheckSensorViolationsAsync();
             }
             catch (Exception ex)
