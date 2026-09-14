@@ -1,4 +1,4 @@
-﻿using DashboardService.Helpers;
+using DashboardService.Helpers;
 using DashboardService.Services;
 using System.Windows;
 using System.Windows.Controls;

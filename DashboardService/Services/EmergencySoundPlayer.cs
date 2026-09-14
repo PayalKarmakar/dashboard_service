@@ -1,6 +1,8 @@
 using System.IO;
 using System.Runtime.InteropServices;
 using System.Text;
+using System.Windows;
+using System.Windows.Media;
 
 namespace DashboardService.Services;
 
@@ -13,25 +15,60 @@ internal static class EmergencySoundPlayer
     private static readonly object PlayLock = new();
     private static int _aliasSeq;
     private static string? _activeAlias;
+    private static MediaPlayer? _activePlayer;
 
     public static void Play(Func<bool>? shouldCancel = null)
     {
-        string? mpegPath = ResolveSoundPath();
-        if (!string.IsNullOrWhiteSpace(mpegPath))
+        try
         {
-            PlayFileBlocking(mpegPath, "mpegvideo", shouldCancel);
-            return;
-        }
+            string? sourcePath = ResolveSoundPath();
+            if (!string.IsNullOrWhiteSpace(sourcePath) &&
+                PlayCopiedMp3(sourcePath, shouldCancel))
+            {
+                return;
+            }
 
+            PlayGeneratedSiren(shouldCancel);
+        }
+        catch (Exception ex)
+        {
+            System.Diagnostics.Debug.WriteLine($"Emergency sound failed: {ex.Message}");
+        }
+    }
+
+    private static bool PlayCopiedMp3(string sourcePath, Func<bool>? shouldCancel)
+    {
+        // Copy to a short temp path. MCI fails on folders like "New folder (6)".
+        string tempPath = Path.Combine(Path.GetTempPath(), $"srp-alert-{Guid.NewGuid():N}.mp3");
+        try
+        {
+            File.Copy(sourcePath, tempPath, overwrite: true);
+            if (PlayWithMediaPlayer(tempPath, shouldCancel) ||
+                PlayFileBlocking(tempPath, "mpegvideo", shouldCancel))
+            {
+                return true;
+            }
+
+            return false;
+        }
+        catch (Exception ex)
+        {
+            System.Diagnostics.Debug.WriteLine($"Emergency mp3 playback failed: {ex.Message}");
+            return false;
+        }
+        finally
+        {
+            try { File.Delete(tempPath); } catch { }
+        }
+    }
+
+    private static void PlayGeneratedSiren(Func<bool>? shouldCancel)
+    {
         string wavPath = Path.Combine(Path.GetTempPath(), $"srp-siren-{Guid.NewGuid():N}.wav");
         try
         {
             File.WriteAllBytes(wavPath, BuildSirenWav());
             PlayFileBlocking(wavPath, "waveaudio", shouldCancel);
-        }
-        catch (Exception ex)
-        {
-            System.Diagnostics.Debug.WriteLine($"Emergency siren failed: {ex.Message}");
         }
         finally
         {
@@ -43,7 +80,7 @@ internal static class EmergencySoundPlayer
     {
         lock (PlayLock)
         {
-            if (string.IsNullOrEmpty(_activeAlias))
+            if (string.IsNullOrEmpty(_activeAlias) && _activePlayer == null)
             {
                 return;
             }
@@ -51,6 +88,19 @@ internal static class EmergencySoundPlayer
             Mci($"stop {_activeAlias}");
             Mci($"close {_activeAlias}");
             _activeAlias = null;
+        }
+
+        try
+        {
+            Application.Current?.Dispatcher.Invoke(() =>
+            {
+                try { _activePlayer?.Stop(); } catch { }
+                try { _activePlayer?.Close(); } catch { }
+                _activePlayer = null;
+            });
+        }
+        catch
+        {
         }
     }
 
@@ -136,7 +186,86 @@ internal static class EmergencySoundPlayer
         return stream.ToArray();
     }
 
-    private static void PlayFileBlocking(string path, string mediaType, Func<bool>? shouldCancel)
+    private static bool PlayWithMediaPlayer(string path, Func<bool>? shouldCancel)
+    {
+        if (Application.Current?.Dispatcher == null)
+        {
+            return false;
+        }
+
+        var opened = new ManualResetEventSlim(false);
+        var ended = new ManualResetEventSlim(false);
+        var failed = new ManualResetEventSlim(false);
+
+        try
+        {
+            Application.Current.Dispatcher.Invoke(() =>
+            {
+                var player = new MediaPlayer { Volume = 1.0 };
+                _activePlayer = player;
+                player.MediaOpened += (_, _) => opened.Set();
+                player.MediaEnded += (_, _) => ended.Set();
+                player.MediaFailed += (_, _) => failed.Set();
+                player.Open(new Uri(path, UriKind.Absolute));
+                player.Play();
+            });
+
+            int waited = 0;
+            while (waited < 4000 && !opened.IsSet && !failed.IsSet && !ended.IsSet)
+            {
+                if (shouldCancel?.Invoke() == true)
+                {
+                    return false;
+                }
+
+                Thread.Sleep(50);
+                waited += 50;
+            }
+
+            if (failed.IsSet || (!opened.IsSet && !ended.IsSet))
+            {
+                return false;
+            }
+
+            while (!ended.IsSet && !failed.IsSet)
+            {
+                if (shouldCancel?.Invoke() == true)
+                {
+                    return true;
+                }
+
+                Thread.Sleep(80);
+            }
+
+            return !failed.IsSet;
+        }
+        catch (Exception ex)
+        {
+            System.Diagnostics.Debug.WriteLine($"MediaPlayer emergency sound failed: {ex.Message}");
+            return false;
+        }
+        finally
+        {
+            opened.Dispose();
+            ended.Dispose();
+            failed.Dispose();
+
+            try
+            {
+                Application.Current?.Dispatcher.Invoke(() =>
+                {
+                    try { _activePlayer?.Stop(); } catch { }
+                    try { _activePlayer?.Close(); } catch { }
+                    _activePlayer = null;
+                });
+            }
+            catch
+            {
+            }
+        }
+    }
+
+    private static bool PlayFileBlocking(string path, string mediaType, Func<bool>? shouldCancel)
     {
         string alias = $"srpsiren{Interlocked.Increment(ref _aliasSeq)}";
         string escaped = path.Replace("'", "\\'", StringComparison.Ordinal);
@@ -146,33 +275,47 @@ internal static class EmergencySoundPlayer
             _activeAlias = alias;
         }
 
+        bool opened = false;
         try
         {
-            if (Mci($"open \"{escaped}\" type {mediaType} alias {alias}") != 0 &&
-                Mci($"open \"{escaped}\" type mpegvideo alias {alias}") != 0)
+            opened =
+                Mci($"open \"{escaped}\" type {mediaType} alias {alias}") == 0 ||
+                Mci($"open \"{escaped}\" type mpegvideo alias {alias}") == 0 ||
+                Mci($"open \"{escaped}\" alias {alias}") == 0;
+
+            if (!opened)
             {
-                throw new InvalidOperationException("Failed to open emergency sound.");
+                return false;
             }
 
-            Mci($"play {alias}");
+            if (Mci($"play {alias}") != 0)
+            {
+                return false;
+            }
 
+            bool heardPlaying = false;
             while (true)
             {
                 if (shouldCancel?.Invoke() == true)
                 {
                     Mci($"stop {alias}");
-                    break;
+                    return heardPlaying;
                 }
 
                 var status = new StringBuilder(64);
                 Mci($"status {alias} mode", status);
                 string mode = status.ToString().Trim();
 
+                if (mode.Equals("playing", StringComparison.OrdinalIgnoreCase))
+                {
+                    heardPlaying = true;
+                }
+
                 if (string.IsNullOrEmpty(mode) ||
                     mode.Equals("stopped", StringComparison.OrdinalIgnoreCase) ||
                     mode.Equals("paused", StringComparison.OrdinalIgnoreCase))
                 {
-                    break;
+                    return heardPlaying;
                 }
 
                 Thread.Sleep(50);
@@ -180,7 +323,11 @@ internal static class EmergencySoundPlayer
         }
         finally
         {
-            Mci($"close {alias}");
+            if (opened)
+            {
+                Mci($"close {alias}");
+            }
+
             lock (PlayLock)
             {
                 if (_activeAlias == alias)

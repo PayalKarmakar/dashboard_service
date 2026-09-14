@@ -15,7 +15,6 @@ public sealed class LiveAlertHost
     private readonly MonitoringService _monitoringService = new();
     private readonly AlertMessageService _alertMessageService = new();
     private readonly ConfigurationService _configurationService = new();
-    private readonly SystemLogStatusService _systemLogStatusService = new();
     private readonly HashSet<long> _announcementInFlight = new();
     private readonly HashSet<long> _enqueuedAlertIds = new();
     private readonly SemaphoreSlim _announcementProcessLock = new(1, 1);
@@ -25,7 +24,6 @@ public sealed class LiveAlertHost
     private DispatcherTimer? _refreshTimer;
     private DispatcherTimer? _sensorTimer;
     private List<Employee> _members = new();
-    private bool _anySensorConnected;
     private bool _started;
 
     private LiveAlertHost()
@@ -208,15 +206,17 @@ public sealed class LiveAlertHost
     {
         try
         {
-            var statuses = await _systemLogStatusService.GetLatestSensorStatusesAsync();
-            _anySensorConnected = statuses.Any(x => x.IsConnected);
-
-            if (!_anySensorConnected || !SensorVoiceEnabled)
+            if (!SensorVoiceEnabled)
             {
                 return;
             }
 
             var violations = await _monitoringService.GetActiveSensorViolationsAsync(1);
+            if (violations.Count == 0)
+            {
+                return;
+            }
+
             await ProcessSensorAnnouncementsAsync(violations);
         }
         catch (Exception ex)
