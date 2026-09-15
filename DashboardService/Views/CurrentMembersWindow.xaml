@@ -171,7 +171,7 @@
                     <DataGridTextColumn Header="ID" Binding="{Binding EmployeeId}" Width="0.7*"/>
                     <DataGridTextColumn Header="CHAMBER" Binding="{Binding ChamberName}" Width="1.2*"/>
                     <DataGridTextColumn Header="IN TIME" Binding="{Binding EntryTime, StringFormat={}{0:hh:mm:ss tt}}" Width="1.2*"/>
-                    <DataGridTextColumn Header="TIME REMAINING" Binding="{Binding Countdown}" Width="1.3*">
+                    <DataGridTextColumn Header="TIME REMAINING" Binding="{Binding Countdown}" Width="1.7*">
                         <DataGridTextColumn.ElementStyle>
                             <Style TargetType="TextBlock">
                                 <Setter Property="FontWeight" Value="ExtraBold"/>
@@ -182,17 +182,18 @@
                         </DataGridTextColumn.ElementStyle>
                     </DataGridTextColumn>
                     <DataGridTextColumn Header="STATUS" Binding="{Binding Status}" Width="0.9*"/>
-                    <DataGridTemplateColumn Header="VOICE" Width="1.1*">
+                    <DataGridTemplateColumn Header="VOICE" Width="0.75*">
                         <DataGridTemplateColumn.CellTemplate>
                             <DataTemplate>
                                 <Border Background="#F59E0B"
-                                        CornerRadius="6"
-                                        Padding="8,4"
+                                        CornerRadius="5"
+                                        Padding="6,2"
                                         HorizontalAlignment="Center"
+                                        VerticalAlignment="Center"
                                         Visibility="{Binding IsVoicePlaying, Converter={StaticResource BooleanToVisibilityConverter}}">
                                     <TextBlock Text="{Binding VoicePlayingLabel}"
-                                               FontSize="11"
-                                               FontWeight="Bold"
+                                               FontSize="9"
+                                               FontWeight="SemiBold"
                                                Foreground="White"/>
                                 </Border>
                             </DataTemplate>

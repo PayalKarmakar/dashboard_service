@@ -142,13 +142,15 @@ namespace DashboardService.Models
                 if (RemainingTime.TotalSeconds <= 0)
                 {
                     var exceeded = RemainingTime.Duration();
+                    int totalHours = (int)exceeded.TotalHours;
 
-                    return $"Exceeded {exceeded.Hours:00}:"
+                    return $"Exceeded {totalHours:00}:"
                          + $"{exceeded.Minutes:00}:"
                          + $"{exceeded.Seconds:00}";
                 }
 
-                return $"{RemainingTime.Hours:00}:"
+                int remainingHours = (int)RemainingTime.TotalHours;
+                return $"{remainingHours:00}:"
                      + $"{RemainingTime.Minutes:00}:"
                      + $"{RemainingTime.Seconds:00}";
             }
