@@ -5,6 +5,8 @@ namespace DashboardService.Services;
 
 public sealed class SystemLogStatusService
 {
+    private static readonly TimeSpan LiveReadingMaxAge = TimeSpan.FromSeconds(30);
+
     private readonly ConfigurationService _configurationService = new();
 
     public async Task<List<SystemLogConnectionStatus>> GetLatestSensorStatusesAsync()
@@ -58,7 +60,24 @@ public sealed class SystemLogStatusService
             id DESC;
     ";
 
-        return await QueryAsync(sql, MapSensor);
+        var rows = await QueryAsync(sql, MapSensor);
+        if (await HasFreshCurrentReadingsAsync())
+        {
+            return rows;
+        }
+
+        foreach (var row in rows)
+        {
+            if (!row.IsConnected)
+            {
+                continue;
+            }
+
+            row.IsConnected = false;
+            row.DetailDisplay = $"Offline · last log {row.CreatedAt:dd-MM-yyyy HH:mm:ss}";
+        }
+
+        return rows;
     }
 
     public async Task<List<SystemLogConnectionStatus>> GetLatestRfidStatusesAsync()
@@ -111,6 +130,27 @@ public sealed class SystemLogStatusService
         }
 
         return rows;
+    }
+
+    private async Task<bool> HasFreshCurrentReadingsAsync()
+    {
+        const string sql = @"
+            SELECT EXISTS (
+                SELECT 1
+                FROM public.sensor_current_readings
+                WHERE updated_at >= NOW() - @max_age
+            );
+        ";
+
+        await using var connection =
+            new NpgsqlConnection(_configurationService.GetConnectionString());
+        await connection.OpenAsync();
+
+        await using var command = new NpgsqlCommand(sql, connection);
+        command.Parameters.AddWithValue("max_age", LiveReadingMaxAge);
+
+        object? result = await command.ExecuteScalarAsync();
+        return result is true;
     }
 
     private static SystemLogConnectionStatus MapSensor(NpgsqlDataReader reader)

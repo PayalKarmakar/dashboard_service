@@ -107,6 +107,7 @@ namespace DashboardService.Views
             DisconnectedCameras = new ObservableCollection<CameraLiveStatus>();
             DeviceStatusItems = new ObservableCollection<DeviceStatusItem>();
             DashboardCameraPreviews = new ObservableCollection<DashboardCameraPreview>();
+            ViolatedMembers = new ObservableCollection<Employee>();
             ActiveSensorViolations = new ObservableCollection<SensorViolation>(); //Payal
 
 
