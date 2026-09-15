@@ -12,6 +12,12 @@ public class AlertSettings
 
     public bool VoiceEnabled { get; set; } = true;
 
+    /// <summary>
+    /// When true, members who share the same alert status are named together
+    /// with "and" in one announcement. When false, each member is announced separately.
+    /// </summary>
+    public bool CombineSameStatusNames { get; set; }
+
     public string VoiceCulture { get; set; } = "en-IN";
 
     public string VoiceName { get; set; } = string.Empty;

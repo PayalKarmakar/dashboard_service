@@ -19,13 +19,18 @@ public sealed class LiveAlertHost
     private readonly HashSet<long> _enqueuedAlertIds = new();
     private readonly SemaphoreSlim _announcementProcessLock = new(1, 1);
     private readonly Dictionary<long, (DateTime At, string Severity)> _localSensorAnnounced = new();
+    private readonly Dictionary<long, HashSet<long>> _combinedVoiceMembers = new();
     private readonly object _sync = new();
 
     private DispatcherTimer? _dueTimer;
     private DispatcherTimer? _refreshTimer;
     private DispatcherTimer? _sensorTimer;
+    private DispatcherTimer? _sensorSnoozeTimer;
     private List<Employee> _members = new();
     private bool _started;
+    private DateTime? _stopAllVoiceAt;
+
+    public event Action<bool>? SensorVoiceStateChanged;
 
     private LiveAlertHost()
     {
@@ -40,6 +45,93 @@ public sealed class LiveAlertHost
     public HashSet<long> UserStoppedVoice { get; } = new();
 
     public bool SensorVoiceEnabled { get; set; } = true;
+
+    public bool IsMemberVoiceActive(long transactionId)
+    {
+        if (Voice.IsPlaying(transactionId))
+        {
+            return true;
+        }
+
+        return _combinedVoiceMembers.Values.Any(ids => ids.Contains(transactionId));
+    }
+
+    public void StopMemberVoice(long transactionId)
+    {
+        if (transactionId <= 0)
+        {
+            return;
+        }
+
+        UserStoppedVoice.Add(transactionId);
+        Voice.Stop(transactionId);
+
+        foreach (var pair in _combinedVoiceMembers.ToList())
+        {
+            if (pair.Value.Contains(transactionId))
+            {
+                pair.Value.Remove(transactionId);
+                Voice.NotifyPlaying(transactionId, false);
+                if (pair.Value.Count < 2)
+                {
+                    StopCombinedVoice(pair.Key);
+                }
+            }
+        }
+    }
+
+    public void StopAllMemberVoice()
+    {
+        _stopAllVoiceAt = DateTime.Now;
+        StopAllCombinedVoice();
+        Voice.StopAll();
+    }
+
+    private int GetRestartAfterStopMinutes(Employee? employee)
+    {
+        if (employee != null && employee.ViolationRepeatAfterMinutes > 0)
+        {
+            return employee.ViolationRepeatAfterMinutes;
+        }
+
+        int fallback = _configurationService.GetAlertSettings().RepeatAfterViolationMinutes;
+        return fallback > 0 ? fallback : 5;
+    }
+
+    private bool IsStopAllSnoozeActive(Employee employee)
+    {
+        if (!_stopAllVoiceAt.HasValue)
+        {
+            return false;
+        }
+
+        return DateTime.Now < _stopAllVoiceAt.Value.AddMinutes(GetRestartAfterStopMinutes(employee));
+    }
+
+    private bool IsVoiceSnoozed(long transactionId)
+    {
+        if (!_stopAllVoiceAt.HasValue)
+        {
+            return false;
+        }
+
+        var employee = _members.FirstOrDefault(member => member.TransactionId == transactionId);
+        if (employee != null)
+        {
+            return IsStopAllSnoozeActive(employee);
+        }
+
+        if (transactionId >= 9_000_000_000L && _members.Count > 0)
+        {
+            long chamberId = (transactionId - 9_000_000_000L) / 10;
+            var chamberMember = _members.FirstOrDefault(member => member.ChamberId == chamberId)
+                ?? _members[0];
+            return IsStopAllSnoozeActive(chamberMember);
+        }
+
+        int minutes = GetRestartAfterStopMinutes(null);
+        return DateTime.Now < _stopAllVoiceAt.Value.AddMinutes(minutes);
+    }
 
     public void Start()
     {
@@ -78,8 +170,63 @@ public sealed class LiveAlertHost
 
     public void RetriggerSensorAnnouncements()
     {
+        StopSensorSnoozeTimer();
         SensorVoiceEnabled = true;
+        SensorVoiceStateChanged?.Invoke(true);
         _ = KickSensorAlertsAsync(resetAnnouncementMarks: true);
+    }
+
+    public void PauseSensorVoice()
+    {
+        SensorVoiceEnabled = false;
+        Voice.StopOneTimeAnnouncements();
+        SensorVoiceStateChanged?.Invoke(false);
+
+        var delay = GetSensorRepeatDelay(_configurationService.GetSensorAlertSettings());
+        if (delay < TimeSpan.FromSeconds(1))
+        {
+            delay = TimeSpan.FromSeconds(10);
+        }
+
+        void StartSnooze()
+        {
+            StopSensorSnoozeTimer();
+            _sensorSnoozeTimer = new DispatcherTimer { Interval = delay };
+            _sensorSnoozeTimer.Tick += SensorSnoozeTimer_Tick;
+            _sensorSnoozeTimer.Start();
+        }
+
+        if (Application.Current?.Dispatcher.CheckAccess() == true)
+        {
+            StartSnooze();
+        }
+        else
+        {
+            Application.Current?.Dispatcher.Invoke(StartSnooze);
+        }
+    }
+
+    private void SensorSnoozeTimer_Tick(object? sender, EventArgs e)
+    {
+        StopSensorSnoozeTimer();
+        if (!_started)
+        {
+            return;
+        }
+
+        RetriggerSensorAnnouncements();
+    }
+
+    private void StopSensorSnoozeTimer()
+    {
+        if (_sensorSnoozeTimer == null)
+        {
+            return;
+        }
+
+        _sensorSnoozeTimer.Stop();
+        _sensorSnoozeTimer.Tick -= SensorSnoozeTimer_Tick;
+        _sensorSnoozeTimer = null;
     }
 
     public void Stop()
@@ -105,6 +252,7 @@ public sealed class LiveAlertHost
             StopTimer(ref _dueTimer);
             StopTimer(ref _refreshTimer);
             StopTimer(ref _sensorTimer);
+            StopSensorSnoozeTimer();
         }
         else
         {
@@ -113,6 +261,7 @@ public sealed class LiveAlertHost
                 StopTimer(ref _dueTimer);
                 StopTimer(ref _refreshTimer);
                 StopTimer(ref _sensorTimer);
+                StopSensorSnoozeTimer();
             });
         }
 
@@ -121,8 +270,10 @@ public sealed class LiveAlertHost
         _enqueuedAlertIds.Clear();
         _announcementInFlight.Clear();
         _localSensorAnnounced.Clear();
+        ClearCombinedVoiceTracking();
         _members = new();
         SensorVoiceEnabled = true;
+        _stopAllVoiceAt = null;
     }
 
     public void DisposeVoice()
@@ -133,7 +284,8 @@ public sealed class LiveAlertHost
 
     public void StartVoiceLoop(AnnouncementRequest announcement)
     {
-        if (announcement.TransactionId <= 0 ||
+        if (IsVoiceSnoozed(announcement.TransactionId) ||
+            announcement.TransactionId <= 0 ||
             string.IsNullOrWhiteSpace(announcement.Message))
         {
             return;
@@ -254,8 +406,15 @@ public sealed class LiveAlertHost
     private async Task EnqueueUnplayedAnnouncementsAsync()
     {
         var pending = await _monitoringService.GetUnplayedAnnouncementsAsync();
+        var combinedIds = GetCombinedMemberIds();
         foreach (var announcement in pending)
         {
+            if (combinedIds.Contains(announcement.TransactionId) ||
+                IsVoiceSnoozed(announcement.TransactionId))
+            {
+                continue;
+            }
+
             StartVoiceLoop(announcement);
         }
     }
@@ -269,9 +428,17 @@ public sealed class LiveAlertHost
 
         try
         {
+            var combinedIds = await SyncCombinedStatusVoiceAsync();
+
             foreach (var employee in _members.ToList())
             {
-                if (employee.TransactionId <= 0)
+                if (employee.TransactionId <= 0 ||
+                    IsStopAllSnoozeActive(employee))
+                {
+                    continue;
+                }
+
+                if (combinedIds.Contains(employee.TransactionId))
                 {
                     continue;
                 }
@@ -326,10 +493,216 @@ public sealed class LiveAlertHost
         }
     }
 
+    private HashSet<long> GetCombinedMemberIds()
+    {
+        return GetCombinedGroups()
+            .SelectMany(group => group.Select(member => member.TransactionId))
+            .ToHashSet();
+    }
+
+    private List<List<Employee>> GetCombinedGroups()
+    {
+        if (!_configurationService.GetAlertSettings().CombineSameStatusNames)
+        {
+            return new List<List<Employee>>();
+        }
+
+        return _members
+            .Where(IsEligibleForCombinedVoice)
+            .GroupBy(member => (Status: member.Status, member.ChamberId))
+            .Where(group => group.Count() >= 2)
+            .Select(group => group.ToList())
+            .ToList();
+    }
+
+    private bool IsEligibleForCombinedVoice(Employee employee)
+    {
+        if (employee.TransactionId <= 0 ||
+            UserStoppedVoice.Contains(employee.TransactionId) ||
+            IsStopAllSnoozeActive(employee))
+        {
+            return false;
+        }
+
+        return employee.Status switch
+        {
+            "Violation" => employee.ViolationAudioEnabled,
+            "Warning" => employee.WarningAudioEnabled,
+            "Attention" => employee.HalfTimeAudioEnabled,
+            _ => false
+        };
+    }
+
+    private static string CombinedAlertType(string status) =>
+        status switch
+        {
+            "Warning" => MonitoringService.WarningType,
+            "Attention" => MonitoringService.HalfTimeType,
+            _ => MonitoringService.ViolationType
+        };
+
+    private static long CombinedVoiceId(string status, long chamberId)
+    {
+        int code = status switch
+        {
+            "Violation" => 1,
+            "Warning" => 2,
+            "Attention" => 3,
+            _ => 9
+        };
+
+        return 9_000_000_000L + (chamberId * 10) + code;
+    }
+
+    private static string JoinNames(IEnumerable<Employee> members)
+    {
+        var names = members
+            .Select(member => member.EmployeeName.Trim())
+            .Where(name => name.Length > 0)
+            .Distinct(StringComparer.OrdinalIgnoreCase)
+            .ToList();
+
+        return string.Join(" and ", names);
+    }
+
+    private async Task<HashSet<long>> SyncCombinedStatusVoiceAsync()
+    {
+        var combinedIds = new HashSet<long>();
+        if (!_configurationService.GetAlertSettings().CombineSameStatusNames)
+        {
+            StopAllCombinedVoice();
+            return combinedIds;
+        }
+
+        var groups = GetCombinedGroups();
+        var activeKeys = new HashSet<long>();
+
+        foreach (var group in groups)
+        {
+            string status = group[0].Status;
+            long key = CombinedVoiceId(status, group[0].ChamberId);
+            activeKeys.Add(key);
+
+            foreach (var member in group)
+            {
+                combinedIds.Add(member.TransactionId);
+                Voice.Stop(member.TransactionId);
+            }
+
+            var sample = group[0];
+            var speaker = new Employee
+            {
+                TransactionId = key,
+                EmployeeName = JoinNames(group),
+                ChamberName = sample.ChamberName,
+                ChamberId = sample.ChamberId,
+                TimeThresholdMinutes = sample.TimeThresholdMinutes,
+                AttentionMinutes = sample.AttentionMinutes,
+                WarningRemainingMinutes = sample.WarningRemainingMinutes,
+                HalfTimeMinutes = sample.HalfTimeMinutes,
+                WarningMessage = sample.WarningMessage,
+                ViolationMessage = sample.ViolationMessage,
+                HalfTimeMessage = sample.HalfTimeMessage
+            };
+
+            AnnouncementRequest? live = await _monitoringService.BuildLiveAnnouncementAsync(
+                speaker,
+                CombinedAlertType(status));
+
+            if (IsVoiceSnoozed(key))
+            {
+                StopCombinedVoice(key);
+                continue;
+            }
+
+            if (live == null || string.IsNullOrWhiteSpace(live.Message))
+            {
+                continue;
+            }
+
+            StartVoiceLoop(new AnnouncementRequest
+            {
+                AlertId = 0,
+                AlertType = live.AlertType,
+                Message = live.Message,
+                SecondaryMessage = live.SecondaryMessage,
+                MessageCulture = live.MessageCulture,
+                SecondaryCulture = live.SecondaryCulture,
+                TransactionId = key
+            });
+
+            if (IsVoiceSnoozed(key))
+            {
+                StopCombinedVoice(key);
+                continue;
+            }
+
+            SyncCombinedPlayingFlags(key, group.Select(member => member.TransactionId).ToHashSet());
+        }
+
+        foreach (long key in _combinedVoiceMembers.Keys.ToList())
+        {
+            if (!activeKeys.Contains(key))
+            {
+                StopCombinedVoice(key);
+            }
+        }
+
+        return combinedIds;
+    }
+
+    private void SyncCombinedPlayingFlags(long voiceId, HashSet<long> memberIds)
+    {
+        _combinedVoiceMembers.TryGetValue(voiceId, out var previous);
+        previous ??= new HashSet<long>();
+
+        foreach (long id in previous.Except(memberIds))
+        {
+            Voice.NotifyPlaying(id, false);
+        }
+
+        foreach (long id in memberIds)
+        {
+            Voice.NotifyPlaying(id, true);
+        }
+
+        _combinedVoiceMembers[voiceId] = memberIds;
+    }
+
+    private void StopCombinedVoice(long voiceId)
+    {
+        Voice.Stop(voiceId);
+        if (_combinedVoiceMembers.TryGetValue(voiceId, out var members))
+        {
+            foreach (long id in members)
+            {
+                Voice.NotifyPlaying(id, false);
+            }
+
+            _combinedVoiceMembers.Remove(voiceId);
+        }
+    }
+
+    private void StopAllCombinedVoice()
+    {
+        foreach (long key in _combinedVoiceMembers.Keys.ToList())
+        {
+            StopCombinedVoice(key);
+        }
+    }
+
+    private void ClearCombinedVoiceTracking()
+    {
+        _combinedVoiceMembers.Clear();
+    }
+
     private bool ShouldKeepContinueVoice(Employee employee)
     {
+        // Keep speaking while the member is still over time. Play count only
+        // limits how many new alert rows are created after Stop — it must not
+        // leave a current violated member silent.
         if (!employee.ViolationAudioEnabled ||
-            !ChamberAlertRule.IsContinue(employee.ViolationMaxPlayCount) ||
+            IsStopAllSnoozeActive(employee) ||
             UserStoppedVoice.Contains(employee.TransactionId))
         {
             return false;

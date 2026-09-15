@@ -17,6 +17,7 @@ public sealed class VoiceAnnouncementService : IDisposable
     private long? _currentlySpeakingKey;
 
     private readonly ConcurrentQueue<VoiceAnnouncementLine> _oneTimeAnnouncements = new();
+    private bool _preferMemberLoop;
 
     public event Action<long, bool>? VoicePlayingChanged;
 
@@ -35,6 +36,11 @@ public sealed class VoiceAnnouncementService : IDisposable
     public bool IsPlaying(long transactionId) => _active.ContainsKey(transactionId);
 
     public bool HasAnyPlaying => !_active.IsEmpty;
+
+    public void NotifyPlaying(long transactionId, bool isPlaying)
+    {
+        VoicePlayingChanged?.Invoke(transactionId, isPlaying);
+    }
 
     public void StartLooping(
         long transactionId,
@@ -163,12 +169,13 @@ public sealed class VoiceAnnouncementService : IDisposable
     }
 
     /// <summary>
-    /// Stops queued one-time (sensor) announcements and cancels if one is speaking now.
-    /// Does not stop looping employee alerts.
+    /// Stops queued sensor announcements, the emergency alarm, and the current
+    /// sensor voice. Does not stop looping employee alerts.
     /// </summary>
     public void StopOneTimeAnnouncements()
     {
         ClearOneTimeQueue();
+        EmergencySoundPlayer.CancelActivePlayback();
 
         lock (_speakLock)
         {
@@ -176,7 +183,6 @@ public sealed class VoiceAnnouncementService : IDisposable
             {
                 _cancelCurrentSpeech = true;
                 IndianOnlineTts.CancelActivePlayback();
-                EmergencySoundPlayer.CancelActivePlayback();
             }
         }
 
@@ -232,7 +238,12 @@ public sealed class VoiceAnnouncementService : IDisposable
                 }
             }
 
-            if (_oneTimeAnnouncements.TryDequeue(out VoiceAnnouncementLine? oneTimeLine))
+            bool hasMemberLoop = !_active.IsEmpty;
+            bool takeSensor =
+                !_oneTimeAnnouncements.IsEmpty &&
+                !(hasMemberLoop && _preferMemberLoop);
+
+            if (takeSensor && _oneTimeAnnouncements.TryDequeue(out VoiceAnnouncementLine? oneTimeLine))
             {
                 try
                 {
@@ -257,6 +268,7 @@ public sealed class VoiceAnnouncementService : IDisposable
                     }
                 }
 
+                _preferMemberLoop = hasMemberLoop;
                 continue;
             }
 
@@ -321,6 +333,7 @@ public sealed class VoiceAnnouncementService : IDisposable
             if (stopAfterSpeak)
             {
                 Stop(transactionId);
+                _preferMemberLoop = false;
                 continue;
             }
 
@@ -329,6 +342,8 @@ public sealed class VoiceAnnouncementService : IDisposable
                 _roundRobin.Enqueue(transactionId);
                 Thread.Sleep(250);
             }
+
+            _preferMemberLoop = false;
         }
     }
 

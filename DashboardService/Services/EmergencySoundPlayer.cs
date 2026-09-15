@@ -28,20 +28,13 @@ internal static class EmergencySoundPlayer
             return;
         }
 
-        if (TryStartMciLoop(loopFile))
-        {
-            return;
-        }
-
         var dispatcher = Application.Current?.Dispatcher;
         if (dispatcher == null)
         {
             return;
         }
 
-        // Do not block the speech thread on the UI dispatcher — that can
-        // swallow the whole announcement after login.
-        dispatcher.BeginInvoke(new Action(() =>
+        void StartPlayer()
         {
             if (!_playingUnderVoice)
             {
@@ -65,41 +58,15 @@ internal static class EmergencySoundPlayer
             {
                 System.Diagnostics.Debug.WriteLine($"Emergency start failed: {ex.Message}");
             }
-        }));
-    }
+        }
 
-    private static bool TryStartMciLoop(string loopFile)
-    {
-        string escaped = loopFile.Replace("'", "\\'", StringComparison.Ordinal);
-        lock (PlayLock)
+        if (dispatcher.CheckAccess())
         {
-            if (!string.IsNullOrEmpty(_activeAlias))
-            {
-                Mci($"stop {_activeAlias}");
-                Mci($"close {_activeAlias}");
-                _activeAlias = null;
-            }
-
-            string alias = $"srploop{Interlocked.Increment(ref _aliasSeq)}";
-            bool opened =
-                Mci($"open \"{escaped}\" type mpegvideo alias {alias}") == 0 ||
-                Mci($"open \"{escaped}\" alias {alias}") == 0;
-
-            if (!opened)
-            {
-                return false;
-            }
-
-            _activeAlias = alias;
-            Mci($"setaudio {alias} volume to 350");
-            if (Mci($"play {alias} repeat") != 0 && Mci($"play {alias}") != 0)
-            {
-                Mci($"close {alias}");
-                _activeAlias = null;
-                return false;
-            }
-
-            return true;
+            StartPlayer();
+        }
+        else
+        {
+            dispatcher.BeginInvoke(new Action(StartPlayer));
         }
     }
 
@@ -243,12 +210,13 @@ internal static class EmergencySoundPlayer
             return;
         }
 
-        dispatcher.BeginInvoke(new Action(() =>
+        if (dispatcher.CheckAccess())
         {
-            try { _activePlayer?.Stop(); } catch { }
-            try { _activePlayer?.Close(); } catch { }
-            _activePlayer = null;
-        }));
+            StopPlayerOnUi();
+            return;
+        }
+
+        dispatcher.BeginInvoke(new Action(StopPlayerOnUi));
     }
 
     private static string? ResolveSoundPath()

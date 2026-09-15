@@ -40,9 +40,21 @@ namespace DashboardService
 
         private void MainWindow_Closing(object? sender, System.ComponentModel.CancelEventArgs e)
         {
+            MessageBoxResult result = MessageBox.Show(
+                "Are you sure you want to close the application?",
+                "SRP Innovations",
+                MessageBoxButton.YesNo,
+                MessageBoxImage.Question,
+                MessageBoxResult.No);
+
+            if (result != MessageBoxResult.Yes)
+            {
+                e.Cancel = true;
+                return;
+            }
+
             CameraBackgroundMonitoringService.Instance.SessionAlertRaised -= OnCameraSessionAlert;
-            // Ensure the process exits when the user closes the window.
-            Application.Current.Shutdown();
+            LiveAlertHost.Instance.Stop();
         }
 
         public Frame MainNavigationFrame => MainFrame;
