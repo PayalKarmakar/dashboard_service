@@ -24,7 +24,20 @@ namespace DashboardService.Models
         public DateTime? ExitTime { get; set; }
         public TimeSpan? Duration { get; set; }
 
-        public string DurationDisplay => Duration.HasValue ? Duration.Value.ToString(@"hh\:mm\:ss"): "-";
+        public string DurationDisplay
+        {
+            get
+            {
+                if (!Duration.HasValue)
+                {
+                    return "-";
+                }
+
+                var span = Duration.Value;
+                int totalHours = (int)span.TotalHours;
+                return $"{totalHours:00}:{span.Minutes:00}:{span.Seconds:00}";
+            }
+        }
 
         // Allowed inside duration from the chamber TIME (MIN). Falls back to AfterMinutes.
         public int TimeThresholdMinutes { get; set; } = 60;
