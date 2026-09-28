@@ -303,12 +303,9 @@ public partial class LiveCameraPage : Page
 
     private void SetDoorLineOverlayVisible(bool previewRunning)
     {
-        bool show = previewRunning && _selectedCamera is { ShowsDoorLine: true };
-        DoorLineOverlay.Visibility = show ? Visibility.Visible : Visibility.Collapsed;
-        if (show)
-        {
-            LayoutDoorLineOverlay();
-        }
+        // Door line is drawn on the video frame by camera_service (Python).
+        // Keep WPF overlay hidden to avoid duplicate lines.
+        DoorLineOverlay.Visibility = Visibility.Collapsed;
     }
 
     private void LayoutDoorLineOverlay()
@@ -349,21 +346,21 @@ public partial class LiveCameraPage : Page
             _configurationService.GetCameraLiveSettings().ZoneDividerPercent,
             20,
             80);
-        double x = offsetX + renderW * percent / 100.0;
-        double top = offsetY;
-        double bottom = offsetY + renderH;
+        double left = offsetX;
+        double right = offsetX + renderW;
+        double y = offsetY + renderH * percent / 100.0;
 
-        DoorLine.X1 = x;
-        DoorLine.Y1 = top;
-        DoorLine.X2 = x;
-        DoorLine.Y2 = bottom;
+        DoorLine.X1 = left;
+        DoorLine.Y1 = y;
+        DoorLine.X2 = right;
+        DoorLine.Y2 = y;
 
-        Canvas.SetLeft(DoorLineOutText, Math.Max(8, x - 90));
-        Canvas.SetTop(DoorLineOutText, top + 10);
-        Canvas.SetLeft(DoorLineInText, x + 12);
-        Canvas.SetTop(DoorLineInText, top + 10);
-        Canvas.SetLeft(DoorLineLabelText, Math.Max(8, x - 42));
-        Canvas.SetTop(DoorLineLabelText, top + 34);
+        Canvas.SetLeft(DoorLineOutText, left + 8);
+        Canvas.SetTop(DoorLineOutText, Math.Max(offsetY + 8, y - 36));
+        Canvas.SetLeft(DoorLineInText, left + 8);
+        Canvas.SetTop(DoorLineInText, Math.Min(offsetY + renderH - 28, y + 8));
+        Canvas.SetLeft(DoorLineLabelText, right - 120);
+        Canvas.SetTop(DoorLineLabelText, y - 22);
     }
 
     private async Task ConfigureLocalDoorVerificationAsync(MasterCameraConfig camera)

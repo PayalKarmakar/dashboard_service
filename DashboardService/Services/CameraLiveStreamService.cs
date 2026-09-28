@@ -264,7 +264,7 @@ public sealed class CameraLiveStreamService : IDisposable
         IReadOnlyList<PersonDetection> detections,
         CameraDetectionStats stats)
     {
-        double lineX = frame.Width * _zoneDividerPercent / 100.0;
+        double lineY = frame.Height * _zoneDividerPercent / 100.0;
         int inside = 0;
         int outside = 0;
         double confidenceSum = 0;
@@ -272,9 +272,9 @@ public sealed class CameraLiveStreamService : IDisposable
         foreach (var detection in detections)
         {
             Rect rect = detection.Box;
-            double centerX = rect.X + rect.Width / 2.0;
+            double centerY = rect.Y + rect.Height / 2.0;
 
-            if (centerX < lineX)
+            if (centerY < lineY)
             {
                 outside++;
             }
@@ -306,29 +306,29 @@ public sealed class CameraLiveStreamService : IDisposable
     {
         if (_showDoorLine)
         {
-            double lineX = frame.Width * _zoneDividerPercent / 100.0;
+            double lineY = frame.Height * _zoneDividerPercent / 100.0;
             Cv2.Line(
                 frame,
-                new Point(lineX, 0),
-                new Point(lineX, frame.Height),
+                new Point(0, lineY),
+                new Point(frame.Width, lineY),
                 new Scalar(0, 220, 255),
                 2);
 
             Cv2.PutText(
                 frame,
-                "OUTSIDE",
-                new Point(12, 28),
+                "OUT (top)",
+                new Point(12, Math.Max(28, (int)lineY - 12)),
                 HersheyFonts.HersheySimplex,
-                0.8,
+                0.65,
                 new Scalar(0, 220, 255),
                 2);
 
             Cv2.PutText(
                 frame,
-                "INSIDE",
-                new Point(lineX + 12, 28),
+                "IN (bottom) - ENTRY v",
+                new Point(12, Math.Min(frame.Height - 8, (int)lineY + 28)),
                 HersheyFonts.HersheySimplex,
-                0.8,
+                0.65,
                 new Scalar(0, 220, 255),
                 2);
         }

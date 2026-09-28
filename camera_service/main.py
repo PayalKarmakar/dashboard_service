@@ -1,6 +1,7 @@
 """
 Camera person-detection service (YOLOv8 + movement line-crossing).
-Tracks persons and counts ENTRY / EXIT when they cross the door line.
+Tracks persons and counts ENTRY / EXIT when they cross the horizontal door line
+(top -> bottom = entry, bottom -> top = exit).
 """
 
 from __future__ import annotations
@@ -256,9 +257,19 @@ class CameraWorker:
             self._cap.release()
             self._cap = None
 
-    def _side_of(self, cx: float, line_x: float) -> str:
-        # Left of door line = OUTSIDE, right = INSIDE
-        return "OUT" if cx < line_x else "IN"
+    def _side_of(self, cy: float, line_y: float) -> str:
+        # Above horizontal door line = OUT (outside), below = IN (inside)
+        return "OUT" if cy < line_y else "IN"
+
+    @staticmethod
+    def _head_tracking_point(
+        x1: int, y1: int, x2: int, y2: int
+    ) -> tuple[float, float]:
+        """Overhead / top-mounted camera: track head (top of person box), not body center."""
+        box_h = max(1, y2 - y1)
+        hx = (x1 + x2) / 2.0
+        hy = y1 + box_h * 0.18
+        return hx, hy
 
     def _flush_rtsp(self) -> None:
         if self._cap is None:
@@ -300,9 +311,9 @@ class CameraWorker:
     ) -> list[tuple[int, int, int, int, float, int]]:
         model = get_model()
         h, w = frame.shape[:2]
-        line_x = w * self.zone_divider_percent / 100.0
+        line_y = h * self.zone_divider_percent / 100.0
         now = time.time()
-        match_dist = max(48.0, w * 0.12)
+        match_dist = max(48.0, min(w, h) * 0.12)
 
         # Same fast predict path as monitoring. Line-crossing uses a light
         # centroid tracker instead of ByteTrack (which dropped FPS to <1).
@@ -327,15 +338,14 @@ class CameraWorker:
                     xyxy = box.xyxy[0].tolist()
                     conf = float(box.conf[0].item()) * 100.0
                     x1, y1, x2, y2 = map(int, xyxy)
-                    cx = (x1 + x2) / 2.0
-                    cy = (y1 + y2) / 2.0
                     track_id = -1
                     if self.show_door_line:
-                        track_id = self._assign_track_id(cx, cy, match_dist, now, used_ids)
+                        hx, hy = self._head_tracking_point(x1, y1, x2, y2)
+                        track_id = self._assign_track_id(hx, hy, match_dist, now, used_ids)
                         used_ids.add(track_id)
                         seen_ids.add(track_id)
 
-                        side = self._side_of(cx, line_x)
+                        side = self._side_of(hy, line_y)
                         prev = self._track_side.get(track_id)
                         last_cross = self._track_last_cross_ts.get(track_id, 0.0)
 
@@ -344,13 +354,14 @@ class CameraWorker:
                             and prev != side
                             and (now - last_cross) >= self._cross_cooldown_sec
                         ):
+                            # Top -> bottom = ENTRY; bottom -> top = EXIT
                             if prev == "OUT" and side == "IN":
                                 self.entry_count += 1
-                                self.last_event = f"IN #{self.entry_count}"
+                                self.last_event = f"ENTRY #{self.entry_count}"
                                 self._track_last_cross_ts[track_id] = now
                             elif prev == "IN" and side == "OUT":
                                 self.exit_count += 1
-                                self.last_event = f"OUT #{self.exit_count}"
+                                self.last_event = f"EXIT #{self.exit_count}"
                                 self._track_last_cross_ts[track_id] = now
 
                         self._track_side[track_id] = side
@@ -392,32 +403,32 @@ class CameraWorker:
         boxes: list[tuple[int, int, int, int, float, int]],
     ) -> None:
         h, w = frame.shape[:2]
-        line_x = int(w * self.zone_divider_percent / 100.0)
+        line_y = int(h * self.zone_divider_percent / 100.0)
 
         if self.show_door_line:
-            cv2.line(frame, (line_x, 0), (line_x, h), (0, 220, 255), 2)
+            cv2.line(frame, (0, line_y), (w, line_y), (0, 220, 255), 2)
             cv2.putText(
                 frame,
-                "OUT  -->",
-                (max(8, line_x - 110), 28),
+                "OUT (top)",
+                (8, max(24, line_y - 12)),
                 cv2.FONT_HERSHEY_SIMPLEX,
-                0.7,
+                0.65,
                 (0, 220, 255),
                 2,
             )
             cv2.putText(
                 frame,
-                "<--  IN",
-                (line_x + 12, 28),
+                "IN (bottom)  v ENTRY",
+                (8, min(h - 8, line_y + 28)),
                 cv2.FONT_HERSHEY_SIMPLEX,
-                0.7,
+                0.65,
                 (0, 220, 255),
                 2,
             )
             cv2.putText(
                 frame,
                 "DOOR LINE",
-                (max(8, line_x - 55), 54),
+                (w - 140, line_y - 8 if line_y > 30 else line_y + 22),
                 cv2.FONT_HERSHEY_SIMPLEX,
                 0.5,
                 (0, 220, 255),
@@ -427,6 +438,10 @@ class CameraWorker:
         if self.enable_detection:
             for x1, y1, x2, y2, conf, track_id in boxes:
                 cv2.rectangle(frame, (x1, y1), (x2, y2), (0, 220, 80), 2)
+                if self.show_door_line:
+                    hx, hy = self._head_tracking_point(x1, y1, x2, y2)
+                    cv2.circle(frame, (int(hx), int(hy)), 7, (0, 255, 255), -1)
+                    cv2.circle(frame, (int(hx), int(hy)), 7, (0, 180, 180), 2)
                 label = f"ID {track_id} {conf:.0f}%" if track_id >= 0 else f"{conf:.0f}%"
                 cv2.putText(
                     frame,
