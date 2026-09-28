@@ -220,8 +220,13 @@ public partial class LiveCameraPage : Page
 
     private void BackgroundSession_FrameReady(BitmapSource frame, CameraDetectionStats stats)
     {
-        Dispatcher.Invoke(() =>
+        Dispatcher.BeginInvoke(() =>
         {
+            if (_attachedSession == null)
+            {
+                return;
+            }
+
             StreamImage.Source = frame;
             StreamStatusText.Text = stats.StatusMessage;
             UpdateStatsFromBackground(stats);
@@ -231,7 +236,7 @@ public partial class LiveCameraPage : Page
 
     private void BackgroundSession_AlertRaised(CameraDoorAlert alert)
     {
-        Dispatcher.Invoke(() => HandleAlertUi(alert));
+        Dispatcher.BeginInvoke(() => HandleAlertUi(alert));
     }
 
     private void UpdateStatsFromBackground(CameraDetectionStats stats)
@@ -567,7 +572,7 @@ public partial class LiveCameraPage : Page
 
     private void LocalStreamService_FrameReady(BitmapSource frame, CameraDetectionStats stats)
     {
-        Dispatcher.Invoke(() =>
+        Dispatcher.BeginInvoke(() =>
         {
             StreamImage.Source = frame;
             StreamStatusText.Text = stats.StatusMessage;
@@ -689,7 +694,7 @@ public partial class LiveCameraPage : Page
 
     private void LocalDoorVerificationService_AlertRaised(CameraDoorAlert alert)
     {
-        Dispatcher.Invoke(() =>
+        Dispatcher.BeginInvoke(() =>
         {
             DoorVerifyStatusText.Text =
                 $"{alert.TitleDisplay}: camera {alert.CameraPersonCount} / RFID {alert.RfidScanCount}";

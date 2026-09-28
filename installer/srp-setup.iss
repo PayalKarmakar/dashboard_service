@@ -4,7 +4,7 @@
 ; 2) Compile this script (ISCC.exe srp-setup.iss)
 
 #define MyAppName "SRP Smart Chamber Monitoring"
-#define MyAppVersion "1.0.1"
+#define MyAppVersion "1.0.3"
 #define MyAppPublisher "SRP Innovations"
 #define MyAppURL "https://codeinq.com/"
 #define MyAppExeName "SrpLauncher.exe"

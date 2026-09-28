@@ -38,29 +38,37 @@ function Find-Python {
         }
     }
 
-    foreach ($cmd in @("py", "python")) {
+    # Only 3.12 / 3.11: pinned packages (numpy 1.26.x) have no wheels for 3.13+, so pip fails there.
+    foreach ($version in @("3.12", "3.11")) {
         try {
-            $resolved = Get-Command $cmd -ErrorAction Stop
-            if ($cmd -eq "py") {
-                $out = & $resolved.Source -3.12 -c "import sys; print(sys.executable)" 2>$null
-                if (-not $out) {
-                    $out = & $resolved.Source -3 -c "import sys; print(sys.executable)" 2>$null
-                }
-                if ($out -and (Test-Path $out.Trim())) {
-                    return $out.Trim()
-                }
-            }
-            else {
-                $out = & $resolved.Source -c "import sys; print(sys.executable)" 2>$null
-                if ($out -and (Test-Path $out.Trim()) -and ($out -notmatch "WindowsApps")) {
-                    return $out.Trim()
-                }
+            $py = Get-Command "py" -ErrorAction Stop
+            $out = & $py.Source "-$version" -c "import sys; print(sys.executable)" 2>$null
+            if ($out -and (Test-Path $out.Trim())) {
+                return $out.Trim()
             }
         }
         catch { }
     }
 
+    try {
+        $resolved = Get-Command "python" -ErrorAction Stop
+        $out = & $resolved.Source -c "import sys; print(sys.executable if sys.version_info[:2] in ((3, 12), (3, 11)) else '')" 2>$null
+        if ($out -and (Test-Path $out.Trim()) -and ($out -notmatch "WindowsApps")) {
+            return $out.Trim()
+        }
+    }
+    catch { }
+
     return $null
+}
+
+function Get-VenvPythonVersion([string]$VenvPython) {
+    try {
+        return (& $VenvPython -c "import sys; print('%d.%d' % sys.version_info[:2])" 2>$null).Trim()
+    }
+    catch {
+        return ""
+    }
 }
 
 function Install-Python([string]$InstallerPath) {
@@ -117,6 +125,14 @@ try {
 
     if (-not (Test-Path $requirements)) {
         throw "requirements.txt missing: $requirements"
+    }
+
+    if (Test-Path $venvPython) {
+        $venvVersion = Get-VenvPythonVersion $venvPython
+        if ($venvVersion -notin @("3.12", "3.11")) {
+            Write-Log "Existing venv uses Python '$venvVersion' (unsupported); recreating..."
+            Remove-Item $venvDir -Recurse -Force
+        }
     }
 
     if (-not (Test-Path $venvPython)) {

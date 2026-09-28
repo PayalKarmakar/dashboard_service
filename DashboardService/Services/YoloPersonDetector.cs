@@ -9,8 +9,10 @@ public sealed class YoloPersonDetector : IDisposable
 {
     private readonly Net _net;
     private readonly double _minConfidence;
-    private readonly int _inputSize;
+    private int _inputSize;
+    private bool _inputSizeVerified;
     private const int FeatureCount = 85; // x,y,w,h,obj + 80 COCO classes
+    private const int ExportedInputSize = 640;
 
     public YoloPersonDetector(string modelPath, double minConfidence, int inputSize = 320)
     {
@@ -36,22 +38,44 @@ public sealed class YoloPersonDetector : IDisposable
 
         try
         {
-            using var blob = CvDnn.BlobFromImage(
-                frame,
-                scaleFactor: 1.0 / 255.0,
-                size: new Size(_inputSize, _inputSize),
-                mean: new Scalar(),
-                swapRB: true,
-                crop: false);
-
-            _net.SetInput(blob);
-            using var output = _net.Forward();
-            return ParseDetections(output, frame.Width, frame.Height);
+            var detections = RunInference(frame);
+            _inputSizeVerified = true;
+            return detections;
+        }
+        catch when (!_inputSizeVerified && _inputSize != ExportedInputSize)
+        {
+            // yolov5n.onnx is exported with a fixed 640x640 input; other sizes fail in the Reshape layer.
+            _inputSize = ExportedInputSize;
+            try
+            {
+                var detections = RunInference(frame);
+                _inputSizeVerified = true;
+                return detections;
+            }
+            catch
+            {
+                return [];
+            }
         }
         catch
         {
             return [];
         }
+    }
+
+    private List<PersonDetection> RunInference(Mat frame)
+    {
+        using var blob = CvDnn.BlobFromImage(
+            frame,
+            scaleFactor: 1.0 / 255.0,
+            size: new Size(_inputSize, _inputSize),
+            mean: new Scalar(),
+            swapRB: true,
+            crop: false);
+
+        _net.SetInput(blob);
+        using var output = _net.Forward();
+        return ParseDetections(output, frame.Width, frame.Height);
     }
 
     private List<PersonDetection> ParseDetections(Mat output, int frameWidth, int frameHeight)
@@ -189,9 +213,16 @@ public sealed class YoloPersonDetector : IDisposable
     /// </summary>
     private static float[]? TryCopyFloats(Mat output)
     {
+        Mat? clone = null;
         try
         {
-            using var continuous = output.IsContinuous() ? output : output.Clone();
+            // Must not dispose `output`: the caller still reads its dims afterwards.
+            if (!output.IsContinuous())
+            {
+                clone = output.Clone();
+            }
+
+            Mat continuous = clone ?? output;
             long total = continuous.Total() * continuous.Channels();
             if (total <= 0 || total > int.MaxValue)
             {
@@ -216,6 +247,10 @@ public sealed class YoloPersonDetector : IDisposable
         catch
         {
             return null;
+        }
+        finally
+        {
+            clone?.Dispose();
         }
     }
 
