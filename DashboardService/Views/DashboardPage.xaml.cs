@@ -135,7 +135,7 @@ namespace DashboardService.Views
 
             _refreshTimer = new DispatcherTimer
             {
-                Interval = TimeSpan.FromSeconds(10)
+                Interval = TimeSpan.FromSeconds(2)
             };
             _refreshTimer.Tick += RefreshTimer_Tick;
             _refreshTimer.Start();
