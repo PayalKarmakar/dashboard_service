@@ -28,7 +28,18 @@ public sealed class MasterCameraConfig
 
     public bool AlertOnTailgate { get; set; } = true;
 
+    /// <summary>HORIZONTAL, VERTICAL, or DIAGONAL (corner-wise door line).</summary>
+    public string DoorLineMode { get; set; } = DoorLineOrientation.Horizontal;
+
+    /// <summary>Door line position 20–80 (horizontal: height %, vertical: width %).</summary>
+    public int? ZoneDividerPercent { get; set; }
+
     public bool IsActive { get; set; } = true;
+
+    public int GetEffectiveZoneDividerPercent(int fallback = 50) =>
+        ZoneDividerPercent is >= 20 and <= 80
+            ? ZoneDividerPercent.Value
+            : Math.Clamp(fallback, 20, 80);
 
     public string Status => IsActive ? "Active" : "Inactive";
 
@@ -53,4 +64,17 @@ public sealed class MasterCameraConfig
 
     public string RtspDisplay =>
         RtspUrl.Length > 48 ? RtspUrl[..45] + "..." : RtspUrl;
+
+    public string DoorLineOrientationDisplay =>
+        ShowsDoorLine
+            ? DoorLineOrientation.Normalize(DoorLineMode) switch
+            {
+                DoorLineOrientation.Vertical => "Vertical",
+                DoorLineOrientation.Diagonal => "Diagonal",
+                _ => "Horizontal"
+            }
+            : "—";
+
+    public string DoorLinePositionDisplay =>
+        ShowsDoorLine ? $"{GetEffectiveZoneDividerPercent(50)}%" : "—";
 }

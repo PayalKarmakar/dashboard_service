@@ -100,6 +100,8 @@
                         <DataGridTextColumn Header="RTSP" Binding="{Binding RtspDisplay}" Width="1.4*" ElementStyle="{StaticResource DataGridTextCellStyle}"/>
                         <DataGridTextColumn Header="RFID READER" Binding="{Binding LinkedReaderDisplay}" Width="1*" ElementStyle="{StaticResource DataGridTextCellStyle}"/>
                         <DataGridTextColumn Header="MATCH (S)" Binding="{Binding MatchWindowSeconds}" Width="0.7*" ElementStyle="{StaticResource DataGridTextCellStyle}"/>
+                        <DataGridTextColumn Header="DOOR LINE" Binding="{Binding DoorLineOrientationDisplay}" Width="0.85*" ElementStyle="{StaticResource DataGridTextCellStyle}"/>
+                        <DataGridTextColumn Header="LINE %" Binding="{Binding DoorLinePositionDisplay}" Width="0.65*" ElementStyle="{StaticResource DataGridTextCellStyle}"/>
                         <DataGridTextColumn Header="DETECT" Binding="{Binding DetectionDisplay}" Width="0.7*" ElementStyle="{StaticResource DataGridTextCellStyle}"/>
                         <DataGridTextColumn Header="STATUS" Binding="{Binding Status}" Width="0.7*" ElementStyle="{StaticResource DataGridTextCellStyle}"/>
                         <DataGridTemplateColumn Header="ACTION" Width="180">

@@ -27,11 +27,7 @@ public sealed class CameraMonitorSession : IDisposable
     private CancellationTokenSource? _verifyCts;
     private Task? _verifyTask;
     private bool _started;
-    private volatile bool _usePython;
-    private readonly SemaphoreSlim _streamLock = new(1, 1);
-    private DateTime _nextEngineCheckAt = DateTime.MinValue;
-
-    private static readonly TimeSpan EngineCheckInterval = TimeSpan.FromSeconds(15);
+    private bool _usePython;
 
     public CameraMonitorSession(
         MasterCameraConfig camera,
@@ -85,13 +81,43 @@ public sealed class CameraMonitorSession : IDisposable
         await _cameraAccessEventService.EnsureSchemaAsync();
 
         var settings = _configurationService.GetCameraLiveSettings();
+        int zoneDivider = _camera.GetEffectiveZoneDividerPercent(settings.ZoneDividerPercent);
         _doorVerificationService.Configure(_camera, _linkedReader);
         _occupancyVerificationService.Configure(_camera);
 
         _pythonStreamService.CameraId = _camera.CameraId.ToString();
         _pythonStreamService.PollFrames = false;
 
-        await StartStreamAsync(settings.UsePythonService, cancellationToken);
+        bool preferPython = settings.UsePythonService;
+        bool pythonUp = preferPython && await _pythonStreamService.IsAvailableAsync(cancellationToken);
+        _usePython = pythonUp;
+
+        _lastLoggedEntryCount = -1;
+        _lastLoggedExitCount = -1;
+
+        if (pythonUp)
+        {
+            await _pythonStreamService.StartAsync(
+                _camera.RtspUrl,
+                _camera.PersonDetectionEnabled,
+                settings.MinConfidence,
+                zoneDivider,
+                _camera.CameraPurpose,
+                _camera.DoorLineMode,
+                cancellationToken);
+        }
+        else
+        {
+            _opencvStreamService.Start(
+                _camera.RtspUrl,
+                _camera.PersonDetectionEnabled,
+                settings.MinConfidence,
+                zoneDivider,
+                settings.DetectEveryNFrames,
+                settings.InputSize,
+                settings.ModelPath,
+                _camera.CameraPurpose);
+        }
 
         _verifyCts = CancellationTokenSource.CreateLinkedTokenSource(cancellationToken);
         _verifyTask = Task.Run(() => VerifyLoopAsync(_verifyCts.Token), _verifyCts.Token);
@@ -99,98 +125,9 @@ public sealed class CameraMonitorSession : IDisposable
         lock (_sync)
         {
             _started = true;
-        }
-    }
-
-    /// <summary>
-    /// Starts the detection stream on Python camera_service when reachable, otherwise the OpenCV fallback.
-    /// Always stops the other engine and re-baselines crossing counters so a switch never produces fake crossings.
-    /// </summary>
-    private async Task StartStreamAsync(bool preferPython, CancellationToken cancellationToken)
-    {
-        await _streamLock.WaitAsync(cancellationToken);
-        try
-        {
-            MasterCameraConfig camera;
-            lock (_sync)
-            {
-                camera = _camera;
-            }
-
-            var settings = _configurationService.GetCameraLiveSettings();
-            bool pythonUp = preferPython && await _pythonStreamService.IsAvailableAsync(cancellationToken);
-
-            _usePython = pythonUp;
-            _doorVerificationService.Reset();
-            _lastLoggedEntryCount = -1;
-            _lastLoggedExitCount = -1;
-            _nextEngineCheckAt = DateTime.Now + EngineCheckInterval;
-
-            if (pythonUp)
-            {
-                _opencvStreamService.Stop();
-                await _pythonStreamService.StartAsync(
-                    camera.RtspUrl,
-                    camera.PersonDetectionEnabled,
-                    settings.MinConfidence,
-                    settings.ZoneDividerPercent,
-                    camera.CameraPurpose,
-                    cancellationToken);
-                _pythonStreamService.PollFrames = Volatile.Read(ref _frameSubscriberCount) > 0;
-            }
-            else
-            {
-                await _pythonStreamService.StopAsync();
-                _opencvStreamService.Start(
-                    camera.RtspUrl,
-                    camera.PersonDetectionEnabled,
-                    settings.MinConfidence,
-                    settings.ZoneDividerPercent,
-                    settings.DetectEveryNFrames,
-                    settings.InputSize,
-                    settings.ModelPath,
-                    camera.CameraPurpose);
-            }
-
             StatusMessage = pythonUp
                 ? "Background monitoring (Python)"
-                : "Background monitoring (OpenCV fallback — waiting for camera_service)";
-        }
-        finally
-        {
-            _streamLock.Release();
-        }
-    }
-
-    /// <summary>
-    /// Switches to Python camera_service once it becomes reachable, and restarts the Python stream
-    /// if camera_service was restarted and lost it.
-    /// </summary>
-    private async Task SuperviseEngineAsync(CancellationToken cancellationToken)
-    {
-        if (DateTime.Now < _nextEngineCheckAt)
-        {
-            return;
-        }
-
-        _nextEngineCheckAt = DateTime.Now + EngineCheckInterval;
-
-        if (!_configurationService.GetCameraLiveSettings().UsePythonService)
-        {
-            return;
-        }
-
-        bool pythonLostStream = _usePython
-            && string.Equals(LastStats.StatusMessage, "No active stream.", StringComparison.OrdinalIgnoreCase);
-
-        if (_usePython && !pythonLostStream)
-        {
-            return;
-        }
-
-        if (await _pythonStreamService.IsAvailableAsync(cancellationToken))
-        {
-            await StartStreamAsync(preferPython: true, cancellationToken);
+                : "Background monitoring (OpenCV)";
         }
     }
 
@@ -250,14 +187,43 @@ public sealed class CameraMonitorSession : IDisposable
             return;
         }
 
-        bool preferPython = _configurationService.GetCameraLiveSettings().UsePythonService;
-        if (_usePython || !preferPython || !await _pythonStreamService.IsAvailableAsync(cancellationToken))
+        MasterCameraConfig camera;
+        lock (_sync)
         {
-            // Already on the best available engine; restarting would only drop the live stream.
+            camera = _camera;
+        }
+
+        var settings = _configurationService.GetCameraLiveSettings();
+        int zoneDivider = camera.GetEffectiveZoneDividerPercent(settings.ZoneDividerPercent);
+        bool pollFrames = Volatile.Read(ref _frameSubscriberCount) > 0;
+
+        if (_usePython && await _pythonStreamService.IsAvailableAsync(cancellationToken))
+        {
+            await _pythonStreamService.StartAsync(
+                camera.RtspUrl,
+                camera.PersonDetectionEnabled,
+                settings.MinConfidence,
+                zoneDivider,
+                camera.CameraPurpose,
+                camera.DoorLineMode,
+                cancellationToken);
+            _pythonStreamService.PollFrames = pollFrames;
+            _lastLoggedEntryCount = -1;
+            _lastLoggedExitCount = -1;
             return;
         }
 
-        await StartStreamAsync(preferPython: true, cancellationToken);
+        _opencvStreamService.Start(
+            camera.RtspUrl,
+            camera.PersonDetectionEnabled,
+            settings.MinConfidence,
+            zoneDivider,
+            settings.DetectEveryNFrames,
+            settings.InputSize,
+            settings.ModelPath,
+            camera.CameraPurpose);
+        _lastLoggedEntryCount = -1;
+        _lastLoggedExitCount = -1;
     }
 
     public void AddFrameSubscriber()
@@ -297,7 +263,6 @@ public sealed class CameraMonitorSession : IDisposable
             _verifyBusy = true;
             try
             {
-                await SuperviseEngineAsync(cancellationToken);
                 await _doorVerificationService.ProcessDueAsync(cancellationToken);
 
                 MasterCameraConfig camera;
@@ -345,15 +310,9 @@ public sealed class CameraMonitorSession : IDisposable
         LastStats = stats;
         StatusMessage = stats.StatusMessage;
 
-        // Only Python reports cumulative line crossings; OpenCV InsideCount/OutsideCount are
-        // people currently on each side of the line and would be misread as entries/exits.
-        if (_usePython)
-        {
-            _doorVerificationService.ObserveCameraEntryCount(stats.InsideCount);
-            _doorVerificationService.ObserveCameraExitCount(stats.OutsideCount);
-            PersistCrossingDeltas(stats.InsideCount, stats.OutsideCount);
-        }
-
+        _doorVerificationService.ObserveCameraEntryCount(stats.InsideCount);
+        _doorVerificationService.ObserveCameraExitCount(stats.OutsideCount);
+        PersistCrossingDeltas(stats.InsideCount, stats.OutsideCount);
         _latestDetectedCount = stats.TotalDetected;
 
         FrameReady?.Invoke(frame, stats);
@@ -450,6 +409,5 @@ public sealed class CameraMonitorSession : IDisposable
         StopAsync().GetAwaiter().GetResult();
         _opencvStreamService.Dispose();
         _pythonStreamService.Dispose();
-        _streamLock.Dispose();
     }
 }

@@ -186,7 +186,7 @@ public partial class LiveCameraPage : Page
             ? "Preview running (background monitoring active)"
             : session.StatusMessage;
         UpdateStatsFromBackground(session.LastStats);
-        SetDoorLineOverlayVisible(true);
+        SetDoorLineOverlayVisible(false);
 
         if (_selectedCamera != null)
         {
@@ -220,13 +220,8 @@ public partial class LiveCameraPage : Page
 
     private void BackgroundSession_FrameReady(BitmapSource frame, CameraDetectionStats stats)
     {
-        Dispatcher.BeginInvoke(() =>
+        Dispatcher.Invoke(() =>
         {
-            if (_attachedSession == null)
-            {
-                return;
-            }
-
             StreamImage.Source = frame;
             StreamStatusText.Text = stats.StatusMessage;
             UpdateStatsFromBackground(stats);
@@ -236,7 +231,7 @@ public partial class LiveCameraPage : Page
 
     private void BackgroundSession_AlertRaised(CameraDoorAlert alert)
     {
-        Dispatcher.BeginInvoke(() => HandleAlertUi(alert));
+        Dispatcher.Invoke(() => HandleAlertUi(alert));
     }
 
     private void UpdateStatsFromBackground(CameraDetectionStats stats)
@@ -303,9 +298,12 @@ public partial class LiveCameraPage : Page
 
     private void SetDoorLineOverlayVisible(bool previewRunning)
     {
-        // Door line is drawn on the video frame by camera_service (Python).
-        // Keep WPF overlay hidden to avoid duplicate lines.
-        DoorLineOverlay.Visibility = Visibility.Collapsed;
+        bool show = previewRunning && _selectedCamera is { ShowsDoorLine: true };
+        DoorLineOverlay.Visibility = show ? Visibility.Visible : Visibility.Collapsed;
+        if (show)
+        {
+            LayoutDoorLineOverlay();
+        }
     }
 
     private void LayoutDoorLineOverlay()
@@ -342,25 +340,60 @@ public partial class LiveCameraPage : Page
             offsetY = (viewH - renderH) / 2.0;
         }
 
-        int percent = Math.Clamp(
-            _configurationService.GetCameraLiveSettings().ZoneDividerPercent,
-            20,
-            80);
+        var settings = _configurationService.GetCameraLiveSettings();
+        int percent = _selectedCamera?.GetEffectiveZoneDividerPercent(settings.ZoneDividerPercent) ?? settings.ZoneDividerPercent;
+        percent = Math.Clamp(percent, 20, 80);
+        string orientation = DoorLineOrientation.Normalize(_selectedCamera?.DoorLineMode);
+        double p = percent / 100.0;
         double left = offsetX;
+        double top = offsetY;
         double right = offsetX + renderW;
-        double y = offsetY + renderH * percent / 100.0;
+        double bottom = offsetY + renderH;
 
+        if (orientation == DoorLineOrientation.Vertical)
+        {
+            double x = left + renderW * p;
+            DoorLine.X1 = x;
+            DoorLine.Y1 = top;
+            DoorLine.X2 = x;
+            DoorLine.Y2 = bottom;
+            Canvas.SetLeft(DoorLineOutText, Math.Max(8, x - 90));
+            Canvas.SetTop(DoorLineOutText, top + 10);
+            Canvas.SetLeft(DoorLineInText, x + 12);
+            Canvas.SetTop(DoorLineInText, top + 10);
+            Canvas.SetLeft(DoorLineLabelText, Math.Max(8, x - 42));
+            Canvas.SetTop(DoorLineLabelText, top + 34);
+            return;
+        }
+
+        if (orientation == DoorLineOrientation.Horizontal)
+        {
+            double y = top + renderH * p;
+            DoorLine.X1 = left;
+            DoorLine.Y1 = y;
+            DoorLine.X2 = right;
+            DoorLine.Y2 = y;
+            Canvas.SetLeft(DoorLineOutText, left + 10);
+            Canvas.SetTop(DoorLineOutText, Math.Max(top + 8, y - 28));
+            Canvas.SetLeft(DoorLineInText, left + 10);
+            Canvas.SetTop(DoorLineInText, Math.Min(bottom - 24, y + 8));
+            Canvas.SetLeft(DoorLineLabelText, left + 10);
+            Canvas.SetTop(DoorLineLabelText, y + 28);
+            return;
+        }
+
+        double y0 = top + renderH * (1.0 - p);
+        double y1 = top + renderH * p;
         DoorLine.X1 = left;
-        DoorLine.Y1 = y;
+        DoorLine.Y1 = y0;
         DoorLine.X2 = right;
-        DoorLine.Y2 = y;
-
-        Canvas.SetLeft(DoorLineOutText, left + 8);
-        Canvas.SetTop(DoorLineOutText, Math.Max(offsetY + 8, y - 36));
-        Canvas.SetLeft(DoorLineInText, left + 8);
-        Canvas.SetTop(DoorLineInText, Math.Min(offsetY + renderH - 28, y + 8));
-        Canvas.SetLeft(DoorLineLabelText, right - 120);
-        Canvas.SetTop(DoorLineLabelText, y - 22);
+        DoorLine.Y2 = y1;
+        Canvas.SetLeft(DoorLineOutText, left + 10);
+        Canvas.SetTop(DoorLineOutText, top + 10);
+        Canvas.SetLeft(DoorLineInText, right - 120);
+        Canvas.SetTop(DoorLineInText, bottom - 28);
+        Canvas.SetLeft(DoorLineLabelText, left + 10);
+        Canvas.SetTop(DoorLineLabelText, top + 34);
     }
 
     private async Task ConfigureLocalDoorVerificationAsync(MasterCameraConfig camera)
@@ -505,6 +538,8 @@ public partial class LiveCameraPage : Page
                     MessageBoxImage.Warning);
             }
 
+            int zoneDivider = _selectedCamera.GetEffectiveZoneDividerPercent(settings.ZoneDividerPercent);
+
             if (pythonUp)
             {
                 _pythonStreamService.CameraId = "live-preview";
@@ -512,8 +547,9 @@ public partial class LiveCameraPage : Page
                     _selectedCamera.RtspUrl,
                     _selectedCamera.PersonDetectionEnabled,
                     settings.MinConfidence,
-                    settings.ZoneDividerPercent,
-                    _selectedCamera.CameraPurpose);
+                    zoneDivider,
+                    _selectedCamera.CameraPurpose,
+                    _selectedCamera.DoorLineMode);
             }
             else
             {
@@ -521,7 +557,7 @@ public partial class LiveCameraPage : Page
                     _selectedCamera.RtspUrl,
                     _selectedCamera.PersonDetectionEnabled,
                     settings.MinConfidence,
-                    settings.ZoneDividerPercent,
+                    zoneDivider,
                     settings.DetectEveryNFrames,
                     settings.InputSize,
                     settings.ModelPath,
@@ -569,11 +605,11 @@ public partial class LiveCameraPage : Page
 
     private void LocalStreamService_FrameReady(BitmapSource frame, CameraDetectionStats stats)
     {
-        Dispatcher.BeginInvoke(() =>
+        Dispatcher.Invoke(() =>
         {
             StreamImage.Source = frame;
             StreamStatusText.Text = stats.StatusMessage;
-            SetDoorLineOverlayVisible(true);
+            SetDoorLineOverlayVisible(false);
             LayoutDoorLineOverlay();
             DetectedCountText.Text = stats.TotalDetected.ToString();
             InsideCountText.Text = stats.InsideCount.ToString();
@@ -691,7 +727,7 @@ public partial class LiveCameraPage : Page
 
     private void LocalDoorVerificationService_AlertRaised(CameraDoorAlert alert)
     {
-        Dispatcher.BeginInvoke(() =>
+        Dispatcher.Invoke(() =>
         {
             DoorVerifyStatusText.Text =
                 $"{alert.TitleDisplay}: camera {alert.CameraPersonCount} / RFID {alert.RfidScanCount}";

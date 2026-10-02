@@ -9,20 +9,11 @@ namespace DashboardService.Services;
 
 public sealed class CameraLiveStreamService : IDisposable
 {
-    /// <summary>
-    /// Per-run state. The worker thread owns the capture and detector and is the only one that disposes them,
-    /// so Stop/Start never free native OpenCV objects that are still in use.
-    /// </summary>
-    private sealed class RunContext
-    {
-        public volatile bool Running = true;
-        public VideoCapture? Capture;
-        public YoloPersonDetector? Detector;
-        public Task<IReadOnlyList<PersonDetection>>? DetectTask;
-    }
-
+    private readonly object _sync = new();
     private Thread? _workerThread;
-    private RunContext? _run;
+    private volatile bool _running;
+    private VideoCapture? _capture;
+    private YoloPersonDetector? _detector;
     private double _minConfidence = 0.40;
     private int _zoneDividerPercent = 50;
     private int _detectEveryNFrames = 2;
@@ -52,10 +43,9 @@ public sealed class CameraLiveStreamService : IDisposable
         _modelPath = string.IsNullOrWhiteSpace(modelPath)
             ? Path.Combine(AppContext.BaseDirectory, "Models", "Vision", "yolov5n.onnx")
             : modelPath;
+        _running = true;
 
-        var run = new RunContext();
-        _run = run;
-        _workerThread = new Thread(() => RunLoopSafe(run, streamUrl, enableDetection))
+        _workerThread = new Thread(() => RunLoop(streamUrl, enableDetection))
         {
             IsBackground = true,
             Name = "CameraLiveStream"
@@ -65,11 +55,15 @@ public sealed class CameraLiveStreamService : IDisposable
 
     public void Stop()
     {
-        RunContext? run = _run;
-        _run = null;
-        if (run != null)
+        _running = false;
+
+        lock (_sync)
         {
-            run.Running = false;
+            _capture?.Release();
+            _capture?.Dispose();
+            _capture = null;
+            _detector?.Dispose();
+            _detector = null;
         }
 
         if (_workerThread != null && _workerThread.IsAlive)
@@ -80,69 +74,31 @@ public sealed class CameraLiveStreamService : IDisposable
         _workerThread = null;
     }
 
-    private void RunLoopSafe(RunContext run, string streamUrl, bool enableDetection)
-    {
-        try
-        {
-            RunLoop(run, streamUrl, enableDetection);
-        }
-        catch (Exception ex)
-        {
-            CrashLog.Write("CameraLiveStream worker", ex);
-        }
-        finally
-        {
-            try
-            {
-                run.Capture?.Release();
-                run.Capture?.Dispose();
-            }
-            catch
-            {
-                // ignore cleanup errors
-            }
-
-            run.Capture = null;
-            YoloPersonDetector? detector = run.Detector;
-            Task? pending = run.DetectTask;
-            run.Detector = null;
-            run.DetectTask = null;
-            if (pending == null || pending.IsCompleted)
-            {
-                detector?.Dispose();
-            }
-            else
-            {
-                pending.ContinueWith(_ => detector?.Dispose(), TaskScheduler.Default);
-            }
-        }
-    }
-
-    private void RunLoop(RunContext run, string streamUrl, bool enableDetection)
+    private void RunLoop(string streamUrl, bool enableDetection)
     {
         var stats = new CameraDetectionStats
         {
             IsConnected = false,
             StatusMessage = "Connecting..."
         };
-        PublishFrame(run, CreatePlaceholder("Connecting to camera..."), stats);
+        PublishFrame(CreatePlaceholder("Connecting to camera..."), stats);
 
-        if (!TryOpenCapture(run, streamUrl, stats))
+        if (!TryOpenCapture(streamUrl, stats))
         {
             return;
         }
 
-        if (enableDetection && run.Running)
+        if (enableDetection)
         {
             try
             {
-                run.Detector = new YoloPersonDetector(_modelPath, _minConfidence, _inputSize);
+                _detector = new YoloPersonDetector(_modelPath, _minConfidence, _inputSize);
                 stats.StatusMessage = "Live (YOLO)";
             }
             catch (Exception ex)
             {
                 stats.StatusMessage = $"YOLO model load failed: {ex.Message}";
-                PublishFrame(run, CreatePlaceholder(stats.StatusMessage), stats);
+                PublishFrame(CreatePlaceholder(stats.StatusMessage), stats);
                 enableDetection = false;
             }
         }
@@ -159,14 +115,14 @@ public sealed class CameraLiveStreamService : IDisposable
         IReadOnlyList<PersonDetection> lastDetections = [];
         int consecutiveFails = 0;
 
-        while (run.Running)
+        while (_running)
         {
             using var frame = new Mat();
-            bool readOk = run.Capture != null && run.Capture.Read(frame) && !frame.Empty();
+            bool readOk;
 
-            if (!run.Running)
+            lock (_sync)
             {
-                break;
+                readOk = _capture != null && _capture.Read(frame) && !frame.Empty();
             }
 
             if (!readOk)
@@ -174,11 +130,11 @@ public sealed class CameraLiveStreamService : IDisposable
                 consecutiveFails++;
                 stats.IsConnected = false;
                 stats.StatusMessage = "Stream interrupted. Retrying...";
-                PublishFrame(run, CreatePlaceholder(stats.StatusMessage), stats);
+                PublishFrame(CreatePlaceholder(stats.StatusMessage), stats);
 
                 if (consecutiveFails >= 5)
                 {
-                    TryOpenCapture(run, streamUrl, stats);
+                    TryOpenCapture(streamUrl, stats);
                     consecutiveFails = 0;
                 }
 
@@ -191,28 +147,17 @@ public sealed class CameraLiveStreamService : IDisposable
             stats.StatusMessage = enableDetection ? "Live (YOLO)" : "Live";
 
             frameIndex++;
-            if (run.DetectTask is { IsCompleted: true } finished)
+            if (enableDetection && _detector != null && frameIndex % _detectEveryNFrames == 0)
             {
-                lastDetections = finished.IsCompletedSuccessfully ? finished.Result : [];
-                run.DetectTask = null;
-            }
-
-            // Inference takes far longer than a frame interval, so it runs off the read loop;
-            // blocking reads would let the RTSP buffer grow and the preview fall behind.
-            if (enableDetection
-                && run.Detector != null
-                && run.DetectTask == null
-                && frameIndex % _detectEveryNFrames == 0)
-            {
-                YoloPersonDetector detector = run.Detector;
-                Mat detectFrame = frame.Clone();
-                run.DetectTask = Task.Run(() =>
+                try
                 {
-                    using (detectFrame)
-                    {
-                        return detector.Detect(detectFrame);
-                    }
-                });
+                    lastDetections = _detector.Detect(frame);
+                }
+                catch
+                {
+                    // Keep last good detections; never crash the UI thread/worker.
+                    lastDetections = [];
+                }
             }
 
             if (enableDetection)
@@ -236,23 +181,26 @@ public sealed class CameraLiveStreamService : IDisposable
             }
 
             DrawOverlay(frame, stats, enableDetection);
-            PublishFrame(run, BitmapSourceConverter.ToBitmapSource(frame), stats);
+            PublishFrame(BitmapSourceConverter.ToBitmapSource(frame), stats);
         }
     }
 
-    private bool TryOpenCapture(RunContext run, string streamUrl, CameraDetectionStats stats)
+    private bool TryOpenCapture(string streamUrl, CameraDetectionStats stats)
     {
-        run.Capture?.Release();
-        run.Capture?.Dispose();
-        run.Capture = new VideoCapture(streamUrl, VideoCaptureAPIs.FFMPEG);
-        run.Capture.Set(VideoCaptureProperties.BufferSize, 1);
-        run.Capture.Set(VideoCaptureProperties.Fps, 15);
+        lock (_sync)
+        {
+            _capture?.Release();
+            _capture?.Dispose();
+            _capture = new VideoCapture(streamUrl, VideoCaptureAPIs.FFMPEG);
+            _capture.Set(VideoCaptureProperties.BufferSize, 1);
+            _capture.Set(VideoCaptureProperties.Fps, 15);
+        }
 
-        if (!run.Capture.IsOpened())
+        if (_capture == null || !_capture.IsOpened())
         {
             stats.IsConnected = false;
             stats.StatusMessage = "Camera not reachable. Check RTSP URL and network.";
-            PublishFrame(run, CreatePlaceholder(stats.StatusMessage), stats);
+            PublishFrame(CreatePlaceholder(stats.StatusMessage), stats);
             return false;
         }
 
@@ -264,7 +212,7 @@ public sealed class CameraLiveStreamService : IDisposable
         IReadOnlyList<PersonDetection> detections,
         CameraDetectionStats stats)
     {
-        double lineY = frame.Height * _zoneDividerPercent / 100.0;
+        double lineX = frame.Width * _zoneDividerPercent / 100.0;
         int inside = 0;
         int outside = 0;
         double confidenceSum = 0;
@@ -272,9 +220,9 @@ public sealed class CameraLiveStreamService : IDisposable
         foreach (var detection in detections)
         {
             Rect rect = detection.Box;
-            double centerY = rect.Y + rect.Height / 2.0;
+            double centerX = rect.X + rect.Width / 2.0;
 
-            if (centerY < lineY)
+            if (centerX < lineX)
             {
                 outside++;
             }
@@ -306,29 +254,29 @@ public sealed class CameraLiveStreamService : IDisposable
     {
         if (_showDoorLine)
         {
-            double lineY = frame.Height * _zoneDividerPercent / 100.0;
+            double lineX = frame.Width * _zoneDividerPercent / 100.0;
             Cv2.Line(
                 frame,
-                new Point(0, lineY),
-                new Point(frame.Width, lineY),
+                new Point(lineX, 0),
+                new Point(lineX, frame.Height),
                 new Scalar(0, 220, 255),
                 2);
 
             Cv2.PutText(
                 frame,
-                "OUT (top)",
-                new Point(12, Math.Max(28, (int)lineY - 12)),
+                "OUTSIDE",
+                new Point(12, 28),
                 HersheyFonts.HersheySimplex,
-                0.65,
+                0.8,
                 new Scalar(0, 220, 255),
                 2);
 
             Cv2.PutText(
                 frame,
-                "IN (bottom) - ENTRY v",
-                new Point(12, Math.Min(frame.Height - 8, (int)lineY + 28)),
+                "INSIDE",
+                new Point(lineX + 12, 28),
                 HersheyFonts.HersheySimplex,
-                0.65,
+                0.8,
                 new Scalar(0, 220, 255),
                 2);
         }
@@ -363,13 +311,8 @@ public sealed class CameraLiveStreamService : IDisposable
         return bitmap;
     }
 
-    private void PublishFrame(RunContext run, BitmapSource frame, CameraDetectionStats stats)
+    private void PublishFrame(BitmapSource frame, CameraDetectionStats stats)
     {
-        if (!run.Running)
-        {
-            return;
-        }
-
         frame.Freeze();
         FrameReady?.Invoke(frame, stats);
     }

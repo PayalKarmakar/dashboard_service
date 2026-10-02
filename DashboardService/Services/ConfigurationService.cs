@@ -93,7 +93,6 @@ public class ConfigurationService
             WarningRemainingMinutes = ReadPositiveInt("AlertSettings:WarningRemainingMinutes", 10),
             RepeatAfterViolationMinutes = ReadPositiveInt("AlertSettings:RepeatAfterViolationMinutes", 5),
             VoiceEnabled = ReadBool("AlertSettings:VoiceEnabled", true),
-            CombineSameStatusNames = ReadBool("AlertSettings:CombineSameStatusNames", false),
             VoiceCulture = ReadMessage("AlertSettings:VoiceCulture", "en-IN"),
             VoiceName = ReadMessage("AlertSettings:VoiceName", string.Empty),
             VoiceRate = ReadInt("AlertSettings:VoiceRate", -1),

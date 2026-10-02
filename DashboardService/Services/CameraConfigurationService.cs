@@ -6,9 +6,47 @@ namespace DashboardService.Services;
 public sealed class CameraConfigurationService
 {
     private readonly ConfigurationService _configurationService = new();
+    private static int _schemaReady;
+
+    public async Task EnsureDoorLineOrientationColumnAsync()
+    {
+        if (Interlocked.CompareExchange(ref _schemaReady, 1, 0) == 1)
+        {
+            return;
+        }
+
+        try
+        {
+            await using var connection =
+                new NpgsqlConnection(_configurationService.GetConnectionString());
+            await connection.OpenAsync();
+
+            const string sql = @"
+                ALTER TABLE public.master_cameras
+                ADD COLUMN IF NOT EXISTS door_line_orientation VARCHAR(20) NOT NULL DEFAULT 'HORIZONTAL';
+
+                ALTER TABLE public.master_cameras
+                ADD COLUMN IF NOT EXISTS zone_divider_percent INT NULL;
+
+                UPDATE public.master_cameras
+                SET zone_divider_percent = 50
+                WHERE zone_divider_percent IS NULL;
+            ";
+
+            await using var command = new NpgsqlCommand(sql, connection);
+            await command.ExecuteNonQueryAsync();
+        }
+        catch
+        {
+            Interlocked.Exchange(ref _schemaReady, 0);
+            throw;
+        }
+    }
 
     public async Task<List<MasterCameraConfig>> GetAllAsync()
     {
+        await EnsureDoorLineOrientationColumnAsync();
+
         var cameras = new List<MasterCameraConfig>();
 
         await using var connection =
@@ -30,7 +68,9 @@ public sealed class CameraConfigurationService
                 c.match_window_seconds,
                 c.alert_on_no_rfid,
                 c.alert_on_tailgate,
-                c.is_active
+                c.is_active,
+                COALESCE(c.door_line_orientation, 'HORIZONTAL'),
+                c.zone_divider_percent
             FROM public.master_cameras c
             LEFT JOIN public.master_chambers ch
                 ON ch.chamber_id = c.chamber_id
@@ -53,6 +93,7 @@ public sealed class CameraConfigurationService
     public async Task AddAsync(MasterCameraConfig camera, long changedBy)
     {
         ValidateCamera(camera);
+        await EnsureDoorLineOrientationColumnAsync();
 
         await using var connection =
             new NpgsqlConnection(_configurationService.GetConnectionString());
@@ -71,6 +112,8 @@ public sealed class CameraConfigurationService
                 match_window_seconds,
                 alert_on_no_rfid,
                 alert_on_tailgate,
+                door_line_orientation,
+                zone_divider_percent,
                 is_active,
                 last_updated_by,
                 updated_at
@@ -87,6 +130,8 @@ public sealed class CameraConfigurationService
                 @matchWindowSeconds,
                 @alertOnNoRfid,
                 @alertOnTailgate,
+                @doorLineOrientation,
+                @zoneDividerPercent,
                 TRUE,
                 @changedBy,
                 NOW()
@@ -101,6 +146,7 @@ public sealed class CameraConfigurationService
     public async Task UpdateAsync(MasterCameraConfig camera, long changedBy)
     {
         ValidateCamera(camera);
+        await EnsureDoorLineOrientationColumnAsync();
 
         if (camera.CameraId <= 0)
         {
@@ -123,6 +169,8 @@ public sealed class CameraConfigurationService
                 match_window_seconds = @matchWindowSeconds,
                 alert_on_no_rfid = @alertOnNoRfid,
                 alert_on_tailgate = @alertOnTailgate,
+                door_line_orientation = @doorLineOrientation,
+                zone_divider_percent = @zoneDividerPercent,
                 last_updated_by = @changedBy,
                 updated_at = NOW()
             WHERE camera_id = @cameraId;
@@ -184,6 +232,8 @@ public sealed class CameraConfigurationService
         }
 
         camera.CameraPurpose = purpose;
+        camera.DoorLineMode = DoorLineOrientation.Normalize(camera.DoorLineMode);
+        camera.ZoneDividerPercent = Math.Clamp(camera.GetEffectiveZoneDividerPercent(50), 20, 80);
     }
 
     private static void BindCameraParameters(
@@ -209,6 +259,12 @@ public sealed class CameraConfigurationService
         command.Parameters.AddWithValue("matchWindowSeconds", camera.MatchWindowSeconds);
         command.Parameters.AddWithValue("alertOnNoRfid", camera.AlertOnNoRfid);
         command.Parameters.AddWithValue("alertOnTailgate", camera.AlertOnTailgate);
+        command.Parameters.AddWithValue(
+            "doorLineOrientation",
+            DoorLineOrientation.Normalize(camera.DoorLineMode));
+        command.Parameters.AddWithValue(
+            "zoneDividerPercent",
+            camera.GetEffectiveZoneDividerPercent(50));
         command.Parameters.AddWithValue("changedBy", changedBy);
     }
 
@@ -228,6 +284,9 @@ public sealed class CameraConfigurationService
             MatchWindowSeconds = reader.GetInt32(10),
             AlertOnNoRfid = reader.GetBoolean(11),
             AlertOnTailgate = reader.GetBoolean(12),
-            IsActive = reader.GetBoolean(13)
+            IsActive = reader.GetBoolean(13),
+            DoorLineMode = DoorLineOrientation.Normalize(
+                reader.IsDBNull(14) ? null : reader.GetString(14)),
+            ZoneDividerPercent = reader.IsDBNull(15) ? null : reader.GetInt32(15)
         };
 }

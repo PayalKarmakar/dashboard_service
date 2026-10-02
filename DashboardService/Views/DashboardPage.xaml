@@ -762,7 +762,7 @@
                     <!-- HEADER ABOVE IS UNCHANGED                                     -->
                     <!-- ============================================================ -->
 
-                    <Grid Grid.Row="3"  Margin="0,6,0,8">
+                    <Grid Grid.Row="3"  Margin="0,8,0,4">
 
                         <Grid.ColumnDefinitions>
                             <!-- Figma: approximately 75% -->
@@ -779,8 +779,8 @@
                             <Grid.RowDefinitions>
                                 <RowDefinition Height="Auto"/>
                                 <RowDefinition Height="0"/>
-                                <RowDefinition Height="*" MinHeight="280"/>
-                                <RowDefinition Height="*" MinHeight="260"/>
+                                <RowDefinition Height="*" MinHeight="200"/>
+                                <RowDefinition Height="*" MinHeight="200"/>
                             </Grid.RowDefinitions>
 
 
@@ -905,10 +905,10 @@
                                 <Border Grid.Row="1"
                                 Background="White"
                                 CornerRadius="16"
-                                Padding="10"
+                                Padding="16"
                                 BorderBrush="#E2E8F0"
                                 BorderThickness="1"
-                                MinHeight="156">
+                                MinHeight="210">
 
                                     <Border.Effect>
                                         <DropShadowEffect BlurRadius="18"
@@ -1241,7 +1241,7 @@
 
 
                             <Border Grid.Row="2"
-				Margin="0,10,0,10"
+				Margin="0,14,0,12"
 			
 				Background="{DynamicResource CardBgBrush}"
 				CornerRadius="18"
@@ -1258,7 +1258,7 @@
                                 <Grid>
 
                                     <Grid.RowDefinitions>
-                                        <RowDefinition Height="Auto"/>
+                                        <RowDefinition Height="58"/>
                                         <RowDefinition Height="*"/>
                                     </Grid.RowDefinitions>
 
@@ -1266,11 +1266,10 @@
                                     <!-- HEADER -->
 
                                     <Grid Grid.Row="0"
-              Margin="16,8,16,4">
+              Margin="24,0">
 
                                         <Grid.ColumnDefinitions>
                                             <ColumnDefinition Width="*"/>
-                                            <ColumnDefinition Width="Auto"/>
                                             <ColumnDefinition Width="Auto"/>
                                         </Grid.ColumnDefinitions>
 
@@ -1278,7 +1277,7 @@
                                             <StackPanel Orientation="Horizontal">
 
                                                 <TextBlock Text="Current Members"
-                                               FontSize="20"
+                                               FontSize="18"
                                                FontWeight="Bold"
                                                Foreground="{DynamicResource TextPrimaryBrush}"/>
 
@@ -1293,16 +1292,12 @@
                                             <TextBlock Text="Employees currently inside monitored chambers"
                                                FontSize="12"
                                                Foreground="{DynamicResource TextMutedBrush}"
-                                               Margin="0,2,0,0"/>
+                                               Margin="0,5,0,0"/>
 
                                         </StackPanel>
 
-                                        <controls:PaginationBar x:Name="MembersPagerBar"
-                                            Grid.Column="1"
-                                            VerticalAlignment="Center"
-                                            Margin="12,0,16,0"/>
 
-                                        <StackPanel Grid.Column="2"
+                                        <StackPanel Grid.Column="1"
                                     Orientation="Horizontal"
                                     VerticalAlignment="Center">
 
@@ -1359,10 +1354,13 @@
 
                                     <!-- DATA GRID -->
 
-                                    <DataGrid x:Name="MembersDataGrid"
-                                              Grid.Row="1"
-                                              Margin="12,0,12,8"
-                                              MinHeight="220"
+                                    <DockPanel Grid.Row="1">
+                                        <controls:PaginationBar x:Name="MembersPagerBar"
+                                            DockPanel.Dock="Bottom"
+                                            Margin="12,0,12,8"/>
+                                        <DataGrid x:Name="MembersDataGrid"
+                                              Margin="12,0,12,0" 
+                                                  
           ScrollViewer.VerticalScrollBarVisibility="Auto"
           ScrollViewer.HorizontalScrollBarVisibility="Disabled"
                  
@@ -1377,7 +1375,7 @@
                                               BorderThickness="1"
                                               BorderBrush="{DynamicResource CardBorderBrush}"
                                               Background="{DynamicResource CardBgBrush}"
-                                              RowHeight="60"
+                                              RowHeight="54"
                                               FontSize="13"
                                               IsReadOnly="True"
                                               SelectionMode="Single"
@@ -1591,13 +1589,12 @@
                                                 </DataGridTemplateColumn>
 
                                                 <!-- TIME REMAINING -->
-                                                <DataGridTemplateColumn Header="TIME REMAINING" Width="2.45*">
+                                                <DataGridTemplateColumn Header="TIME REMAINING" Width="1.85*">
                                                     <DataGridTemplateColumn.CellTemplate>
                                                         <DataTemplate>
                                                             <Border HorizontalAlignment="Left"
                                                 VerticalAlignment="Center"
-                                                MinWidth="168"
-                                                Padding="14,7"
+                                                Padding="12,7"
                                                 CornerRadius="9">
                                                                 <Border.Style>
                                                                     <Style TargetType="Border">
@@ -1627,7 +1624,6 @@
                                                                 <TextBlock Text="{Binding Countdown}"
                                                        FontSize="13"
                                                        FontWeight="Bold"
-                                                       TextWrapping="NoWrap"
                                                        VerticalAlignment="Center">
                                                                     <TextBlock.Style>
                                                                         <Style TargetType="TextBlock">
@@ -1711,20 +1707,36 @@
                                                 </DataGridTemplateColumn>
 
                                                 <!-- VOICE -->
-                                                <DataGridTemplateColumn Header="VOICE" Width="0.7*">
+                                                <DataGridTemplateColumn Header="VOICE" Width="0.95*">
                                                     <DataGridTemplateColumn.CellTemplate>
                                                         <DataTemplate>
-                                                            <Border Background="#F59E0B"
-                                                                    CornerRadius="5"
-                                                                    Padding="6,2"
-                                                                    HorizontalAlignment="Center"
-                                                                    VerticalAlignment="Center"
-                                                                    Visibility="{Binding IsVoicePlaying, Converter={StaticResource BooleanToVisibilityConverter}}">
-                                                                <TextBlock Text="{Binding VoicePlayingLabel}"
-                                                                           FontSize="9"
-                                                                           FontWeight="SemiBold"
-                                                                           Foreground="White"/>
-                                                            </Border>
+                                                            <Button Content="Stop"
+                                                Width="70"
+                                                Height="30"
+                                                FontSize="11"
+                                                FontWeight="Bold"
+                                                Cursor="Hand"
+                                                Background="#DC2626"
+                                                Foreground="White"
+                                                BorderThickness="0"
+                                                Click="StopMemberVoice_Click"
+                                                Visibility="{Binding ShowStopVoice, Converter={StaticResource BooleanToVisibilityConverter}}">
+                                                                <Button.Template>
+                                                                    <ControlTemplate TargetType="Button">
+                                                                        <Border x:Name="Bd"
+                                                            Background="{TemplateBinding Background}"
+                                                            CornerRadius="8"
+                                                            Padding="8,0">
+                                                                            <ContentPresenter HorizontalAlignment="Center" VerticalAlignment="Center"/>
+                                                                        </Border>
+                                                                        <ControlTemplate.Triggers>
+                                                                            <Trigger Property="IsMouseOver" Value="True">
+                                                                                <Setter TargetName="Bd" Property="Opacity" Value="0.9"/>
+                                                                            </Trigger>
+                                                                        </ControlTemplate.Triggers>
+                                                                    </ControlTemplate>
+                                                                </Button.Template>
+                                                            </Button>
                                                         </DataTemplate>
                                                     </DataGridTemplateColumn.CellTemplate>
                                                 </DataGridTemplateColumn>
@@ -1732,6 +1744,26 @@
                                             </DataGrid.Columns>
 
                                         </DataGrid>
+                                    </DockPanel>
+
+                                    <TextBlock Grid.Row="1"
+                                               Text="No members inside chambers"
+                                               FontSize="13"
+                                               Foreground="{DynamicResource TextMutedBrush}"
+                                               HorizontalAlignment="Center"
+                                               VerticalAlignment="Center"
+                                               IsHitTestVisible="False">
+                                        <TextBlock.Style>
+                                            <Style TargetType="TextBlock">
+                                                <Setter Property="Visibility" Value="Collapsed"/>
+                                                <Style.Triggers>
+                                                    <DataTrigger Binding="{Binding HasItems, ElementName=MembersDataGrid}" Value="False">
+                                                        <Setter Property="Visibility" Value="Visible"/>
+                                                    </DataTrigger>
+                                                </Style.Triggers>
+                                            </Style>
+                                        </TextBlock.Style>
+                                    </TextBlock>
 
                                 </Grid>
 
@@ -1754,12 +1786,12 @@
 
                                 <Grid>
                                     <Grid.RowDefinitions>
-                                        <RowDefinition Height="Auto"/>
+                                        <RowDefinition Height="58"/>
                                         <RowDefinition Height="*"/>
                                     </Grid.RowDefinitions>
 
                                     <!-- HEADER -->
-                                    <Grid Grid.Row="0" Margin="16,8,16,4">
+                                    <Grid Grid.Row="0" Margin="24,0">
                                         <Grid.ColumnDefinitions>
                                             <ColumnDefinition Width="*"/>
                                             <ColumnDefinition Width="Auto"/>
@@ -1768,7 +1800,7 @@
                                         <StackPanel VerticalAlignment="Center">
                                             <StackPanel Orientation="Horizontal">
                                                 <TextBlock Text="Violated Members"
-                                                           FontSize="20"
+                                                           FontSize="18"
                                                            FontWeight="Bold"
                                                            Foreground="{DynamicResource TextPrimaryBrush}"/>
 
@@ -1782,22 +1814,19 @@
                                             <TextBlock Text="Employees who have exceeded their permitted time"
                                                        FontSize="12"
                                                        Foreground="{DynamicResource TextMutedBrush}"
-                                                       Margin="0,2,0,0"/>
+                                                       Margin="0,5,0,0"/>
                                         </StackPanel>
-
-                                        <controls:PaginationBar x:Name="ViolatedMembersPagerBar"
-                                                               Grid.Column="1"
-                                                               VerticalAlignment="Center"
-                                                               Margin="12,0,0,0"/>
                                     </Grid>
 
-                                    <!-- DATA GRID -->
-                                    <DataGrid x:Name="ViolatedMembersDataGrid"
-                                          Grid.Row="1"
-                                          Margin="12,0,12,8"
-                                          MinHeight="200"
-                                          ScrollViewer.VerticalScrollBarVisibility="Auto"
-                                          ScrollViewer.HorizontalScrollBarVisibility="Disabled"
+                                    <!-- DATA GRID + PAGINATION -->
+                                    <DockPanel Grid.Row="1">
+                                        <controls:PaginationBar x:Name="ViolatedMembersPagerBar"
+                                                               DockPanel.Dock="Bottom"
+                                                               Margin="12,0,12,8"/>
+
+                                        <DataGrid x:Name="ViolatedMembersDataGrid"
+                                          Margin="12,0,12,0"
+                                         
                  
                                           AutoGenerateColumns="False"
                                           CanUserAddRows="False"
@@ -1810,7 +1839,9 @@
                                           BorderThickness="1"
                                           BorderBrush="{DynamicResource CardBorderBrush}"
                                           Background="{DynamicResource CardBgBrush}"
-                                          RowHeight="52"
+                                          RowHeight="54"
+                                          ScrollViewer.VerticalScrollBarVisibility="Auto"
+                                          ScrollViewer.HorizontalScrollBarVisibility="Disabled"
                                           FontSize="13"
                                           IsReadOnly="True"
                                           SelectionMode="Single"
@@ -2118,6 +2149,26 @@
                                             </DataGrid.Columns>
 
                                         </DataGrid>
+                                    </DockPanel>
+
+                                    <TextBlock Grid.Row="1"
+                                               Text="No violated members"
+                                               FontSize="13"
+                                               Foreground="{DynamicResource TextMutedBrush}"
+                                               HorizontalAlignment="Center"
+                                               VerticalAlignment="Center"
+                                               IsHitTestVisible="False">
+                                        <TextBlock.Style>
+                                            <Style TargetType="TextBlock">
+                                                <Setter Property="Visibility" Value="Collapsed"/>
+                                                <Style.Triggers>
+                                                    <DataTrigger Binding="{Binding HasItems, ElementName=ViolatedMembersDataGrid}" Value="False">
+                                                        <Setter Property="Visibility" Value="Visible"/>
+                                                    </DataTrigger>
+                                                </Style.Triggers>
+                                            </Style>
+                                        </TextBlock.Style>
+                                    </TextBlock>
                                 </Grid>
                             </Border>
                         </Grid>

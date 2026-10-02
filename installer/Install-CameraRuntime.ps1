@@ -38,37 +38,29 @@ function Find-Python {
         }
     }
 
-    # Only 3.12 / 3.11: pinned packages (numpy 1.26.x) have no wheels for 3.13+, so pip fails there.
-    foreach ($version in @("3.12", "3.11")) {
+    foreach ($cmd in @("py", "python")) {
         try {
-            $py = Get-Command "py" -ErrorAction Stop
-            $out = & $py.Source "-$version" -c "import sys; print(sys.executable)" 2>$null
-            if ($out -and (Test-Path $out.Trim())) {
-                return $out.Trim()
+            $resolved = Get-Command $cmd -ErrorAction Stop
+            if ($cmd -eq "py") {
+                $out = & $resolved.Source -3.12 -c "import sys; print(sys.executable)" 2>$null
+                if (-not $out) {
+                    $out = & $resolved.Source -3 -c "import sys; print(sys.executable)" 2>$null
+                }
+                if ($out -and (Test-Path $out.Trim())) {
+                    return $out.Trim()
+                }
+            }
+            else {
+                $out = & $resolved.Source -c "import sys; print(sys.executable)" 2>$null
+                if ($out -and (Test-Path $out.Trim()) -and ($out -notmatch "WindowsApps")) {
+                    return $out.Trim()
+                }
             }
         }
         catch { }
     }
 
-    try {
-        $resolved = Get-Command "python" -ErrorAction Stop
-        $out = & $resolved.Source -c "import sys; print(sys.executable if sys.version_info[:2] in ((3, 12), (3, 11)) else '')" 2>$null
-        if ($out -and (Test-Path $out.Trim()) -and ($out -notmatch "WindowsApps")) {
-            return $out.Trim()
-        }
-    }
-    catch { }
-
     return $null
-}
-
-function Get-VenvPythonVersion([string]$VenvPython) {
-    try {
-        return (& $VenvPython -c "import sys; print('%d.%d' % sys.version_info[:2])" 2>$null).Trim()
-    }
-    catch {
-        return ""
-    }
 }
 
 function Install-Python([string]$InstallerPath) {
@@ -127,14 +119,6 @@ try {
         throw "requirements.txt missing: $requirements"
     }
 
-    if (Test-Path $venvPython) {
-        $venvVersion = Get-VenvPythonVersion $venvPython
-        if ($venvVersion -notin @("3.12", "3.11")) {
-            Write-Log "Existing venv uses Python '$venvVersion' (unsupported); recreating..."
-            Remove-Item $venvDir -Recurse -Force
-        }
-    }
-
     if (-not (Test-Path $venvPython)) {
         Write-Log "Creating virtual environment..."
         if (Test-Path $venvDir) {
@@ -152,9 +136,20 @@ try {
     & $venvPython -m pip install --upgrade pip
     if ($LASTEXITCODE -ne 0) { throw "pip upgrade failed" }
 
+    $hasNvidia = $null -ne (Get-Command nvidia-smi -ErrorAction SilentlyContinue)
+    if ($hasNvidia) {
+        # RTX 50-series (Blackwell) needs the CUDA 12.8 PyTorch build; default pip torch is CPU-only.
+        Write-Log "NVIDIA GPU detected. Installing CUDA 12.8 PyTorch..."
+        & $venvPython -m pip install --upgrade torch torchvision --index-url https://download.pytorch.org/whl/cu128
+        if ($LASTEXITCODE -ne 0) { Write-Log "CUDA PyTorch install failed; camera will run on CPU." }
+    }
+
     Write-Log "Installing CameraService requirements (this may take several minutes)..."
     & $venvPython -m pip install -r $requirements
     if ($LASTEXITCODE -ne 0) { throw "pip install -r requirements.txt failed" }
+
+    & $venvPython -c "import torch; print('torch', torch.__version__, 'cuda', torch.cuda.is_available())" 2>&1 |
+        ForEach-Object { Write-Log $_ }
 
     Write-Log "=== Camera runtime setup OK ==="
     exit 0

@@ -13,3 +13,8 @@ camera_service/__pycache__/
 **/bin/
 **/obj/
 **/.venv/
+# Installer build outputs
+installer/output/
+installer/publish/
+installer/server-update/
+*.pt

@@ -138,6 +138,15 @@ public sealed class CameraBackgroundMonitoringService : IDisposable
             }
 
             session.UpdateConfiguration(camera, linkedReader);
+
+            try
+            {
+                await session.EnsureLineCrossingModeAsync(cancellationToken);
+            }
+            catch
+            {
+                // Keep other cameras running if one stream fails to restart.
+            }
         }
     }
 

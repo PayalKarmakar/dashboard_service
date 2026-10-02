@@ -2,7 +2,7 @@
 # Expected layout:
 #   <workspace>/dashboard_service/installer/   (this script)
 #   <workspace>/dashboard_service/DashboardService/
-#   <workspace>/rfid_service/
+#   <workspace>/rfidServiceFinal/
 #   <workspace>/sensor_service/
 
 $ErrorActionPreference = "Stop"
@@ -59,7 +59,7 @@ function Publish-App {
 }
 
 $dashboardProj = Join-Path $dashboardRoot "DashboardService\DashboardService.csproj"
-$rfidServiceProj = Join-Path $workspaceRoot "rfid_service\RfidManagementSystem\RfidManagementSystem.csproj"
+$rfidServiceProj = Join-Path $workspaceRoot "rfidServiceFinal\RfidManagementSystem\RfidManagementSystem.csproj"
 $sensorServiceProj = Join-Path $workspaceRoot "sensor_service\SmartMonitoring.SensorService\SmartMonitoring.SensorService\SmartMonitoring.SensorService.csproj"
 $cameraServiceSrc = Join-Path $dashboardRoot "camera_service"
 $launcherProj = Join-Path $installerRoot "SrpLauncher\SrpLauncher.csproj"

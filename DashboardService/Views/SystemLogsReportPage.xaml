@@ -114,10 +114,7 @@
                               Foreground="{DynamicResource TextPrimaryBrush}"
                               RowBackground="{DynamicResource CardBgBrush}"
                               AlternatingRowBackground="{DynamicResource AltRowBgBrush}"
-                              HorizontalGridLinesBrush="{DynamicResource GridLineBrush}"
-                              ScrollViewer.HorizontalScrollBarVisibility="Auto"
-                              ScrollViewer.VerticalScrollBarVisibility="Auto"
-                              ScrollViewer.CanContentScroll="False">
+                              HorizontalGridLinesBrush="{DynamicResource GridLineBrush}">
                         <DataGrid.Resources>
                             <Style TargetType="DataGridColumnHeader">
                                 <Setter Property="Background" Value="{DynamicResource DataGridHeaderBgBrush}"/>
@@ -134,20 +131,13 @@
                             </Style>
                         </DataGrid.Resources>
                         <DataGrid.Columns>
-                            <DataGridTextColumn Header="TIME" Binding="{Binding CreatedDisplay}" Width="170" MinWidth="150"/>
-                            <DataGridTextColumn Header="STATUS" Binding="{Binding StatusDisplay}" Width="110" MinWidth="90"/>
-                            <DataGridTextColumn Header="EVENT" Binding="{Binding EventType}" Width="220" MinWidth="160"/>
-                            <DataGridTextColumn Header="SERVICE" Binding="{Binding ServiceName}" Width="130" MinWidth="110"/>
-                            <DataGridTextColumn Header="LEVEL" Binding="{Binding LogLevel}" Width="80" MinWidth="70"/>
-                            <DataGridTextColumn Header="PORT" Binding="{Binding SourcePort}" Width="80" MinWidth="60"/>
-                            <DataGridTextColumn Header="MESSAGE" Binding="{Binding Message}" Width="520" MinWidth="320">
-                                <DataGridTextColumn.ElementStyle>
-                                    <Style TargetType="TextBlock">
-                                        <Setter Property="TextTrimming" Value="CharacterEllipsis"/>
-                                        <Setter Property="ToolTip" Value="{Binding Message}"/>
-                                    </Style>
-                                </DataGridTextColumn.ElementStyle>
-                            </DataGridTextColumn>
+                            <DataGridTextColumn Header="TIME" Binding="{Binding CreatedDisplay}" Width="1.4*"/>
+                            <DataGridTextColumn Header="STATUS" Binding="{Binding StatusDisplay}" Width="0.9*"/>
+                            <DataGridTextColumn Header="EVENT" Binding="{Binding EventType}" Width="1.2*"/>
+                            <DataGridTextColumn Header="SERVICE" Binding="{Binding ServiceName}" Width="1.1*"/>
+                            <DataGridTextColumn Header="LEVEL" Binding="{Binding LogLevel}" Width="0.7*"/>
+                            <DataGridTextColumn Header="PORT" Binding="{Binding SourcePort}" Width="0.7*"/>
+                            <DataGridTextColumn Header="MESSAGE" Binding="{Binding Message}" Width="2.4*"/>
                         </DataGrid.Columns>
                     </DataGrid>
                     </DockPanel>

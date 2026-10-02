@@ -19,7 +19,7 @@ public partial class ToastHostControl : UserControl
     {
         if (!Dispatcher.CheckAccess())
         {
-            Dispatcher.BeginInvoke(() => ShowToast(title, message, isCritical));
+            Dispatcher.Invoke(() => ShowToast(title, message, isCritical));
             return;
         }
 

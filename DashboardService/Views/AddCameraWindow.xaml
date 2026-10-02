@@ -169,6 +169,48 @@
                                  Style="{StaticResource FieldTextBoxStyle}"
                                  Text="10"/>
 
+                        <TextBlock Text="Door line (IN/OUT) *" Style="{StaticResource FieldLabelStyle}"/>
+                        <ComboBox x:Name="DoorLineOrientationComboBox"
+                                  Height="38"
+                                  Margin="0,0,0,8"
+                                  Style="{StaticResource ThemedComboBoxStyle}"
+                                  SelectedIndex="0">
+                            <ComboBoxItem Content="Horizontal (top OUT / bottom IN)" Tag="HORIZONTAL"/>
+                            <ComboBoxItem Content="Vertical (left OUT / right IN)" Tag="VERTICAL"/>
+                            <ComboBoxItem Content="Corner / diagonal" Tag="DIAGONAL"/>
+                        </ComboBox>
+
+                        <TextBlock Text="Door line position (20–80 %)" Style="{StaticResource FieldLabelStyle}"/>
+                        <Grid Margin="0,0,0,4">
+                            <Grid.ColumnDefinitions>
+                                <ColumnDefinition Width="*"/>
+                                <ColumnDefinition Width="Auto"/>
+                            </Grid.ColumnDefinitions>
+                            <Slider x:Name="ZoneDividerSlider"
+                                    Grid.Column="0"
+                                    Minimum="20"
+                                    Maximum="80"
+                                    TickFrequency="5"
+                                    IsSnapToTickEnabled="True"
+                                    Value="50"
+                                    VerticalAlignment="Center"
+                                    Margin="0,0,12,0"
+                                    ValueChanged="ZoneDividerSlider_ValueChanged"/>
+                            <TextBlock x:Name="ZoneDividerValueText"
+                                       Grid.Column="1"
+                                       Text="50%"
+                                       MinWidth="40"
+                                       VerticalAlignment="Center"
+                                       Foreground="{DynamicResource TextPrimaryBrush}"
+                                       FontWeight="SemiBold"/>
+                        </Grid>
+                        <TextBlock Text="Horizontal: line height · Vertical: line width · Move to match the physical door."
+                                   TextWrapping="Wrap"
+                                   FontSize="11"
+                                   Opacity="0.75"
+                                   Foreground="{DynamicResource TextSecondaryBrush}"
+                                   Margin="0,0,0,14"/>
+
                         <Border Background="{DynamicResource InputBgBrush}"
                                 BorderBrush="{DynamicResource CardBorderBrush}"
                                 BorderThickness="1"

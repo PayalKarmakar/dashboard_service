@@ -24,19 +24,6 @@ public partial class App : Application
             return;
         }
 
-        DispatcherUnhandledException += (_, args) =>
-        {
-            CrashLog.Write("UI thread", args.Exception);
-            args.Handled = true;
-        };
-        AppDomain.CurrentDomain.UnhandledException += (_, args) =>
-            CrashLog.Write("Background thread (fatal)", args.ExceptionObject as Exception);
-        TaskScheduler.UnobservedTaskException += (_, args) =>
-        {
-            CrashLog.Write("Unobserved task", args.Exception);
-            args.SetObserved();
-        };
-
         base.OnStartup(e);
         ThemeService.Initialize();
     }

@@ -93,7 +93,6 @@ namespace DashboardService.Views
             _voiceAnnouncementService = LiveAlertHost.Instance.Voice;
             _userStoppedVoice = LiveAlertHost.Instance.UserStoppedVoice;
             _voiceAnnouncementService.VoicePlayingChanged += VoiceAnnouncementService_VoicePlayingChanged;
-            LiveAlertHost.Instance.SensorVoiceStateChanged += LiveAlertHost_SensorVoiceStateChanged;
             LiveAlertHost.Instance.Start();
 
             Chambers = new ObservableCollection<ChamberDashboard>();
@@ -107,7 +106,6 @@ namespace DashboardService.Views
             DisconnectedCameras = new ObservableCollection<CameraLiveStatus>();
             DeviceStatusItems = new ObservableCollection<DeviceStatusItem>();
             DashboardCameraPreviews = new ObservableCollection<DashboardCameraPreview>();
-            ViolatedMembers = new ObservableCollection<Employee>();
             ActiveSensorViolations = new ObservableCollection<SensorViolation>(); //Payal
 
 
@@ -135,7 +133,7 @@ namespace DashboardService.Views
 
             _refreshTimer = new DispatcherTimer
             {
-                Interval = TimeSpan.FromSeconds(2)
+                Interval = TimeSpan.FromSeconds(10)
             };
             _refreshTimer.Tick += RefreshTimer_Tick;
             _refreshTimer.Start();
@@ -300,7 +298,6 @@ namespace DashboardService.Views
             _sensorBlinkTimer.Stop();
             ThemeService.ThemeChanged -= ThemeService_ThemeChanged;
             _voiceAnnouncementService.VoicePlayingChanged -= VoiceAnnouncementService_VoicePlayingChanged;
-            LiveAlertHost.Instance.SensorVoiceStateChanged -= LiveAlertHost_SensorVoiceStateChanged;
             DetachAllCameraPreviews();
         }
 
@@ -322,7 +319,7 @@ namespace DashboardService.Views
             foreach (var employee in Employees)
             {
                 employee.IsVoicePlaying =
-                    LiveAlertHost.Instance.IsMemberVoiceActive(employee.TransactionId);
+                    _voiceAnnouncementService.IsPlaying(employee.TransactionId);
             }
 
             UpdateStopAllButtonVisibility();
@@ -344,7 +341,8 @@ namespace DashboardService.Views
 
         private void StopSensorVoice_Click(object sender, RoutedEventArgs e)
         {
-            LiveAlertHost.Instance.PauseSensorVoice();
+            _sensorVoiceEnabled = false;
+            _voiceAnnouncementService.StopOneTimeAnnouncements();
             UpdateSensorVoiceButtons();
         }
 
@@ -364,11 +362,6 @@ namespace DashboardService.Views
             }
         }
 
-        private void LiveAlertHost_SensorVoiceStateChanged(bool enabled)
-        {
-            Dispatcher.Invoke(UpdateSensorVoiceButtons);
-        }
-
         private void UpdateSensorVoiceButtons()
         {
             if (StopSensorVoiceButton == null || StartSensorVoiceButton == null)
@@ -376,16 +369,8 @@ namespace DashboardService.Views
                 return;
             }
 
-            var settings = _configurationService.GetSensorAlertSettings();
-            int resumeSeconds = settings.RepeatAfterSeconds > 0
-                ? settings.RepeatAfterSeconds
-                : Math.Max(1, settings.RepeatAfterMinutes) * 60;
             StopSensorVoiceButton.IsEnabled = _sensorVoiceEnabled;
             StartSensorVoiceButton.IsEnabled = !_sensorVoiceEnabled;
-            StopSensorVoiceButton.ToolTip =
-                $"Stop sensor voice and alarm. They resume after {resumeSeconds} seconds, or click Start Voice.";
-            StartSensorVoiceButton.ToolTip =
-                "Start sensor voice and alarm immediately.";
         }
 
         private void StopMemberVoice_Click(object sender, RoutedEventArgs e)
@@ -395,20 +380,29 @@ namespace DashboardService.Views
                 return;
             }
 
-            LiveAlertHost.Instance.StopMemberVoice(employee.TransactionId);
+            if (_voiceAnnouncementService.IsPlaying(employee.TransactionId))
+            {
+                _userStoppedVoice.Add(employee.TransactionId);
+            }
+
+            _voiceAnnouncementService.Stop(employee.TransactionId);
             employee.IsVoicePlaying = false;
             UpdateStopAllButtonVisibility();
         }
 
         private void StopAllVoice_Click(object sender, RoutedEventArgs e)
         {
-            LiveAlertHost.Instance.StopAllMemberVoice();
-
             foreach (var employee in Employees)
             {
+                if (_voiceAnnouncementService.IsPlaying(employee.TransactionId))
+                {
+                    _userStoppedVoice.Add(employee.TransactionId);
+                }
+
                 employee.IsVoicePlaying = false;
             }
 
+            _voiceAnnouncementService.StopAll();
             UpdateStopAllButtonVisibility();
         }
 
@@ -485,7 +479,7 @@ namespace DashboardService.Views
             catch (Exception ex)
             {
                 _refreshTimer.Stop();
-                _sensorReadingTimer.Stop();
+            _sensorReadingTimer.Stop();
                 MessageBox.Show(ex.Message, "Dashboard",MessageBoxButton.OK,MessageBoxImage.Error);
             }
         }
@@ -1228,7 +1222,12 @@ namespace DashboardService.Views
                 Employees,
                 stopMemberVoice: transactionId =>
                 {
-                    LiveAlertHost.Instance.StopMemberVoice(transactionId);
+                    if (_voiceAnnouncementService.IsPlaying(transactionId))
+                    {
+                        _userStoppedVoice.Add(transactionId);
+                    }
+
+                    _voiceAnnouncementService.Stop(transactionId);
                     foreach (var employee in Employees.Where(x => x.TransactionId == transactionId))
                     {
                         employee.IsVoicePlaying = false;
@@ -1238,16 +1237,21 @@ namespace DashboardService.Views
                 },
                 stopAllVoice: () =>
                 {
-                    LiveAlertHost.Instance.StopAllMemberVoice();
                     foreach (var employee in Employees)
                     {
+                        if (_voiceAnnouncementService.IsPlaying(employee.TransactionId))
+                        {
+                            _userStoppedVoice.Add(employee.TransactionId);
+                        }
+
                         employee.IsVoicePlaying = false;
                     }
 
+                    _voiceAnnouncementService.StopAll();
                     UpdateStopAllButtonVisibility();
                 },
                 isVoicePlaying: transactionId =>
-                    LiveAlertHost.Instance.IsMemberVoiceActive(transactionId),
+                    _voiceAnnouncementService.IsPlaying(transactionId),
                 hasAnyVoicePlaying: () =>
                     _voiceAnnouncementService.HasAnyPlaying,
                 subscribeVoicePlayingChanged: handler =>

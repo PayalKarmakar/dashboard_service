@@ -54,6 +54,7 @@ public sealed class CameraPythonLiveService : IDisposable
         double minConfidence,
         int zoneDividerPercent,
         string? cameraPurpose = null,
+        string? doorLineOrientation = null,
         CancellationToken cancellationToken = default)
     {
         await StopAsync();
@@ -73,7 +74,8 @@ public sealed class CameraPythonLiveService : IDisposable
             MinConfidence = minConfidence,
             ZoneDividerPercent = zoneDividerPercent,
             CameraPurpose = purpose,
-            ShowDoorLine = showDoorLine
+            ShowDoorLine = showDoorLine,
+            DoorLineOrientation = DoorLineOrientation.Normalize(doorLineOrientation)
         };
 
         using var response = await _http.PostAsJsonAsync(
@@ -280,6 +282,9 @@ public sealed class CameraPythonLiveService : IDisposable
 
         [JsonPropertyName("showDoorLine")]
         public bool ShowDoorLine { get; set; }
+
+        [JsonPropertyName("doorLineOrientation")]
+        public string DoorLineOrientation { get; set; } = "HORIZONTAL";
     }
 
     private sealed class StatusResponse

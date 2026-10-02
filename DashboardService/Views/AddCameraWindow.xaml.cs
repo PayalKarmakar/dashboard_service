@@ -90,11 +90,19 @@ public partial class AddCameraWindow : Window
                         break;
                     }
                 }
+
+                SelectDoorLineOrientation(_editingCamera.DoorLineMode);
+                SetZoneDividerSlider(_editingCamera.GetEffectiveZoneDividerPercent(50));
             }
-            else if (ChamberComboBox.Items.Count > 0)
+            else
             {
-                ChamberComboBox.SelectedIndex = 0;
-                ReaderComboBox.SelectedIndex = 0;
+                SelectDoorLineOrientation(DoorLineOrientation.Horizontal);
+                SetZoneDividerSlider(50);
+                if (ChamberComboBox.Items.Count > 0)
+                {
+                    ChamberComboBox.SelectedIndex = 0;
+                    ReaderComboBox.SelectedIndex = 0;
+                }
             }
 
             NameTextBox.Focus();
@@ -279,6 +287,8 @@ public partial class AddCameraWindow : Window
             MatchWindowSeconds = matchWindow,
             AlertOnNoRfid = AlertNoRfidCheckBox.IsChecked == true,
             AlertOnTailgate = AlertTailgateCheckBox.IsChecked == true,
+            DoorLineMode = GetSelectedDoorLineOrientation(),
+            ZoneDividerPercent = (int)Math.Round(ZoneDividerSlider.Value),
             IsActive = _editingCamera?.IsActive ?? true
         };
 
@@ -304,6 +314,52 @@ public partial class AddCameraWindow : Window
     private void Cancel_Click(object sender, RoutedEventArgs e)
     {
         DialogResult = false;
+    }
+
+    private void SelectDoorLineOrientation(string? orientation)
+    {
+        string normalized = DoorLineOrientation.Normalize(orientation);
+        foreach (ComboBoxItem item in DoorLineOrientationComboBox.Items)
+        {
+            if (item.Tag is string tag &&
+                tag.Equals(normalized, StringComparison.OrdinalIgnoreCase))
+            {
+                DoorLineOrientationComboBox.SelectedItem = item;
+                return;
+            }
+        }
+
+        DoorLineOrientationComboBox.SelectedIndex = 0;
+    }
+
+    private string GetSelectedDoorLineOrientation()
+    {
+        if (DoorLineOrientationComboBox.SelectedItem is ComboBoxItem item &&
+            item.Tag is string tag &&
+            !string.IsNullOrWhiteSpace(tag))
+        {
+            return DoorLineOrientation.Normalize(tag);
+        }
+
+        return DoorLineOrientation.Horizontal;
+    }
+
+    private void SetZoneDividerSlider(int percent)
+    {
+        ZoneDividerSlider.Value = Math.Clamp(percent, 20, 80);
+        ZoneDividerValueText.Text = $"{(int)ZoneDividerSlider.Value}%";
+    }
+
+    private void ZoneDividerSlider_ValueChanged(
+        object sender,
+        RoutedPropertyChangedEventArgs<double> e)
+    {
+        if (ZoneDividerValueText == null)
+        {
+            return;
+        }
+
+        ZoneDividerValueText.Text = $"{(int)Math.Round(e.NewValue)}%";
     }
 
     private sealed class ChamberOption
