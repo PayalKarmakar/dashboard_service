@@ -1164,11 +1164,6 @@ namespace DashboardService.Views
             int rfidInside = Employees.Count;
             MonitoringCameraCapacityText.Text = $"/{rfidInside}";
 
-            var liveSettings = _configurationService.GetCameraLiveSettings();
-            bool showPerCamera = liveSettings.ShowPerMonitoringCameraCounts;
-            MonitoringCameraBreakdownText.Visibility = Visibility.Collapsed;
-            MonitoringCameraBreakdownText.Text = string.Empty;
-
             if (!CameraBackgroundMonitoringService.Instance.IsEnabled)
             {
                 MonitoringCameraCountText.Text = "—";
@@ -1194,19 +1189,11 @@ namespace DashboardService.Views
                 return;
             }
 
+            var liveSettings = _configurationService.GetCameraLiveSettings();
             int cameraDetected = monitoringSessions
                 .GroupBy(status => status.ChamberId)
                 .Sum(group => liveSettings.AggregateMonitoringCounts(
                     group.Select(item => item.DetectedCount)));
-
-            if (showPerCamera && monitoringSessions.Count > 1)
-            {
-                string joined = string.Join(
-                    " + ",
-                    monitoringSessions.Select(status => status.DetectedCount));
-                MonitoringCameraBreakdownText.Text = $"Per view: {joined}";
-                MonitoringCameraBreakdownText.Visibility = Visibility.Visible;
-            }
 
             string aggregationLabel = liveSettings.ChamberOccupancyAggregation;
             MonitoringCameraCountText.Text = cameraDetected.ToString();
