@@ -1276,7 +1276,6 @@
                                         <Grid.ColumnDefinitions>
                                             <ColumnDefinition Width="*"/>
                                             <ColumnDefinition Width="Auto"/>
-                                            <ColumnDefinition Width="Auto"/>
                                         </Grid.ColumnDefinitions>
 
                                         <StackPanel VerticalAlignment="Center">
@@ -1302,16 +1301,15 @@
 
                                         </StackPanel>
 
-                                        <controls:PaginationBar x:Name="MembersPagerBar"
-                                            Grid.Column="1"
-                                            VerticalAlignment="Center"
-                                            Margin="12,0,12,0"
-                                            ShowItemSummary="False"
-                                            HideWhenSinglePage="True"/>
+                                        <StackPanel Grid.Column="1"
+                                                    Orientation="Horizontal"
+                                                    VerticalAlignment="Center">
 
-                                        <StackPanel Grid.Column="2"
-                                    Orientation="Horizontal"
-                                    VerticalAlignment="Center">
+                                            <controls:PaginationBar x:Name="MembersPagerBar"
+                                                VerticalAlignment="Center"
+                                                Margin="0,0,12,0"
+                                                ShowItemSummary="False"
+                                                HideWhenSinglePage="True"/>
 
                                             <Button x:Name="StopAllVoiceButton"
                                     Content="Stop All Voice"
@@ -1364,12 +1362,12 @@
                                     </Grid>
 
 
-                                    <!-- DATA GRID -->
+                                    <Grid Grid.Row="1"
+                                          Margin="12,0,12,8"
+                                          MinHeight="176">
 
                                     <DataGrid x:Name="MembersDataGrid"
-                                              Grid.Row="1"
-                                              Margin="12,0,12,8"
-                                              MaxHeight="264"
+                                              Height="176"
                                               ScrollViewer.VerticalScrollBarVisibility="Disabled"
                                               ScrollViewer.HorizontalScrollBarVisibility="Disabled"
                                               AutoGenerateColumns="False"
@@ -1753,24 +1751,30 @@
 
                                         </DataGrid>
 
-                                    <TextBlock Grid.Row="1"
-                                               Text="No members inside chambers"
-                                               FontSize="13"
-                                               Foreground="{DynamicResource TextMutedBrush}"
-                                               HorizontalAlignment="Center"
-                                               VerticalAlignment="Center"
-                                               IsHitTestVisible="False">
-                                        <TextBlock.Style>
-                                            <Style TargetType="TextBlock">
-                                                <Setter Property="Visibility" Value="Collapsed"/>
-                                                <Style.Triggers>
-                                                    <DataTrigger Binding="{Binding HasItems, ElementName=MembersDataGrid}" Value="False">
-                                                        <Setter Property="Visibility" Value="Visible"/>
-                                                    </DataTrigger>
-                                                </Style.Triggers>
-                                            </Style>
-                                        </TextBlock.Style>
-                                    </TextBlock>
+                                        <Grid IsHitTestVisible="False">
+                                            <Grid.Style>
+                                                <Style TargetType="Grid">
+                                                    <Setter Property="Visibility" Value="Collapsed"/>
+                                                    <Style.Triggers>
+                                                        <DataTrigger Binding="{Binding HasItems, ElementName=MembersDataGrid}" Value="False">
+                                                            <Setter Property="Visibility" Value="Visible"/>
+                                                        </DataTrigger>
+                                                    </Style.Triggers>
+                                                </Style>
+                                            </Grid.Style>
+                                            <Grid.RowDefinitions>
+                                                <RowDefinition Height="32"/>
+                                                <RowDefinition Height="*"/>
+                                            </Grid.RowDefinitions>
+                                            <TextBlock Grid.Row="1"
+                                                       Text="No members inside chambers"
+                                                       FontSize="13"
+                                                       Foreground="{DynamicResource TextMutedBrush}"
+                                                       HorizontalAlignment="Center"
+                                                       VerticalAlignment="Center"/>
+                                        </Grid>
+
+                                    </Grid>
 
                                 </Grid>
 
@@ -1832,11 +1836,12 @@
                                                                HideWhenSinglePage="True"/>
                                     </Grid>
 
-                                    <!-- DATA GRID -->
-                                    <DataGrid x:Name="ViolatedMembersDataGrid"
-                                          Grid.Row="1"
+                                    <Grid Grid.Row="1"
                                           Margin="12,0,12,8"
-                                          MaxHeight="264"
+                                          MinHeight="176">
+
+                                    <DataGrid x:Name="ViolatedMembersDataGrid"
+                                          Height="176"
                                           AutoGenerateColumns="False"
                                           CanUserAddRows="False"
                                           CanUserDeleteRows="False"
@@ -2159,24 +2164,30 @@
 
                                         </DataGrid>
 
-                                    <TextBlock Grid.Row="1"
-                                               Text="No violated members"
-                                               FontSize="13"
-                                               Foreground="{DynamicResource TextMutedBrush}"
-                                               HorizontalAlignment="Center"
-                                               VerticalAlignment="Center"
-                                               IsHitTestVisible="False">
-                                        <TextBlock.Style>
-                                            <Style TargetType="TextBlock">
-                                                <Setter Property="Visibility" Value="Collapsed"/>
-                                                <Style.Triggers>
-                                                    <DataTrigger Binding="{Binding HasItems, ElementName=ViolatedMembersDataGrid}" Value="False">
-                                                        <Setter Property="Visibility" Value="Visible"/>
-                                                    </DataTrigger>
-                                                </Style.Triggers>
-                                            </Style>
-                                        </TextBlock.Style>
-                                    </TextBlock>
+                                        <Grid IsHitTestVisible="False">
+                                            <Grid.Style>
+                                                <Style TargetType="Grid">
+                                                    <Setter Property="Visibility" Value="Collapsed"/>
+                                                    <Style.Triggers>
+                                                        <DataTrigger Binding="{Binding HasItems, ElementName=ViolatedMembersDataGrid}" Value="False">
+                                                            <Setter Property="Visibility" Value="Visible"/>
+                                                        </DataTrigger>
+                                                    </Style.Triggers>
+                                                </Style>
+                                            </Grid.Style>
+                                            <Grid.RowDefinitions>
+                                                <RowDefinition Height="32"/>
+                                                <RowDefinition Height="*"/>
+                                            </Grid.RowDefinitions>
+                                            <TextBlock Grid.Row="1"
+                                                       Text="No violated members"
+                                                       FontSize="13"
+                                                       Foreground="{DynamicResource TextMutedBrush}"
+                                                       HorizontalAlignment="Center"
+                                                       VerticalAlignment="Center"/>
+                                        </Grid>
+
+                                    </Grid>
                                 </Grid>
                             </Border>
                         </Grid>
