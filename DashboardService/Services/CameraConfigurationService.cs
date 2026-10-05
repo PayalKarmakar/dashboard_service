@@ -99,6 +99,8 @@ public sealed class CameraConfigurationService
             new NpgsqlConnection(_configurationService.GetConnectionString());
         await connection.OpenAsync();
 
+        await ValidateMonitoringCameraLimitAsync(connection, camera);
+
         const string sql = @"
             INSERT INTO public.master_cameras
             (
@@ -157,6 +159,8 @@ public sealed class CameraConfigurationService
             new NpgsqlConnection(_configurationService.GetConnectionString());
         await connection.OpenAsync();
 
+        await ValidateMonitoringCameraLimitAsync(connection, camera);
+
         const string sql = @"
             UPDATE public.master_cameras
             SET chamber_id = @chamberId,
@@ -187,6 +191,17 @@ public sealed class CameraConfigurationService
         await using var connection =
             new NpgsqlConnection(_configurationService.GetConnectionString());
         await connection.OpenAsync();
+
+        if (isActive)
+        {
+            var cameras = await GetAllAsync();
+            MasterCameraConfig? target = cameras.FirstOrDefault(c => c.CameraId == cameraId);
+            if (target != null)
+            {
+                target.IsActive = true;
+                await ValidateMonitoringCameraLimitAsync(connection, target);
+            }
+        }
 
         const string sql = @"
             UPDATE public.master_cameras
@@ -234,6 +249,53 @@ public sealed class CameraConfigurationService
         camera.CameraPurpose = purpose;
         camera.DoorLineMode = DoorLineOrientation.Normalize(camera.DoorLineMode);
         camera.ZoneDividerPercent = Math.Clamp(camera.GetEffectiveZoneDividerPercent(50), 20, 80);
+    }
+
+    private async Task ValidateMonitoringCameraLimitAsync(
+        NpgsqlConnection connection,
+        MasterCameraConfig camera)
+    {
+        if (!camera.IsActive
+            || !string.Equals(
+                camera.CameraPurpose,
+                "MONITORING",
+                StringComparison.OrdinalIgnoreCase))
+        {
+            return;
+        }
+
+        int max = _configurationService.GetCameraLiveSettings().MaxMonitoringCamerasPerChamber;
+        int count = await CountActiveMonitoringCamerasAsync(
+            connection,
+            camera.ChamberId,
+            camera.CameraId);
+
+        if (count >= max)
+        {
+            throw new InvalidOperationException(
+                $"This chamber already has the maximum of {max} active monitoring cameras.");
+        }
+    }
+
+    private static async Task<int> CountActiveMonitoringCamerasAsync(
+        NpgsqlConnection connection,
+        long chamberId,
+        long excludeCameraId)
+    {
+        const string sql = @"
+            SELECT COUNT(*)
+            FROM public.master_cameras
+            WHERE chamber_id = @chamberId
+              AND is_active = TRUE
+              AND UPPER(camera_purpose) = 'MONITORING'
+              AND camera_id <> @excludeCameraId;
+        ";
+
+        await using var command = new NpgsqlCommand(sql, connection);
+        command.Parameters.AddWithValue("chamberId", chamberId);
+        command.Parameters.AddWithValue("excludeCameraId", excludeCameraId);
+        object? result = await command.ExecuteScalarAsync();
+        return Convert.ToInt32(result);
     }
 
     private static void BindCameraParameters(

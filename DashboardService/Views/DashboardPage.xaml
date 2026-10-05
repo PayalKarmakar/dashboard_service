@@ -482,6 +482,20 @@
 
                                         </StackPanel>
 
+                                        <ItemsControl x:Name="MonitoringCameraCountsItemsControl"
+                                                      Margin="0,4,0,0"
+                                                      Visibility="Collapsed">
+                                            <ItemsControl.ItemTemplate>
+                                                <DataTemplate>
+                                                    <TextBlock Text="{Binding DisplayText}"
+                                                               FontSize="11"
+                                                               Foreground="#8FA9C8"
+                                                               TextTrimming="CharacterEllipsis"
+                                                               MaxWidth="220"/>
+                                                </DataTemplate>
+                                            </ItemsControl.ItemTemplate>
+                                        </ItemsControl>
+
                                     </StackPanel>
 
                                 </Grid>

@@ -80,8 +80,32 @@ public class ConfigurationService
             UsePythonService = ReadBool("CameraLiveSettings:UsePythonService", true),
             ShowEntryExitStats = ReadBool("CameraLiveSettings:ShowEntryExitStats", true),
             BackgroundMonitoringEnabled = ReadBool("CameraLiveSettings:BackgroundMonitoringEnabled", true),
-            VoiceEnabled = ReadBool("CameraLiveSettings:VoiceEnabled", true)
+            VoiceEnabled = ReadBool("CameraLiveSettings:VoiceEnabled", true),
+            MaxMonitoringCamerasPerChamber = Math.Clamp(
+                ReadPositiveInt("CameraLiveSettings:MaxMonitoringCamerasPerChamber", 6),
+                1,
+                12),
+            ShowPerMonitoringCameraCounts = ReadBool(
+                "CameraLiveSettings:ShowPerMonitoringCameraCounts",
+                true),
+            ChamberOccupancyAggregation = NormalizeMonitoringAggregation(
+                _configuration["CameraLiveSettings:ChamberOccupancyAggregation"])
         };
+    }
+
+    private static string NormalizeMonitoringAggregation(string? value)
+    {
+        if (string.Equals(value, "Max", StringComparison.OrdinalIgnoreCase))
+        {
+            return "Max";
+        }
+
+        if (string.Equals(value, "PerCamera", StringComparison.OrdinalIgnoreCase))
+        {
+            return "PerCamera";
+        }
+
+        return "Sum";
     }
 
     public AlertSettings GetAlertSettings()

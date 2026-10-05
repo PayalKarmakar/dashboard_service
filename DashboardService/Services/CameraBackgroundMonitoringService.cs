@@ -16,11 +16,21 @@ public sealed class CameraBackgroundMonitoringService : IDisposable
     private readonly VoiceAnnouncementService _voiceAnnouncementService = new();
     private readonly object _sync = new();
     private readonly Dictionary<long, CameraMonitorSession> _sessions = new();
+    private readonly CameraChamberOccupancyCoordinator _chamberOccupancy = new();
 
+    private CancellationTokenSource? _chamberOccupancyCts;
+    private Task? _chamberOccupancyTask;
     private bool _started;
 
     private CameraBackgroundMonitoringService()
     {
+        _chamberOccupancy.AlertRaised += (chamberId, alert) =>
+        {
+            long cameraId = GetStatuses()
+                .FirstOrDefault(status => status.ChamberId == chamberId)
+                ?.CameraId ?? 0;
+            SessionAlertRaised?.Invoke(cameraId, alert);
+        };
     }
 
     public static CameraBackgroundMonitoringService Instance => LazyInstance.Value;
@@ -50,6 +60,7 @@ public sealed class CameraBackgroundMonitoringService : IDisposable
         try
         {
             await ReloadAsync(cancellationToken);
+            StartChamberOccupancyLoop();
         }
         catch
         {
@@ -59,6 +70,81 @@ public sealed class CameraBackgroundMonitoringService : IDisposable
             }
 
             throw;
+        }
+    }
+
+    private void StartChamberOccupancyLoop()
+    {
+        if (_chamberOccupancyTask != null)
+        {
+            return;
+        }
+
+        _chamberOccupancyCts = new CancellationTokenSource();
+        _chamberOccupancyTask = Task.Run(
+            () => ChamberOccupancyLoopAsync(_chamberOccupancyCts.Token));
+    }
+
+    private async Task ChamberOccupancyLoopAsync(CancellationToken cancellationToken)
+    {
+        while (!cancellationToken.IsCancellationRequested)
+        {
+            try
+            {
+                var settings = _configurationService.GetCameraLiveSettings();
+                if (IsEnabled && settings.UsesChamberLevelMonitoringAggregation)
+                {
+                    var groups = GetStatuses()
+                        .Where(status =>
+                            status.IsRunning
+                            && string.Equals(
+                                status.Purpose,
+                                "MONITORING",
+                                StringComparison.OrdinalIgnoreCase))
+                        .GroupBy(status => status.ChamberId);
+
+                    foreach (var group in groups)
+                    {
+                        CameraMonitorStatus first = group.First();
+                        CameraMonitorSession? session = GetSession(first.CameraId);
+                        MasterCameraConfig? camera = session?.Camera;
+                        if (camera == null)
+                        {
+                            continue;
+                        }
+
+                        int aggregate = settings.AggregateMonitoringCounts(
+                            group.Select(item => item.DetectedCount));
+
+                        await _chamberOccupancy.EvaluateChamberAsync(
+                            first.ChamberId,
+                            first.ChamberName,
+                            camera.CameraName,
+                            aggregate,
+                            camera.MatchWindowSeconds,
+                            camera.AlertOnNoRfid,
+                            camera.AlertOnTailgate,
+                            cancellationToken);
+                    }
+                }
+            }
+            catch (OperationCanceledException)
+            {
+                break;
+            }
+            catch
+            {
+                // Keep loop alive.
+            }
+
+            try
+            {
+                await Task.Delay(1000, cancellationToken);
+            }
+            catch (OperationCanceledException)
+            {
+                break;
+            }
         }
     }
 
@@ -201,6 +287,7 @@ public sealed class CameraBackgroundMonitoringService : IDisposable
                 .Select(session => new CameraMonitorStatus
                 {
                     CameraId = session.CameraId,
+                    ChamberId = session.Camera.ChamberId,
                     CameraName = session.Camera.CameraName,
                     ChamberName = session.Camera.ChamberName,
                     Purpose = session.Camera.CameraPurpose,
@@ -216,6 +303,26 @@ public sealed class CameraBackgroundMonitoringService : IDisposable
 
     public async Task StopAsync()
     {
+        if (_chamberOccupancyCts != null)
+        {
+            _chamberOccupancyCts.Cancel();
+            try
+            {
+                if (_chamberOccupancyTask != null)
+                {
+                    await Task.WhenAny(_chamberOccupancyTask, Task.Delay(1500));
+                }
+            }
+            catch
+            {
+                // ignored
+            }
+
+            _chamberOccupancyCts.Dispose();
+            _chamberOccupancyCts = null;
+            _chamberOccupancyTask = null;
+        }
+
         List<CameraMonitorSession> sessions;
         lock (_sync)
         {
@@ -241,6 +348,8 @@ public sealed class CameraBackgroundMonitoringService : IDisposable
 public sealed class CameraMonitorStatus
 {
     public long CameraId { get; init; }
+
+    public long ChamberId { get; init; }
 
     public string CameraName { get; init; } = string.Empty;
 

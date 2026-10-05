@@ -43,6 +43,8 @@ namespace DashboardService.Views
 
         public ObservableCollection<DashboardCameraPreview> DashboardCameraPreviews { get; set; }
 
+        public ObservableCollection<MonitoringCameraCountLine> MonitoringCameraCountLines { get; set; }
+
         private readonly Dictionary<long, PreviewSessionBinding> _previewBindings = new();
 
         private readonly DispatcherTimer _countdownTimer;
@@ -106,6 +108,7 @@ namespace DashboardService.Views
             DisconnectedCameras = new ObservableCollection<CameraLiveStatus>();
             DeviceStatusItems = new ObservableCollection<DeviceStatusItem>();
             DashboardCameraPreviews = new ObservableCollection<DashboardCameraPreview>();
+            MonitoringCameraCountLines = new ObservableCollection<MonitoringCameraCountLine>();
             ActiveSensorViolations = new ObservableCollection<SensorViolation>(); //Payal
 
 
@@ -123,6 +126,7 @@ namespace DashboardService.Views
             DisconnectedCamerasItemsControl.ItemsSource = DisconnectedCameras;
             DeviceStatusItemsControl.ItemsSource = DeviceStatusItems;
             DashboardCameraPreviewsItemsControl.ItemsSource = DashboardCameraPreviews;
+            MonitoringCameraCountsItemsControl.ItemsSource = MonitoringCameraCountLines;
 
             _countdownTimer = new DispatcherTimer
             {
@@ -1161,6 +1165,11 @@ namespace DashboardService.Views
             int rfidInside = Employees.Count;
             MonitoringCameraCapacityText.Text = $"/{rfidInside}";
 
+            var liveSettings = _configurationService.GetCameraLiveSettings();
+            bool showPerCamera = liveSettings.ShowPerMonitoringCameraCounts;
+            MonitoringCameraCountLines.Clear();
+            MonitoringCameraCountsItemsControl.Visibility = Visibility.Collapsed;
+
             if (!CameraBackgroundMonitoringService.Instance.IsEnabled)
             {
                 MonitoringCameraCountText.Text = "—";
@@ -1174,6 +1183,8 @@ namespace DashboardService.Views
                 .Where(status =>
                     string.Equals(status.Purpose, "MONITORING", StringComparison.OrdinalIgnoreCase)
                     && status.IsRunning)
+                .OrderBy(status => status.ChamberName, StringComparer.OrdinalIgnoreCase)
+                .ThenBy(status => status.CameraName, StringComparer.OrdinalIgnoreCase)
                 .ToList();
 
             if (monitoringSessions.Count == 0)
@@ -1184,25 +1195,41 @@ namespace DashboardService.Views
                 return;
             }
 
-            // One monitoring camera per chamber is expected; take max per chamber then sum.
             int cameraDetected = monitoringSessions
-                .GroupBy(status => status.ChamberName, StringComparer.OrdinalIgnoreCase)
-                .Sum(group => group.Max(status => status.DetectedCount));
+                .GroupBy(status => status.ChamberId)
+                .Sum(group => liveSettings.AggregateMonitoringCounts(
+                    group.Select(item => item.DetectedCount)));
 
+            if (showPerCamera)
+            {
+                foreach (var status in monitoringSessions)
+                {
+                    MonitoringCameraCountLines.Add(new MonitoringCameraCountLine
+                    {
+                        CameraName = status.CameraName,
+                        ChamberName = status.ChamberName,
+                        DetectedCount = status.DetectedCount
+                    });
+                }
+
+                MonitoringCameraCountsItemsControl.Visibility = Visibility.Visible;
+            }
+
+            string aggregationLabel = liveSettings.ChamberOccupancyAggregation;
             MonitoringCameraCountText.Text = cameraDetected.ToString();
             MonitoringCameraCountText.ToolTip =
-                $"Camera detected: {cameraDetected} · RFID inside: {rfidInside}";
+                $"Camera detected ({aggregationLabel} per chamber): {cameraDetected} · RFID inside: {rfidInside}";
 
             if (cameraDetected > rfidInside)
             {
                 MonitoringCameraCountText.Foreground =
-                    new System.Windows.Media.SolidColorBrush(
-                        (System.Windows.Media.Color)System.Windows.Media.ColorConverter.ConvertFromString("#DC2626"));
+                    new SolidColorBrush(
+                        (Color)ColorConverter.ConvertFromString("#DC2626"));
             }
             else
             {
                 MonitoringCameraCountText.Foreground =
-                    (System.Windows.Media.Brush)FindResource("TextPrimaryBrush");
+                    (Brush)FindResource("TextPrimaryBrush");
             }
         }
 

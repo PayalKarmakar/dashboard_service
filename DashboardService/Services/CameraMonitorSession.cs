@@ -274,7 +274,9 @@ public sealed class CameraMonitorSession : IDisposable
                 if (string.Equals(
                         camera.CameraPurpose,
                         "MONITORING",
-                        StringComparison.OrdinalIgnoreCase))
+                        StringComparison.OrdinalIgnoreCase)
+                    && !_configurationService.GetCameraLiveSettings()
+                        .UsesChamberLevelMonitoringAggregation)
                 {
                     await _occupancyVerificationService.EvaluateAsync(
                         _latestDetectedCount,
