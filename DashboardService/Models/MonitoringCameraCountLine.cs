@@ -8,8 +8,6 @@ public sealed class MonitoringCameraCountLine
 
     public int DetectedCount { get; init; }
 
-    public string DisplayText =>
-        string.IsNullOrWhiteSpace(ChamberName)
-            ? $"{CameraName}: {DetectedCount}"
-            : $"{ChamberName} · {CameraName}: {DetectedCount}";
+    /// <summary>Per-line label without camera name (count only).</summary>
+    public string DisplayText => DetectedCount.ToString();
 }
