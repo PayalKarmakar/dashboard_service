@@ -43,8 +43,6 @@ namespace DashboardService.Views
 
         public ObservableCollection<DashboardCameraPreview> DashboardCameraPreviews { get; set; }
 
-        public ObservableCollection<MonitoringCameraCountLine> MonitoringCameraCountLines { get; set; }
-
         private readonly Dictionary<long, PreviewSessionBinding> _previewBindings = new();
 
         private readonly DispatcherTimer _countdownTimer;
@@ -112,7 +110,6 @@ namespace DashboardService.Views
             DisconnectedCameras = new ObservableCollection<CameraLiveStatus>();
             DeviceStatusItems = new ObservableCollection<DeviceStatusItem>();
             DashboardCameraPreviews = new ObservableCollection<DashboardCameraPreview>();
-            MonitoringCameraCountLines = new ObservableCollection<MonitoringCameraCountLine>();
             ActiveSensorViolations = new ObservableCollection<SensorViolation>(); //Payal
 
 
@@ -130,8 +127,6 @@ namespace DashboardService.Views
             DisconnectedCamerasItemsControl.ItemsSource = DisconnectedCameras;
             DeviceStatusItemsControl.ItemsSource = DeviceStatusItems;
             DashboardCameraPreviewsItemsControl.ItemsSource = DashboardCameraPreviews;
-            MonitoringCameraCountsItemsControl.ItemsSource = MonitoringCameraCountLines;
-
             _countdownTimer = new DispatcherTimer
             {
                 Interval = TimeSpan.FromSeconds(1)
@@ -1171,8 +1166,8 @@ namespace DashboardService.Views
 
             var liveSettings = _configurationService.GetCameraLiveSettings();
             bool showPerCamera = liveSettings.ShowPerMonitoringCameraCounts;
-            MonitoringCameraCountLines.Clear();
-            MonitoringCameraCountsItemsControl.Visibility = Visibility.Collapsed;
+            MonitoringCameraBreakdownText.Visibility = Visibility.Collapsed;
+            MonitoringCameraBreakdownText.Text = string.Empty;
 
             if (!CameraBackgroundMonitoringService.Instance.IsEnabled)
             {
@@ -1204,19 +1199,13 @@ namespace DashboardService.Views
                 .Sum(group => liveSettings.AggregateMonitoringCounts(
                     group.Select(item => item.DetectedCount)));
 
-            if (showPerCamera)
+            if (showPerCamera && monitoringSessions.Count > 1)
             {
-                foreach (var status in monitoringSessions)
-                {
-                    MonitoringCameraCountLines.Add(new MonitoringCameraCountLine
-                    {
-                        CameraName = status.CameraName,
-                        ChamberName = status.ChamberName,
-                        DetectedCount = status.DetectedCount
-                    });
-                }
-
-                MonitoringCameraCountsItemsControl.Visibility = Visibility.Visible;
+                string joined = string.Join(
+                    " + ",
+                    monitoringSessions.Select(status => status.DetectedCount));
+                MonitoringCameraBreakdownText.Text = $"Per view: {joined}";
+                MonitoringCameraBreakdownText.Visibility = Visibility.Visible;
             }
 
             string aggregationLabel = liveSettings.ChamberOccupancyAggregation;
