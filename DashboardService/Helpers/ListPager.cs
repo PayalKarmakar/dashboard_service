@@ -43,7 +43,7 @@ public sealed class ListPager<T> : IListPager
 
     public ListPager(int pageSize)
     {
-        _pageSize = Math.Clamp(pageSize, 5, 200);
+        _pageSize = Math.Clamp(pageSize, 3, 200);
         PageItems = new ObservableCollection<T>();
     }
 
@@ -66,7 +66,7 @@ public sealed class ListPager<T> : IListPager
         get => _pageSize;
         set
         {
-            int next = Math.Clamp(value, 5, 200);
+            int next = Math.Clamp(value, 3, 200);
             if (_pageSize == next)
             {
                 return;

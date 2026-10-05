@@ -15,9 +15,9 @@ namespace DashboardService.Views
 {
     public partial class DashboardPage : Page
     {
-        private readonly ListPager<Employee> _membersPager = new();
+        private readonly ListPager<Employee> _membersPager;
 
-        private readonly ListPager<Employee> _violatedMembersPager = new();
+        private readonly ListPager<Employee> _violatedMembersPager;
 
         public ObservableCollection<Employee> ViolatedMembers { get; set; }
 
@@ -88,6 +88,10 @@ namespace DashboardService.Views
         public DashboardPage(User currentUser)
         {
             InitializeComponent();
+
+            int dashboardMembersPageSize = _configurationService.GetDashboardMembersPageSize();
+            _membersPager = new ListPager<Employee>(dashboardMembersPageSize);
+            _violatedMembersPager = new ListPager<Employee>(dashboardMembersPageSize);
 
             _currentUser = currentUser;
             ApplyCurrentUser();

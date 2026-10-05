@@ -53,6 +53,13 @@ public class ConfigurationService
         return Math.Clamp(value, 5, 200);
     }
 
+    /// <summary>Current / Violated members tables on the dashboard home page.</summary>
+    public int GetDashboardMembersPageSize()
+    {
+        int value = ReadPositiveInt("UiSettings:DashboardMembersPageSize", 3);
+        return Math.Clamp(value, 3, 20);
+    }
+
     public CameraLiveSettings GetCameraLiveSettings()
     {
         double confidence = 0.40;
