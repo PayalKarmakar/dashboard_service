@@ -784,8 +784,8 @@
                             <Grid.RowDefinitions>
                                 <RowDefinition Height="Auto"/>
                                 <RowDefinition Height="0"/>
-                                <RowDefinition Height="Auto"/>
-                                <RowDefinition Height="Auto"/>
+                                <RowDefinition Height="*" MinHeight="150"/>
+                                <RowDefinition Height="*" MinHeight="150"/>
                             </Grid.RowDefinitions>
 
 
@@ -1246,7 +1246,7 @@
 
 
                             <Border Grid.Row="2"
-				Margin="0,14,0,12"
+				Margin="0,12,0,10"
 			
 				Background="{DynamicResource CardBgBrush}"
 				CornerRadius="18"
@@ -1264,7 +1264,7 @@
 
                                     <Grid.RowDefinitions>
                                         <RowDefinition Height="Auto"/>
-                                        <RowDefinition Height="Auto"/>
+                                        <RowDefinition Height="*"/>
                                     </Grid.RowDefinitions>
 
 
@@ -1304,6 +1304,12 @@
                                         <StackPanel Grid.Column="1"
                                                     Orientation="Horizontal"
                                                     VerticalAlignment="Center">
+
+                                            <controls:PaginationBar x:Name="MembersPagerBar"
+                                                VerticalAlignment="Center"
+                                                Margin="0,0,12,0"
+                                                ShowItemSummary="False"
+                                                HideWhenSinglePage="False"/>
 
                                             <Button x:Name="StopAllVoiceButton"
                                     Content="Stop All Voice"
@@ -1359,24 +1365,11 @@
                                     <Grid Grid.Row="1"
                                           Margin="12,0,12,10">
 
-                                        <Grid.RowDefinitions>
-                                            <RowDefinition Height="Auto"/>
-                                            <RowDefinition Height="Auto"/>
-                                        </Grid.RowDefinitions>
-
-                                        <controls:PaginationBar x:Name="MembersPagerBar"
-                                            Grid.Row="0"
-                                            HorizontalAlignment="Right"
-                                            Margin="0,0,4,6"
-                                            ShowItemSummary="False"
-                                            HideWhenSinglePage="True"/>
-
-                                    <Grid Grid.Row="1" MinHeight="182">
+                                    <Grid>
 
                                     <DataGrid x:Name="MembersDataGrid"
-                                              Height="188"
                                               ColumnHeaderHeight="32"
-                                              ScrollViewer.VerticalScrollBarVisibility="Disabled"
+                                              ScrollViewer.VerticalScrollBarVisibility="Auto"
                                               ScrollViewer.HorizontalScrollBarVisibility="Disabled"
                                               AutoGenerateColumns="False"
                                               CanUserAddRows="False"
@@ -1809,7 +1802,7 @@
                                 <Grid>
                                     <Grid.RowDefinitions>
                                         <RowDefinition Height="Auto"/>
-                                        <RowDefinition Height="Auto"/>
+                                        <RowDefinition Height="*"/>
                                     </Grid.RowDefinitions>
 
                                     <!-- HEADER -->
@@ -1838,27 +1831,20 @@
                                                        Foreground="{DynamicResource TextMutedBrush}"
                                                        Margin="0,2,0,0"/>
                                         </StackPanel>
+
+                                        <controls:PaginationBar x:Name="ViolatedMembersPagerBar"
+                                            Grid.Column="1"
+                                            VerticalAlignment="Center"
+                                            ShowItemSummary="False"
+                                            HideWhenSinglePage="False"/>
                                     </Grid>
 
                                     <Grid Grid.Row="1"
                                           Margin="12,0,12,10">
 
-                                        <Grid.RowDefinitions>
-                                            <RowDefinition Height="Auto"/>
-                                            <RowDefinition Height="Auto"/>
-                                        </Grid.RowDefinitions>
-
-                                        <controls:PaginationBar x:Name="ViolatedMembersPagerBar"
-                                            Grid.Row="0"
-                                            HorizontalAlignment="Right"
-                                            Margin="0,0,4,6"
-                                            ShowItemSummary="False"
-                                            HideWhenSinglePage="True"/>
-
-                                    <Grid Grid.Row="1" MinHeight="182">
+                                    <Grid>
 
                                     <DataGrid x:Name="ViolatedMembersDataGrid"
-                                          Height="188"
                                           ColumnHeaderHeight="32"
                                           AutoGenerateColumns="False"
                                           CanUserAddRows="False"
@@ -1872,7 +1858,7 @@
                                           BorderBrush="{DynamicResource CardBorderBrush}"
                                           Background="{DynamicResource CardBgBrush}"
                                           RowHeight="48"
-                                          ScrollViewer.VerticalScrollBarVisibility="Disabled"
+                                          ScrollViewer.VerticalScrollBarVisibility="Auto"
                                           ScrollViewer.HorizontalScrollBarVisibility="Disabled"
                                           FontSize="13"
                                           IsReadOnly="True"
